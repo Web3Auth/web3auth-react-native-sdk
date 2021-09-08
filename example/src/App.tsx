@@ -19,7 +19,7 @@ export default function App() {
         'BFDssx7rrb7p90lZ9l28PxB9fcIIai81pmOaMt1rMwzyQ-uWuG2srWRK_07Y55cNWbv2qVXVXNM-OXCW95c3TuQ',
       network: OpenloginNetwork.TESTNET,
       redirectUrl: 'com.example.openloginreactnativesdk://auth',
-    }).catch((err) => console.error(err));
+    }).then(result => console.log(`success: ${result}`)).catch(err => console.log(`error: ${err}`));
   }, []);
 
   // React.useEffect(() => {
@@ -33,7 +33,7 @@ export default function App() {
         onPress={() =>
           OpenloginReactNativeSdk.login({
             provider: LoginProvider.GOOGLE,
-          }).catch(console.error)
+          }).then(result => console.log(`success: ${result}`)).catch(err => console.log(`error: ${err}`))
         }
       />
       <Button
@@ -41,7 +41,7 @@ export default function App() {
         onPress={() =>
           OpenloginReactNativeSdk.logout({
             provider: LoginProvider.GOOGLE,
-          }).catch(console.error)
+          }).then(result => console.log(`success: ${result}`)).catch(err => console.log(`error: ${err}`))
         }
       />
       <Text>Result: {JSON.stringify(authState)}</Text>
