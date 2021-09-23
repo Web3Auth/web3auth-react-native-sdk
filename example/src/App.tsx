@@ -1,18 +1,56 @@
 import * as React from 'react';
 
-import { StyleSheet, View, Text } from 'react-native';
-import OpenloginReactNativeSdk from 'openlogin-react-native-sdk';
+import { StyleSheet, View, Text, Button } from 'react-native';
+import OpenloginReactNativeSdk, {
+  AuthState,
+  LoginProvider,
+  OpenloginNetwork,
+} from 'openlogin-react-native-sdk';
 
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
+  const [authState, setAuthState] = React.useState<Partial<AuthState>>({});
 
   React.useEffect(() => {
-    OpenloginReactNativeSdk.multiply(3, 7).then(setResult);
+    OpenloginReactNativeSdk.addOpenloginAuthStateChangedEventListener(
+      setAuthState
+    );
+    OpenloginReactNativeSdk.init({
+      clientId:
+        'BFDssx7rrb7p90lZ9l28PxB9fcIIai81pmOaMt1rMwzyQ-uWuG2srWRK_07Y55cNWbv2qVXVXNM-OXCW95c3TuQ',
+      network: OpenloginNetwork.TESTNET,
+      redirectUrl: 'com.example.openloginreactnativesdk://auth',
+    })
+      .then((result) => console.log(`success: ${result}`))
+      .catch((err) => console.log(`error: ${err}`));
   }, []);
+
+  // React.useEffect(() => {
+  //   // OpenloginReactNativeSdk.multiply(3, 7).then(setResult);
+  // }, []);
 
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <Button
+        title="Login"
+        onPress={() =>
+          OpenloginReactNativeSdk.login({
+            provider: LoginProvider.GOOGLE,
+          })
+            .then((result) => console.log(`success: ${result}`))
+            .catch((err) => console.log(`error: ${err}`))
+        }
+      />
+      <Button
+        title="Logout"
+        onPress={() =>
+          OpenloginReactNativeSdk.logout({
+            provider: LoginProvider.GOOGLE,
+          })
+            .then((result) => console.log(`success: ${result}`))
+            .catch((err) => console.log(`error: ${err}`))
+        }
+      />
+      <Text>Result: {JSON.stringify(authState)}</Text>
     </View>
   );
 }
