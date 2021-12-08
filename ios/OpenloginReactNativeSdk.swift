@@ -2,6 +2,7 @@ import OpenLogin
 
 let OpenloginAuthStateChangedEvent = "OpenloginAuthStateChangedEvent"
 
+@available(iOS 12.0, *)
 @objc(OpenloginReactNativeSdk)
 class OpenloginReactNativeSdk: RCTEventEmitter {
     
