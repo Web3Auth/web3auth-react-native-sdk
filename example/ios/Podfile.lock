@@ -257,7 +257,7 @@ DEPENDENCIES:
   - FBReactNativeSpec (from `../node_modules/react-native/Libraries/FBReactNativeSpec`)
   - Folly (from `../node_modules/react-native/third-party-podspecs/Folly.podspec`)
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
-  - OpenLogin (from `https://github.com/torusresearch/openlogin-swift-sdk.git`, branch `master`)
+  - OpenLogin (from `https://github.com/torusresearch/openlogin-swift-sdk.git`, branch `fix/main-thread`)
   - openlogin-react-native-sdk (from `../..`)
   - RCTRequired (from `../node_modules/react-native/Libraries/RCTRequired`)
   - RCTTypeSafety (from `../node_modules/react-native/Libraries/TypeSafety`)
@@ -299,7 +299,7 @@ EXTERNAL SOURCES:
   glog:
     :podspec: "../node_modules/react-native/third-party-podspecs/glog.podspec"
   OpenLogin:
-    :branch: master
+    :branch: fix/main-thread
     :git: https://github.com/torusresearch/openlogin-swift-sdk.git
   openlogin-react-native-sdk:
     :path: "../.."
@@ -348,7 +348,7 @@ EXTERNAL SOURCES:
 
 CHECKOUT OPTIONS:
   OpenLogin:
-    :commit: 8556bfc70456c854781f09041061979e84b8949f
+    :commit: 20cf07e7475459b164c1979a82004d19d1c49015
     :git: https://github.com/torusresearch/openlogin-swift-sdk.git
 
 SPEC CHECKSUMS:
@@ -358,7 +358,7 @@ SPEC CHECKSUMS:
   FBReactNativeSpec: f2c97f2529dd79c083355182cc158c9f98f4bd6e
   Folly: b73c3869541e86821df3c387eb0af5f65addfab4
   glog: 40a13f7840415b9a77023fbcae0f1e6f43192af3
-  OpenLogin: dd1902b2a5296ed97190a3af751158da627721ad
+  OpenLogin: 650f1ae71014559d36a010e80524acd464d31760
   openlogin-react-native-sdk: 01d8215ea71e3f232b5c4c331ebd451cb62e0bc8
   RCTRequired: 082f10cd3f905d6c124597fd1c14f6f2655ff65e
   RCTTypeSafety: 8c9c544ecbf20337d069e4ae7fd9a377aadf504b
@@ -382,6 +382,6 @@ SPEC CHECKSUMS:
   ReactCommon: 73d79c7039f473b76db6ff7c6b159c478acbbb3b
   Yoga: 4bd86afe9883422a7c4028c00e34790f560923d6
 
-PODFILE CHECKSUM: d3e935355ea3037cd29d97f31fb9bd3a4503b000
+PODFILE CHECKSUM: a314c25e419ad705b2c02324791b5bde00e2c018
 
-COCOAPODS: 1.10.2
+COCOAPODS: 1.11.2

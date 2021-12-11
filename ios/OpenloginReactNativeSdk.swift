@@ -2,7 +2,7 @@ import OpenLogin
 
 let OpenloginAuthStateChangedEvent = "OpenloginAuthStateChangedEvent"
 
-@available(iOS 12.0, *)
+@available(iOS 13.0, *)
 @objc(OpenloginReactNativeSdk)
 class OpenloginReactNativeSdk: RCTEventEmitter {
     
@@ -66,5 +66,9 @@ class OpenloginReactNativeSdk: RCTEventEmitter {
     
     @objc open override func supportedEvents() -> [String]{
         return [OpenloginAuthStateChangedEvent]
+    }
+    
+    override class func requiresMainQueueSetup() -> Bool {
+        true
     }
 }

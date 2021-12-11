@@ -11,7 +11,7 @@ target 'OpenloginReactNativeSdkExample' do
   use_react_native!(:path => config["reactNativePath"])
 
   pod 'openlogin-react-native-sdk', :path => '../..'
-  pod 'OpenLogin', :git => "https://github.com/torusresearch/openlogin-swift-sdk.git", :branch => "master"
+  pod 'OpenLogin', :git => "https://github.com/torusresearch/openlogin-swift-sdk.git", :branch => "fix/main-thread"
 
   # Enables Flipper.
   #
@@ -37,6 +37,9 @@ target 'OpenloginReactNativeSdkExample' do
           project.build_configurations.each do |config|
               config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = deployment_target
           end
+      end
+      installer.pods_project.build_configurations.each do |config|
+        config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "arm64"
       end
   end
 end
