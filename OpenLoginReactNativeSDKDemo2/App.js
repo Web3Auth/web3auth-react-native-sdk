@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { StyleSheet, View, Text, Button } from 'react-native';
+import {StyleSheet, View, Text, Button} from 'react-native';
 import OpenloginReactNativeSdk, {
   LoginProvider,
   OpenloginNetwork,
@@ -10,17 +10,18 @@ export default function App() {
   const [authState, setAuthState] = React.useState({});
 
   React.useEffect(() => {
-    OpenloginReactNativeSdk.addOpenloginAuthStateChangedEventListener(
-      setAuthState
-    );
+    OpenloginReactNativeSdk.addOpenloginAuthStateChangedEventListener(state => {
+      console.log(state);
+      setAuthState(state);
+    });
     OpenloginReactNativeSdk.init({
       clientId:
         'BKJ3HmEqVmMHbFeW6E-CVPmdnVrnPhdBEI82kxgBVJGtaS4XlylvAE-1gmsv_Fa1CDj-xIhvTf3Kgd6mTn8nJtw',
-      network: OpenloginNetwork.TESTNET,
+      network: OpenloginNetwork.MAINNET,
       redirectUrl: 'com.example.openloginreactnativesdk://auth',
     })
-      .then((result) => console.log(`success: ${result}`))
-      .catch((err) => console.log(`error: ${err}`));
+      .then(result => console.log(`success: ${result}`))
+      .catch(err => console.log(`error: ${err}`));
   }, []);
 
   // React.useEffect(() => {
@@ -35,8 +36,8 @@ export default function App() {
           OpenloginReactNativeSdk.login({
             provider: LoginProvider.GOOGLE,
           })
-            .then((result) => console.log(`success: ${result}`))
-            .catch((err) => console.log(`error: ${err}`))
+            .then(result => console.log(`success: ${result}`))
+            .catch(err => console.log(`error: ${err}`))
         }
       />
       <Button
@@ -45,11 +46,13 @@ export default function App() {
           OpenloginReactNativeSdk.logout({
             provider: LoginProvider.GOOGLE,
           })
-            .then((result) => console.log(`success: ${result}`))
-            .catch((err) => console.log(`error: ${err}`))
+            .then(result => console.log(`success: ${result}`))
+            .catch(err => console.log(`error: ${err}`))
         }
       />
-      <Text>Result: {JSON.stringify(authState)}</Text>
+      <Text style={styles.authStateText}>
+        Result: {JSON.stringify(authState)}
+      </Text>
     </View>
   );
 }
@@ -64,5 +67,8 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     marginVertical: 20,
+  },
+  authStateText: {
+    color: 'white',
   },
 });
