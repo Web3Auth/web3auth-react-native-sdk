@@ -128,5 +128,5 @@ dependencies {
   // noinspection GradleDynamicVersion
   api 'com.facebook.react:react-native:+'
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-  implementation 'com.github.torusresearch:openlogin-android-sdk:master-SNAPSHOT'
+  implementation 'com.github.torusresearch:openlogin-android-sdk:95073e9d80'
 }

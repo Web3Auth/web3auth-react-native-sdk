@@ -373,7 +373,7 @@ DEPENDENCIES:
   - FlipperKit/SKIOSNetworkPlugin (= 0.99.0)
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - OpenLogin (from `https://github.com/torusresearch/openlogin-swift-sdk.git`, branch `fix/main-thread`)
-  - openlogin-react-native-sdk (from `../..`)
+  - openlogin-react-native-sdk (from `../node_modules/openlogin-react-native-sdk`)
   - RCT-Folly (from `../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCTRequired (from `../node_modules/react-native/Libraries/RCTRequired`)
   - RCTTypeSafety (from `../node_modules/react-native/Libraries/TypeSafety`)
@@ -434,7 +434,7 @@ EXTERNAL SOURCES:
     :branch: fix/main-thread
     :git: https://github.com/torusresearch/openlogin-swift-sdk.git
   openlogin-react-native-sdk:
-    :path: "../.."
+    :path: "../node_modules/openlogin-react-native-sdk"
   RCT-Folly:
     :podspec: "../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec"
   RCTRequired:
