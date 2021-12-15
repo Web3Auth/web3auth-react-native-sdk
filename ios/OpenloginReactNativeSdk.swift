@@ -51,7 +51,6 @@ class OpenloginReactNativeSdk: RCTEventEmitter {
         } else {
             reject("InitError", "init has not been called yet", nil)
         }
-        resolve(nil)
     }
     
     @objc(logout:withResolver:withRejecter:)
