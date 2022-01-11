@@ -50,10 +50,16 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) : Rea
     )
     openlogin.addAuthStateChangeListener(AuthStateChangeListener {
       val map = Arguments.createMap()
-      map.putString("oAuthPrivateKey", it.oAuthPrivateKey)
       map.putString("privKey", it.privKey)
-      map.putString("tKey", it.tKey)
-      map.putString("walletKey", it.walletKey)
+      val userInfoMap = Arguments.createMap()
+      userInfoMap.putString("email", it.userInfo?.email)
+      userInfoMap.putString("name", it.userInfo?.name)
+      userInfoMap.putString("profileImage", it.userInfo?.profileImage)
+      userInfoMap.putString("aggregateVerifier", it.userInfo?.aggregateVerifier)
+      userInfoMap.putString("verifier", it.userInfo?.verifier)
+      userInfoMap.putString("verifierId", it.userInfo?.verifierId)
+      userInfoMap.putString("typeOfLogin", it.userInfo?.typeOfLogin)
+      map.putMap("userInfo", userInfoMap)
 
       sendEvent(reactApplicationContext, "OpenloginAuthStateChangedEvent", map)
     })
@@ -88,15 +94,4 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) : Rea
     promise.reject(e)
   }
 
-  @ReactMethod
-  fun getState(promise: Promise) = try {
-    val map = Arguments.createMap()
-    map.putString("oAuthPrivateKey", openlogin.state.oAuthPrivateKey)
-    map.putString("privKey", openlogin.state.privKey)
-    map.putString("tKey", openlogin.state.tKey)
-    map.putString("walletKey", openlogin.state.walletKey)
-    promise.resolve(map)
-  } catch (e: Exception) {
-    promise.reject(e)
-  }
 }

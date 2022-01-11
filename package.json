@@ -27,8 +27,8 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "prepare": "bob build",
     "release": "release-it",
-    "example": "yarn --cwd example",
-    "pods": "cd example && pod-install --quiet",
+    "example": "yarn --cwd OpenLoginReactNativeSDKDemo2",
+    "pods": "cd OpenLoginReactNativeSDKDemo2 && pod-install --quiet",
     "bootstrap": "yarn example && yarn && yarn pods"
   },
   "keywords": [
