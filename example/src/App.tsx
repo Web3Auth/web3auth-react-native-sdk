@@ -1,19 +1,16 @@
-import * as React from 'react';
+import React, {useState} from 'react';
 
 import { StyleSheet, View, Text, Button } from 'react-native';
 import OpenloginReactNativeSdk, {
-  AuthState,
+  LoginResponse,
   LoginProvider,
   OpenloginNetwork,
 } from 'openlogin-react-native-sdk';
 
 export default function App() {
-  const [authState, setAuthState] = React.useState<Partial<AuthState>>({});
+  const [result, setResult] = useState("");
 
   React.useEffect(() => {
-    OpenloginReactNativeSdk.addOpenloginAuthStateChangedEventListener(
-      setAuthState
-    );
     OpenloginReactNativeSdk.init({
       clientId:
         'BFDssx7rrb7p90lZ9l28PxB9fcIIai81pmOaMt1rMwzyQ-uWuG2srWRK_07Y55cNWbv2qVXVXNM-OXCW95c3TuQ',
@@ -24,33 +21,34 @@ export default function App() {
       .catch((err) => console.log(`error: ${err}`));
   }, []);
 
-  // React.useEffect(() => {
-  //   // OpenloginReactNativeSdk.multiply(3, 7).then(setResult);
-  // }, []);
 
   return (
     <View style={styles.container}>
-      <Button
-        title="Login"
-        onPress={() =>
-          OpenloginReactNativeSdk.login({
-            provider: LoginProvider.GOOGLE,
-          })
-            .then((result) => console.log(`success: ${result}`))
-            .catch((err) => console.log(`error: ${err}`))
-        }
-      />
-      <Button
-        title="Logout"
-        onPress={() =>
-          OpenloginReactNativeSdk.logout({
-            provider: LoginProvider.GOOGLE,
-          })
-            .then((result) => console.log(`success: ${result}`))
-            .catch((err) => console.log(`error: ${err}`))
-        }
-      />
-      <Text>Result: {JSON.stringify(authState)}</Text>
+      <View style={styles.box}>
+        <Button
+          title="Login"
+          onPress={() =>
+            OpenloginReactNativeSdk.login({
+              provider: LoginProvider.GOOGLE,
+            })
+              .then((result) => setResult(JSON.stringify(result)))
+              .catch((err) => console.log(`error: ${err}`))
+          }
+        />
+      </View>
+      <View style={styles.box}>
+        <Button
+          title="Logout"
+          onPress={() =>
+            OpenloginReactNativeSdk.logout({
+              provider: LoginProvider.GOOGLE,
+            })
+              .then((result) => setResult(""))
+              .catch((err) => console.log(`error: ${err}`))
+          }
+        />
+      </View>
+      <Text style={styles.text}>Result: {result}</Text>
     </View>
   );
 }
@@ -62,8 +60,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   box: {
-    width: 60,
-    height: 60,
-    marginVertical: 20,
+    width: 200,
+    height: 40,
+    marginTop: 15,
   },
+  text: {
+    textAlign: 'center', 
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginTop: 20,
+    width: "100%"
+  }
 });

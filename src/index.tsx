@@ -7,13 +7,18 @@ export interface AuthState {
   walletKey?: string;
 }
 
+export interface LoginResponse {
+  privKey: string,
+  result: string
+}
+
 type OpenloginReactNativeSdkType = {
   init(params: {
     clientId: string;
     network: OpenloginNetwork;
     redirectUrl: string;
   }): Promise<void>;
-  login(params: { provider: LoginProvider }): Promise<void>;
+  login(params: { provider: LoginProvider }): Promise<LoginResponse>;
   logout(params: {}): Promise<void>;
   getState(): Promise<AuthState>;
 };
