@@ -1,10 +1,18 @@
 import { NativeModules, NativeEventEmitter } from 'react-native';
 
 export interface AuthState {
-  privKey: string;
-  oAuthPrivateKey?: string;
-  tKey?: string;
-  walletKey?: string;
+  privKey?: string;
+  userInfo?: UserInfo;
+}
+
+export interface UserInfo {
+  email?: string;
+  name?: string;
+  profileImage?: string;
+  aggregateVerifier?: string;
+  verifier?: string;
+  verifierId?: string;
+  typeOfLogin?: string;
 }
 
 export interface LoginResponse {
@@ -20,7 +28,6 @@ type OpenloginReactNativeSdkType = {
   }): Promise<void>;
   login(params: { provider: LoginProvider }): Promise<LoginResponse>;
   logout(params: {}): Promise<void>;
-  getState(): Promise<AuthState>;
 };
 
 const OpenloginAuthStateChangedEvent = 'OpenloginAuthStateChangedEvent';
