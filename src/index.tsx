@@ -16,8 +16,8 @@ export interface UserInfo {
 }
 
 export interface LoginResponse {
-  privKey: string,
-  result: string
+  privKey: string;
+  result: string;
 }
 
 type OpenloginReactNativeSdkType = {

@@ -8,7 +8,7 @@ import OpenloginReactNativeSdk, {
 } from 'openlogin-react-native-sdk';
 
 export default function App() {
-  const [result, setResult] = useState("");
+  const [result, setResult] = useState('');
 
   React.useEffect(() => {
     OpenloginReactNativeSdk.init({
@@ -21,7 +21,6 @@ export default function App() {
       .catch(err => console.log(`error: ${err}`));
   }, []);
 
-
   return (
     <View style={styles.container}>
       <View style={styles.box}>
@@ -31,8 +30,8 @@ export default function App() {
             OpenloginReactNativeSdk.login({
               provider: LoginProvider.GOOGLE,
             })
-              .then((result) => setResult(JSON.stringify(result)))
-              .catch((err) => console.log(`error: ${err}`))
+              .then(result => setResult(JSON.stringify(result)))
+              .catch(err => console.log(`error: ${err}`))
           }
         />
       </View>
@@ -43,8 +42,8 @@ export default function App() {
             OpenloginReactNativeSdk.logout({
               provider: LoginProvider.GOOGLE,
             })
-              .then((result) => setResult(""))
-              .catch((err) => console.log(`error: ${err}`))
+              .then(result => setResult(''))
+              .catch(err => console.log(`error: ${err}`))
           }
         />
       </View>
@@ -65,10 +64,10 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   text: {
-    textAlign: 'center', 
+    textAlign: 'center',
     fontWeight: 'bold',
     fontSize: 16,
     marginTop: 20,
-    width: "100%"
-  }
+    width: '100%',
+  },
 });

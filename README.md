@@ -53,6 +53,8 @@ OpenloginReactNativeSdk.login({
 
 See the [contributing guide](CONTRIBUTING.md) to learn how to contribute to the repository and the development workflow.
 
+This project uses `yarn` for package management.
+
 ## License
 
 MIT
