@@ -78,7 +78,15 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) : Rea
             } else {
               val map = Arguments.createMap()
               map.putString("privKey", result.privKey)
-              map.putString("result", result.toString())
+              val userInfoMap = Arguments.createMap()
+              userInfoMap.putString("email", result.userInfo?.email)
+              userInfoMap.putString("name", result.userInfo?.name)
+              userInfoMap.putString("profileImage", result.userInfo?.profileImage)
+              userInfoMap.putString("aggregateVerifier", result.userInfo?.aggregateVerifier)
+              userInfoMap.putString("verifier", result.userInfo?.verifier)
+              userInfoMap.putString("verifierId", result.userInfo?.verifierId)
+              userInfoMap.putString("typeOfLogin", result.userInfo?.typeOfLogin)
+              map.putMap("userInfo", userInfoMap)
               promise.resolve(map)
             }
           }
