@@ -21,7 +21,7 @@ type OpenloginReactNativeSdkType = {
     network: OpenloginNetwork;
     redirectUrl: string;
   }): Promise<void>;
-  login(params: { provider: LoginProvider }): Promise<AuthState>;
+  login(params: { provider?: LoginProvider }): Promise<AuthState>;
   logout(params: {}): Promise<void>;
 };
 

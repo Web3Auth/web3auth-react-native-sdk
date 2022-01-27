@@ -22,7 +22,7 @@ class OpenloginReactNativeSdk: NSObject {
     
     @objc(login:withResolver:withRejecter:)
     func login(params: [String: String], resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) -> Void {
-        let provider = getOpenLoginProvider(str: params["provider"])
+        let provider = getOpenLoginProvider(params["provider"])
         if let ol = openlogin {
             ol.login(OLLoginParams(provider: provider)) {
                 switch $0 {
@@ -56,7 +56,7 @@ class OpenloginReactNativeSdk: NSObject {
     
 }
 
-func getOpenLoginProvider(str: String?) -> OpenLoginProvider?{
+func getOpenLoginProvider(_ str: String?) -> OpenLoginProvider?{
     guard
         let unwrappedStr = str
     else {

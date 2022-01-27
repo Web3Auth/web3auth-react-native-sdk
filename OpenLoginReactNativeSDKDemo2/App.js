@@ -25,11 +25,33 @@ export default function App() {
     <View style={styles.container}>
       <View style={styles.box}>
         <Button
-          title="Login"
+          title="Login with Google"
           onPress={() =>
             OpenloginReactNativeSdk.login({
               provider: LoginProvider.GOOGLE,
             })
+              .then(result => setResult(JSON.stringify(result)))
+              .catch(err => console.log(`error: ${err}`))
+          }
+        />
+      </View>
+      <View style={styles.box}>
+        <Button
+          title="Login with Apple"
+          onPress={() =>
+            OpenloginReactNativeSdk.login({
+              provider: LoginProvider.APPLE,
+            })
+              .then(result => setResult(JSON.stringify(result)))
+              .catch(err => console.log(`error: ${err}`))
+          }
+        />
+      </View>
+      <View style={styles.box}>
+        <Button
+          title="Login with OpenLogin"
+          onPress={() =>
+            OpenloginReactNativeSdk.login({})
               .then(result => setResult(JSON.stringify(result)))
               .catch(err => console.log(`error: ${err}`))
           }
