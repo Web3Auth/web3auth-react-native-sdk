@@ -22,8 +22,9 @@ class OpenloginReactNativeSdk: NSObject {
     
     @objc(login:withResolver:withRejecter:)
     func login(params: [String: String], resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) -> Void {
+        let provider = getOpenLoginProvider(str: params["provider"])
         if let ol = openlogin {
-            ol.login(OLLoginParams(provider: .GOOGLE)) {
+            ol.login(OLLoginParams(provider: provider)) {
                 switch $0 {
                 case .success(let result):
                     let m: [String: Any] = [
@@ -53,4 +54,29 @@ class OpenloginReactNativeSdk: NSObject {
         resolve(nil)
     }
     
+}
+
+func getOpenLoginProvider(str: String?) -> OpenLoginProvider?{
+    guard
+        let unwrappedStr = str
+    else {
+        return nil
+    }
+    let mapping: [String: OpenLoginProvider] = [
+        "google": .GOOGLE,
+        "facebook": .FACEBOOK,
+        "reddit": .REDDIT,
+        "discord": .DISCORD,
+        "twitch": .TWITCH,
+        "apple": .APPLE,
+        "line": .LINE,
+        "github": .GITHUB,
+        "kakao": .KAKAO,
+        "linkedin": .LINKEDIN,
+        "twitter": .TWITTER,
+        "weibo": .WEIBO,
+        "wechat": .WECHAT,
+        "email_passwordless": .EMAIL_PASSWORDLESS
+    ]
+    return mapping[unwrappedStr]
 }
