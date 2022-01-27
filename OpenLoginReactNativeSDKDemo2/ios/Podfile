@@ -7,7 +7,7 @@ target 'OpenLoginReactNativeSDKDemo2' do
   config = use_native_modules!
 
 
-  pod 'OpenLogin', :git => "https://github.com/torusresearch/openlogin-swift-sdk.git", :branch => "fix/main-thread"
+  pod 'OpenLogin', '1.0.0'
 
   use_react_native!(
     :path => config[:reactNativePath],

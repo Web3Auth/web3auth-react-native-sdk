@@ -1,21 +1,13 @@
 import OpenLogin
 
-let OpenloginAuthStateChangedEvent = "OpenloginAuthStateChangedEvent"
-
 @available(iOS 13.0, *)
 @objc(OpenloginReactNativeSdk)
-class OpenloginReactNativeSdk: RCTEventEmitter {
+class OpenloginReactNativeSdk: NSObject {
     
-    override init() {
-        super.init()
-    }
-    
-    private var webauth: WebAuth?
-
-
+    private var openlogin: OpenLogin?
     
     @objc(init:withResolver:withRejecter:)
-    func `init`(params: [String:String], resolve:RCTPromiseResolveBlock,reject:RCTPromiseRejectBlock) -> Void {
+    func `init`(params: [String:String], resolve: RCTPromiseResolveBlock, reject:RCTPromiseRejectBlock) -> Void {
         guard
             let clientId: String = params["clientId"],
             let networkString: String = params["network"],
@@ -24,14 +16,14 @@ class OpenloginReactNativeSdk: RCTEventEmitter {
             reject("ArgumentError", "invalid clientId or network", nil)
             return
         }
-        webauth = OpenLogin.webAuth(clientId: clientId, network: network)
+        openlogin = OpenLogin(OLInitParams(clientId: clientId, network: network))
         resolve(nil)
     }
     
     @objc(login:withResolver:withRejecter:)
-    func login(params: [String:String], resolve: @escaping RCTPromiseResolveBlock,reject: @escaping RCTPromiseRejectBlock) -> Void {
-        if let wa = webauth {
-            wa.start {
+    func login(params: [String: String], resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) -> Void {
+        if let ol = openlogin {
+            ol.login(OLLoginParams(provider: .GOOGLE)) {
                 switch $0 {
                 case .success(let result):
                     let m: [String: Any] = [
@@ -39,11 +31,14 @@ class OpenloginReactNativeSdk: RCTEventEmitter {
                         "userInfo": [
                             "name": result.userInfo.name,
                             "profileImage": result.userInfo.profileImage,
-                            "typeOfLogin": result.userInfo.typeOfLogin
+                            "typeOfLogin": result.userInfo.typeOfLogin,
+                            "aggregateVerifier": result.userInfo.aggregateVerifier,
+                            "verifier": result.userInfo.verifier,
+                            "verifierId": result.userInfo.verifierId,
+                            "email": result.userInfo.email
                         ]
                     ]
-                    self.sendEvent(withName: OpenloginAuthStateChangedEvent, body: m)
-                    resolve(nil)
+                    resolve(m)
                 case .failure(let error):
                     reject("LoginError", "Error occured during login with openlogin-swift-sdk", error)
                 }
@@ -55,19 +50,7 @@ class OpenloginReactNativeSdk: RCTEventEmitter {
     
     @objc(logout:withResolver:withRejecter:)
     func logout(params: [String:String], resolve:RCTPromiseResolveBlock,reject:RCTPromiseRejectBlock) -> Void {
-        if let wa = webauth {
-            wa.signOut()
-        } else {
-            reject("InitError", "init has not been called yet", nil)
-        }
         resolve(nil)
     }
     
-    @objc open override func supportedEvents() -> [String]{
-        return [OpenloginAuthStateChangedEvent]
-    }
-    
-    override class func requiresMainQueueSetup() -> Bool {
-        true
-    }
 }
