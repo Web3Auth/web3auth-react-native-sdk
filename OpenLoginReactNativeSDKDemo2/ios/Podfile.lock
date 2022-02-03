@@ -75,7 +75,7 @@ PODS:
   - libevent (2.1.12)
   - OpenLogin (1.0.0)
   - openlogin-react-native-sdk (0.1.0):
-    - OpenLogin
+    - OpenLogin (= 1.0.0)
     - React-Core
   - OpenSSL-Universal (1.1.180)
   - RCT-Folly (2021.06.28.00-v2):
@@ -503,7 +503,7 @@ SPEC CHECKSUMS:
   glog: 5337263514dd6f09803962437687240c5dc39aa4
   libevent: 4049cae6c81cdb3654a443be001fb9bdceff7913
   OpenLogin: 055c3108e8ada81a1e833c2c59188faed302e32b
-  openlogin-react-native-sdk: 01d8215ea71e3f232b5c4c331ebd451cb62e0bc8
+  openlogin-react-native-sdk: 935885e0e368de62ecb08c9ca92f0a5e2ca953ba
   OpenSSL-Universal: 1aa4f6a6ee7256b83db99ec1ccdaa80d10f9af9b
   RCT-Folly: a21c126816d8025b547704b777a2ba552f3d9fa9
   RCTRequired: 59d2b744d8c2bf2d9bc7032a9f654809adcf7d50
