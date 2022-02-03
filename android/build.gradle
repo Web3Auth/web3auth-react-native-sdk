@@ -8,7 +8,7 @@ buildscript {
   }
 
   dependencies {
-    classpath 'com.android.tools.build:gradle:3.5.4'
+    classpath 'com.android.tools.build:gradle:7.0.4'
     // noinspection DifferentKotlinGradleVersion
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
@@ -27,12 +27,9 @@ def getExtOrIntegerDefault(name) {
 
 android {
   compileSdkVersion getExtOrIntegerDefault('compileSdkVersion')
-  buildToolsVersion getExtOrDefault('buildToolsVersion')
   defaultConfig {
     minSdkVersion 21
     targetSdkVersion getExtOrIntegerDefault('targetSdkVersion')
-    versionCode 1
-    versionName "1.0"
 
   }
 
@@ -128,5 +125,13 @@ dependencies {
   // noinspection GradleDynamicVersion
   api 'com.facebook.react:react-native:+'
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-  implementation 'com.github.torusresearch:openlogin-android-sdk:95073e9d80'
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9")
+  implementation 'net.sourceforge.streamsupport:streamsupport-cfuture:1.7.4'
+  implementation 'com.github.torusresearch:openlogin-android-sdk:1.0.1'
+}
+
+configurations.all {
+  resolutionStrategy {
+    force 'androidx.core:core-ktx:1.6.0'
+  }
 }
