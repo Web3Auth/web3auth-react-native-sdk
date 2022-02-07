@@ -5,7 +5,7 @@ React Native SDK for Torus OpenLogin
 ## Installation
 
 ```sh
-npm install openlogin-react-native-sdk
+npm install @web3auth/react-native-sdk
 ```
 
 Please refer to the native SDKs for platform-specific configuration.
