@@ -48,7 +48,7 @@ export default function App() {
       </View>
       <View style={styles.box}>
         <Button
-          title="Login with Email Passwordless"
+          title="Login with Email"
           onPress={() =>
             OpenloginReactNativeSdk.login({
               provider: LoginProvider.EMAIL_PASSWORDLESS,
