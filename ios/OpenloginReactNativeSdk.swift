@@ -41,6 +41,7 @@ class OpenloginReactNativeSdk: NSObject {
                 case .success(let result):
                     let m: [String: Any] = [
                         "privKey": result.privKey,
+                        "ed25519PrivKey": result.ed25519PrivKey,
                         "userInfo": [
                             "name": result.userInfo.name,
                             "profileImage": result.userInfo.profileImage,
