@@ -49,6 +49,22 @@ export default function App() {
       </View>
       <View style={styles.box}>
         <Button
+          title="Login with Apple"
+          onPress={() =>
+            OpenloginReactNativeSdk.login({
+              provider: LoginProvider.EMAIL_PASSWORDLESS,
+              relogin: true,
+              extraLoginOptions: {
+                login_hint: 'michael@tor.us',
+              },
+            })
+              .then(result => setResult(JSON.stringify(result)))
+              .catch(err => console.log(`error: ${err}`))
+          }
+        />
+      </View>
+      <View style={styles.box}>
+        <Button
           title="Login with OpenLogin"
           onPress={() =>
             OpenloginReactNativeSdk.login({})

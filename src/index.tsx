@@ -2,6 +2,7 @@ import { NativeModules } from 'react-native';
 
 export interface AuthState {
   privKey?: string;
+  ed25519PrivKey?: string;
   userInfo?: UserInfo;
 }
 
@@ -15,12 +16,23 @@ export interface UserInfo {
   typeOfLogin?: string;
 }
 
+export interface InitParams {
+  clientId: string;
+  network: OpenloginNetwork;
+  redirectUrl?: string;
+}
+
+export interface LoginParams {
+  provider?: LoginProvider;
+  relogin?: boolean;
+  dappShare?: string;
+  redirectUrl?: string;
+  appState?: string;
+  extraLoginOptions?: { login_hint?: string };
+}
+
 type OpenloginReactNativeSdkType = {
-  init(params: {
-    clientId: string;
-    network: OpenloginNetwork;
-    redirectUrl: string;
-  }): Promise<void>;
+  init(params: InitParams): Promise<void>;
   login(params: { provider?: LoginProvider }): Promise<AuthState>;
   logout(params: {}): Promise<void>;
 };
