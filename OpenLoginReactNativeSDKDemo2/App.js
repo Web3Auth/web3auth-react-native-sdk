@@ -66,7 +66,7 @@ export default function App() {
         <Button
           title="Login with OpenLogin"
           onPress={() =>
-            OpenloginReactNativeSdk.login({})
+            OpenloginReactNativeSdk.login({extraLoginOptions: {}})
               .then(result => setLoginResult(JSON.stringify(result)))
               .catch(err => console.log(`error: ${err}`))
           }
@@ -76,9 +76,7 @@ export default function App() {
         <Button
           title="Logout"
           onPress={() =>
-            OpenloginReactNativeSdk.logout({
-              provider: LoginProvider.GOOGLE,
-            })
+            OpenloginReactNativeSdk.logout({})
               .then(result => setLoginResult(''))
               .catch(err => console.log(`error: ${err}`))
           }

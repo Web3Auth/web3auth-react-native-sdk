@@ -68,18 +68,22 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) :
 
     CoroutineScope(Dispatchers.Default).launch {
       try {
-        val loginCF = openlogin.login(
-          LoginParams(
-            loginProvider = getWeb3AuthProvider(provider),
-            relogin = params.getBoolean("relogin"),
-            dappShare = params.getString("dappShare"),
-            redirectUrl = if (params.getString("redirectUrl") == null)
-              null else Uri.parse(params.getString("redirectUrl")),
-            appState = params.getString("appState"),
-            extraLoginOptions = ExtraLoginOptions(
-              login_hint = params.getMap("extraLoginOptions")?.getString("login_hint")
-            ),
+        val loginParams = LoginParams(
+          loginProvider = getWeb3AuthProvider(provider),
+          relogin = if (!params.hasKey("relogin")) null else params.getBoolean("relogin"),
+          dappShare = if (!params.hasKey("dappShare")) null else params.getString("dappShare"),
+          redirectUrl = if (!params.hasKey("redirectUrl")) null else Uri.parse(params.getString("redirectUrl")),
+          appState = if (!params.hasKey("appState")) null else params.getString("appState"),
+          extraLoginOptions = ExtraLoginOptions(
+            login_hint = if (params.hasKey("extraLoginOptions") || params.getMap("extraLoginOptions")
+                ?.hasKey("login_hint") == null || params.getMap("extraLoginOptions")
+                ?.hasKey("login_hint") == true
+            ) params.getMap("extraLoginOptions")?.getString("login_hint") else null
+
           )
+        )
+        val loginCF = openlogin.login(
+          loginParams,
         )
         loginCF.join()
         loginCF.whenComplete { result, error ->
