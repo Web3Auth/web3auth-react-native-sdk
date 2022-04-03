@@ -16,5 +16,5 @@ Pod::Spec.new do |s|
   s.source_files = "ios/**/*.{h,m,mm,swift}"
 
   s.dependency "React-Core"
-  s.dependency "OpenLogin", '1.0.0'
+  s.dependency "Web3Auth", '3.1.0'
 end

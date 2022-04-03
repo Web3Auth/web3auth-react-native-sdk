@@ -9,16 +9,14 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import com.facebook.react.bridge.*
-import com.openlogin.core.OpenLogin
+import com.web3auth.core.Web3Auth
 import java.lang.Exception
 import java.util.*
 import com.facebook.react.bridge.WritableMap
 
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter
-import com.openlogin.core.types.LoginParams
-import com.openlogin.core.types.OpenLoginOptions
-import com.openlogin.core.types.OpenLoginResponse
+import com.web3auth.core.types.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,24 +25,25 @@ import java8.util.concurrent.CompletableFuture
 // Quick note on allowing RN Modules to receive Activity Events
 // https://stackoverflow.com/questions/45744013/onnewintent-is-not-called-on-reactcontextbasejavamodule-react-native
 
-class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) :
+  ReactContextBaseJavaModule(reactContext) {
 
   override fun getName(): String {
     return "OpenloginReactNativeSdk"
   }
 
-  private lateinit var openlogin: OpenLogin
+  private lateinit var openlogin: Web3Auth
 
   @ReactMethod
   fun init(params: ReadableMap, promise: Promise) = try {
     val clientId = params.getString("clientId") as String
     val network = params.getString("network") as String
     val redirectUrl = params.getString("redirectUrl")
-    openlogin = OpenLogin(
-      OpenLoginOptions(
+    openlogin = Web3Auth(
+      Web3AuthOptions(
         context = currentActivity!!,
         clientId = clientId,
-        network = OpenLogin.Network.valueOf(network.toUpperCase(Locale.ROOT)),
+        network = Web3Auth.Network.valueOf(network.toUpperCase(Locale.ROOT)),
         redirectUrl = Uri.parse(redirectUrl ?: "${reactApplicationContext!!.packageName}://auth")
       )
     )
@@ -55,7 +54,7 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) : Rea
       override fun onActivityResult(p0: Activity?, p1: Int, p2: Int, p3: Intent?) {}
 
       override fun onNewIntent(p0: Intent?) {
-               openlogin.setResultUrl(p0?.data)
+        openlogin.setResultUrl(p0?.data)
       }
     })
     promise.resolve(null)
@@ -69,7 +68,23 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) : Rea
 
     CoroutineScope(Dispatchers.Default).launch {
       try {
-        val loginCF = openlogin.login(LoginParams(getOpenLoginProvider(provider)))
+        val loginParams = LoginParams(
+          loginProvider = getWeb3AuthProvider(provider),
+          relogin = if (!params.hasKey("relogin")) null else params.getBoolean("relogin"),
+          dappShare = if (!params.hasKey("dappShare")) null else params.getString("dappShare"),
+          redirectUrl = if (!params.hasKey("redirectUrl")) null else Uri.parse(params.getString("redirectUrl")),
+          appState = if (!params.hasKey("appState")) null else params.getString("appState"),
+          extraLoginOptions = ExtraLoginOptions(
+            login_hint = if (params.hasKey("extraLoginOptions") || params.getMap("extraLoginOptions")
+                ?.hasKey("login_hint") == null || params.getMap("extraLoginOptions")
+                ?.hasKey("login_hint") == true
+            ) params.getMap("extraLoginOptions")?.getString("login_hint") else null
+
+          )
+        )
+        val loginCF = openlogin.login(
+          loginParams,
+        )
         loginCF.join()
         loginCF.whenComplete { result, error ->
           launch(Dispatchers.Main) {
@@ -78,6 +93,7 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) : Rea
             } else {
               val map = Arguments.createMap()
               map.putString("privKey", result.privKey)
+              map.putString("ed25519PrivKey", result.ed25519PrivKey)
               val userInfoMap = Arguments.createMap()
               userInfoMap.putString("email", result.userInfo?.email)
               userInfoMap.putString("name", result.userInfo?.name)
@@ -86,6 +102,7 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) : Rea
               userInfoMap.putString("verifier", result.userInfo?.verifier)
               userInfoMap.putString("verifierId", result.userInfo?.verifierId)
               userInfoMap.putString("typeOfLogin", result.userInfo?.typeOfLogin)
+              userInfoMap.putString("dappShare", result.userInfo?.dappShare)
               map.putMap("userInfo", userInfoMap)
               promise.resolve(map)
             }
@@ -97,47 +114,47 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) : Rea
     }
   }
 
-      @ReactMethod
-      fun logout(params: ReadableMap, promise: Promise) {
-        CoroutineScope(Dispatchers.Default).launch {
-          try {
-            val logoutCF = openlogin.logout()
-            logoutCF.join()
-            logoutCF.whenComplete { _, error ->
-              launch(Dispatchers.Main) {
-                if (error != null) {
-                  promise.reject(error)
-                } else {
-                  promise.resolve(null)
-                }
-              }
+  @ReactMethod
+  fun logout(params: ReadableMap, promise: Promise) {
+    CoroutineScope(Dispatchers.Default).launch {
+      try {
+        val logoutCF = openlogin.logout()
+        logoutCF.join()
+        logoutCF.whenComplete { _, error ->
+          launch(Dispatchers.Main) {
+            if (error != null) {
+              promise.reject(error)
+            } else {
+              promise.resolve(null)
             }
-          } catch (e: Exception) {
-            launch(Dispatchers.Main) { promise.reject(e) }
           }
         }
+      } catch (e: Exception) {
+        launch(Dispatchers.Main) { promise.reject(e) }
       }
+    }
+  }
 
-      fun getOpenLoginProvider(provider: String?): OpenLogin.Provider {
-        return when (provider) {
-          "google" -> OpenLogin.Provider.GOOGLE
-          "facebook" -> OpenLogin.Provider.FACEBOOK
-          "reddit" -> OpenLogin.Provider.REDDIT
-          "discord" -> OpenLogin.Provider.DISCORD
-          "twitch" -> OpenLogin.Provider.TWITCH
-          "apple" -> OpenLogin.Provider.APPLE
-          "line" -> OpenLogin.Provider.LINE
-          "github" -> OpenLogin.Provider.GITHUB
-          "kakao" -> OpenLogin.Provider.KAKAO
-          "linkedin" -> OpenLogin.Provider.LINKEDIN
-          "twitter" -> OpenLogin.Provider.TWITTER
-          "weibo" -> OpenLogin.Provider.WEIBO
-          "wechat" -> OpenLogin.Provider.WECHAT
-          "email_passwordless" -> OpenLogin.Provider.EMAIL_PASSWORDLESS
+  fun getWeb3AuthProvider(provider: String?): Provider {
+    return when (provider) {
+      "google" -> Provider.GOOGLE
+      "facebook" -> Provider.FACEBOOK
+      "reddit" -> Provider.REDDIT
+      "discord" -> Provider.DISCORD
+      "twitch" -> Provider.TWITCH
+      "apple" -> Provider.APPLE
+      "line" -> Provider.LINE
+      "github" -> Provider.GITHUB
+      "kakao" -> Provider.KAKAO
+      "linkedin" -> Provider.LINKEDIN
+      "twitter" -> Provider.TWITTER
+      "weibo" -> Provider.WEIBO
+      "wechat" -> Provider.WECHAT
+      "email_passwordless" -> Provider.EMAIL_PASSWORDLESS
 
-          else -> OpenLogin.Provider.GOOGLE
-        }
-      }
+      else -> Provider.GOOGLE
+    }
+  }
 
 }
 

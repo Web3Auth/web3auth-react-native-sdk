@@ -2,13 +2,12 @@ import React, {useState} from 'react';
 
 import {StyleSheet, View, Text, Button} from 'react-native';
 import OpenloginReactNativeSdk, {
-  LoginResponse,
   LoginProvider,
   OpenloginNetwork,
 } from 'openlogin-react-native-sdk';
 
 export default function App() {
-  const [result, setResult] = useState('');
+  const [loginResult, setLoginResult] = useState('');
 
   React.useEffect(() => {
     OpenloginReactNativeSdk.init({
@@ -30,7 +29,7 @@ export default function App() {
             OpenloginReactNativeSdk.login({
               provider: LoginProvider.GOOGLE,
             })
-              .then(result => setResult(JSON.stringify(result)))
+              .then(result => setLoginResult(JSON.stringify(result)))
               .catch(err => console.log(`error: ${err}`))
           }
         />
@@ -42,7 +41,23 @@ export default function App() {
             OpenloginReactNativeSdk.login({
               provider: LoginProvider.APPLE,
             })
-              .then(result => setResult(JSON.stringify(result)))
+              .then(result => setLoginResult(JSON.stringify(result)))
+              .catch(err => console.log(`error: ${err}`))
+          }
+        />
+      </View>
+      <View style={styles.box}>
+        <Button
+          title="Login with Email"
+          onPress={() =>
+            OpenloginReactNativeSdk.login({
+              provider: LoginProvider.EMAIL_PASSWORDLESS,
+              relogin: true,
+              extraLoginOptions: {
+                login_hint: 'michael@tor.us',
+              },
+            })
+              .then(result => setLoginResult(JSON.stringify(result)))
               .catch(err => console.log(`error: ${err}`))
           }
         />
@@ -51,8 +66,8 @@ export default function App() {
         <Button
           title="Login with OpenLogin"
           onPress={() =>
-            OpenloginReactNativeSdk.login({})
-              .then(result => setResult(JSON.stringify(result)))
+            OpenloginReactNativeSdk.login({extraLoginOptions: {}})
+              .then(result => setLoginResult(JSON.stringify(result)))
               .catch(err => console.log(`error: ${err}`))
           }
         />
@@ -61,15 +76,13 @@ export default function App() {
         <Button
           title="Logout"
           onPress={() =>
-            OpenloginReactNativeSdk.logout({
-              provider: LoginProvider.GOOGLE,
-            })
-              .then(result => setResult(''))
+            OpenloginReactNativeSdk.logout({})
+              .then(result => setLoginResult(''))
               .catch(err => console.log(`error: ${err}`))
           }
         />
       </View>
-      <Text style={styles.text}>Result: {result}</Text>
+      <Text style={styles.text}>Result: {loginResult}</Text>
     </View>
   );
 }
