@@ -18,7 +18,7 @@ export interface UserInfo {
 
 export interface InitParams {
   clientId: string;
-  network: OpenloginNetwork;
+  network: Web3authNetwork;
   redirectUrl?: string;
 }
 
@@ -31,7 +31,7 @@ export interface LoginParams {
   extraLoginOptions?: { login_hint?: string };
 }
 
-type OpenloginReactNativeSdkType = {
+type Web3authReactNativeSdkType = {
   init(params: InitParams): Promise<void>;
   login(params: { provider?: LoginProvider }): Promise<AuthState>;
   logout(params: {}): Promise<void>;
@@ -56,14 +56,14 @@ export enum LoginProvider {
   JWT = 'jwt',
 }
 
-export enum OpenloginNetwork {
+export enum Web3authNetwork {
   MAINNET = 'mainnet',
   TESTNET = 'testnet',
   DEVELOPMENT = 'development',
 }
 
-const { OpenloginReactNativeSdk } = NativeModules;
+const { Web3authReactNativeSdk } = NativeModules;
 
-const sdk = OpenloginReactNativeSdk as OpenloginReactNativeSdkType;
+const sdk = Web3authReactNativeSdk as Web3authReactNativeSdkType;
 
 export default { ...sdk };
