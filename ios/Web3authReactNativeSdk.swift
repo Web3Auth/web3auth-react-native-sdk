@@ -1,10 +1,10 @@
 import Web3Auth
 
 @available(iOS 13.0, *)
-@objc(OpenloginReactNativeSdk)
-class OpenloginReactNativeSdk: NSObject {
+@objc(Web3authReactNativeSdk)
+class Web3authReactNativeSdk: NSObject {
     
-    private var openlogin: Web3Auth?
+    private var web3auth: Web3Auth?
     
     @objc(init:withResolver:withRejecter:)
     func `init`(params: [String:String], resolve: RCTPromiseResolveBlock, reject:RCTPromiseRejectBlock) -> Void {
@@ -16,7 +16,7 @@ class OpenloginReactNativeSdk: NSObject {
             reject("ArgumentError", "invalid clientId or network", nil)
             return
         }
-        openlogin = Web3Auth(W3AInitParams(clientId: clientId, network: network))
+        web3auth = Web3Auth(W3AInitParams(clientId: clientId, network: network))
         resolve(nil)
     }
     
@@ -28,8 +28,8 @@ class OpenloginReactNativeSdk: NSObject {
         let redirectUrl = params["redirectUrl"] as? String
         let appState = params["appState"] as? String
         let login_hint = (params["extraLoginOptions"] as? [String: Any?])?["login_hint"] as? String
-        if let ol = openlogin {
-            ol.login(W3ALoginParams(
+        if let w3a = web3auth {
+            w3a.login(W3ALoginParams(
                 loginProvider: provider,
                 relogin: relogin,
                 dappShare: dappShare,
@@ -54,7 +54,7 @@ class OpenloginReactNativeSdk: NSObject {
                     ]
                     resolve(m)
                 case .failure(let error):
-                    reject("LoginError", "Error occured during login with openlogin-swift-sdk", error)
+                    reject("LoginError", "Error occured during login with web3auth-swift-sdk", error)
                 }
             }
         } else {
