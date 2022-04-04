@@ -4,7 +4,7 @@ import {StyleSheet, View, Text, Button} from 'react-native';
 import OpenloginReactNativeSdk, {
   LoginProvider,
   OpenloginNetwork,
-} from 'openlogin-react-native-sdk';
+} from '@web3auth/react-native-sdk';
 
 export default function App() {
   const [loginResult, setLoginResult] = useState('');

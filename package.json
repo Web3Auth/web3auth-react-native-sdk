@@ -13,7 +13,7 @@
     "android",
     "ios",
     "cpp",
-    "openlogin-react-native-sdk.podspec",
+    "web3auth-react-native-sdk.podspec",
     "!lib/typescript/example",
     "!android/build",
     "!ios/build",
@@ -36,13 +36,13 @@
     "ios",
     "android"
   ],
-  "repository": "https://github.com/torusresearch/openlogin-react-native-sdk",
+  "repository": "https://github.com/torusresearch/web3auth-react-native-sdk",
   "author": "torusresearch <hello@tor.us> (https://github.com/torusresearch)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/torusresearch/openlogin-react-native-sdk/issues"
+    "url": "https://github.com/torusresearch/web3auth-react-native-sdk/issues"
   },
-  "homepage": "https://github.com/torusresearch/openlogin-react-native-sdk#readme",
+  "homepage": "https://github.com/torusresearch/web3auth-react-native-sdk#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"

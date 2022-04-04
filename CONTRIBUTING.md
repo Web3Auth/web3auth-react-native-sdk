@@ -51,7 +51,7 @@ Remember to add tests for your change if possible. Run the unit tests by:
 yarn test
 ```
 
-To edit the Objective-C files, open `example/ios/OpenloginReactNativeSdkExample.xcworkspace` in XCode and find the source files at `Pods > Development Pods > openlogin-react-native-sdk`.
+To edit the Objective-C files, open `example/ios/OpenloginReactNativeSdkExample.xcworkspace` in XCode and find the source files at `Pods > Development Pods > web3auth-react-native-sdk`.
 
 To edit the Kotlin files, open `example/android` in Android studio and find the source files at `openloginreactnativesdk` under `Android`.
 

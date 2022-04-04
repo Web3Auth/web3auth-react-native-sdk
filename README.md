@@ -1,4 +1,4 @@
-# openlogin-react-native-sdk
+# @web3auth/react-native-sdk
 
 React Native SDK for Torus OpenLogin
 
@@ -25,7 +25,7 @@ Refer to the demo app for more detailed example.
 import OpenloginReactNativeSdk, {
   LoginProvider,
   OpenloginNetwork,
-} from 'openlogin-react-native-sdk';
+} from '@web3auth/react-native-sdk';
 
 React.useEffect(() => {
   OpenloginReactNativeSdk.init({
