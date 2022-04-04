@@ -1,19 +1,19 @@
 import React, {useState} from 'react';
 
 import {StyleSheet, View, Text, Button} from 'react-native';
-import OpenloginReactNativeSdk, {
+import Web3authReactNativeSdk, {
   LoginProvider,
-  OpenloginNetwork,
+  Web3authNetwork,
 } from '@web3auth/react-native-sdk';
 
 export default function App() {
   const [loginResult, setLoginResult] = useState('');
 
   React.useEffect(() => {
-    OpenloginReactNativeSdk.init({
+    Web3authReactNativeSdk.init({
       clientId:
         'BKJ3HmEqVmMHbFeW6E-CVPmdnVrnPhdBEI82kxgBVJGtaS4XlylvAE-1gmsv_Fa1CDj-xIhvTf3Kgd6mTn8nJtw',
-      network: OpenloginNetwork.MAINNET,
+      network: Web3authNetwork.MAINNET,
       redirectUrl: 'com.example.openloginreactnativesdk://auth',
     })
       .then(result => console.log(`success: ${result}`))
@@ -26,7 +26,7 @@ export default function App() {
         <Button
           title="Login with Google"
           onPress={() =>
-            OpenloginReactNativeSdk.login({
+            Web3authReactNativeSdk.login({
               provider: LoginProvider.GOOGLE,
             })
               .then(result => setLoginResult(JSON.stringify(result)))
@@ -38,7 +38,7 @@ export default function App() {
         <Button
           title="Login with Apple"
           onPress={() =>
-            OpenloginReactNativeSdk.login({
+            Web3authReactNativeSdk.login({
               provider: LoginProvider.APPLE,
             })
               .then(result => setLoginResult(JSON.stringify(result)))
@@ -50,7 +50,7 @@ export default function App() {
         <Button
           title="Login with Email"
           onPress={() =>
-            OpenloginReactNativeSdk.login({
+            Web3authReactNativeSdk.login({
               provider: LoginProvider.EMAIL_PASSWORDLESS,
               relogin: true,
               extraLoginOptions: {
@@ -66,7 +66,7 @@ export default function App() {
         <Button
           title="Login with OpenLogin"
           onPress={() =>
-            OpenloginReactNativeSdk.login({extraLoginOptions: {}})
+            Web3authReactNativeSdk.login({extraLoginOptions: {}})
               .then(result => setLoginResult(JSON.stringify(result)))
               .catch(err => console.log(`error: ${err}`))
           }
@@ -76,7 +76,7 @@ export default function App() {
         <Button
           title="Logout"
           onPress={() =>
-            OpenloginReactNativeSdk.logout({})
+            Web3authReactNativeSdk.logout({})
               .then(result => setLoginResult(''))
               .catch(err => console.log(`error: ${err}`))
           }
