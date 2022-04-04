@@ -64,7 +64,7 @@ export default function App() {
       </View>
       <View style={styles.box}>
         <Button
-          title="Login with OpenLogin"
+          title="Login with Web3Auth"
           onPress={() =>
             Web3authReactNativeSdk.login({extraLoginOptions: {}})
               .then(result => setLoginResult(JSON.stringify(result)))
