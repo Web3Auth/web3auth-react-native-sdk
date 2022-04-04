@@ -1,7 +1,7 @@
 {
   "name": "@web3auth/react-native-sdk",
   "version": "1.0.0",
-  "description": "React Native SDK for Torus OpenLogin",
+  "description": "React Native SDK for Web3Auth (previosly Torus)",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
   "types": "lib/typescript/index.d.ts",

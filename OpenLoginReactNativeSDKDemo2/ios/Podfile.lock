@@ -74,9 +74,6 @@ PODS:
   - glog (0.3.5)
   - libevent (2.1.12)
   - OpenLogin (1.0.0)
-  - openlogin-react-native-sdk (1.0.0):
-    - React-Core
-    - Web3Auth (= 3.1.0)
   - OpenSSL-Universal (1.1.180)
   - RCT-Folly (2021.06.28.00-v2):
     - boost
@@ -342,6 +339,9 @@ PODS:
     - React-logger (= 0.66.3)
     - React-perflogger (= 0.66.3)
   - Web3Auth (3.1.0)
+  - web3auth-react-native-sdk (1.0.0):
+    - React-Core
+    - Web3Auth (= 3.1.0)
   - Yoga (1.14.0)
   - YogaKit (1.18.1):
     - Yoga (~> 1.14)
@@ -374,7 +374,6 @@ DEPENDENCIES:
   - FlipperKit/SKIOSNetworkPlugin (= 0.99.0)
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - OpenLogin (= 1.0.0)
-  - openlogin-react-native-sdk (from `../node_modules/openlogin-react-native-sdk`)
   - RCT-Folly (from `../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCTRequired (from `../node_modules/react-native/Libraries/RCTRequired`)
   - RCTTypeSafety (from `../node_modules/react-native/Libraries/TypeSafety`)
@@ -401,6 +400,7 @@ DEPENDENCIES:
   - React-RCTVibration (from `../node_modules/react-native/Libraries/Vibration`)
   - React-runtimeexecutor (from `../node_modules/react-native/ReactCommon/runtimeexecutor`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
+  - "web3auth-react-native-sdk (from `../node_modules/@web3auth/react-native-sdk`)"
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -433,8 +433,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/React/FBReactNativeSpec"
   glog:
     :podspec: "../node_modules/react-native/third-party-podspecs/glog.podspec"
-  openlogin-react-native-sdk:
-    :path: "../node_modules/openlogin-react-native-sdk"
   RCT-Folly:
     :podspec: "../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec"
   RCTRequired:
@@ -483,6 +481,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/runtimeexecutor"
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
+  web3auth-react-native-sdk:
+    :path: "../node_modules/@web3auth/react-native-sdk"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -505,7 +505,6 @@ SPEC CHECKSUMS:
   glog: 5337263514dd6f09803962437687240c5dc39aa4
   libevent: 4049cae6c81cdb3654a443be001fb9bdceff7913
   OpenLogin: 055c3108e8ada81a1e833c2c59188faed302e32b
-  openlogin-react-native-sdk: 59392576b4b481f39bc83063b0a81173f35bd627
   OpenSSL-Universal: 1aa4f6a6ee7256b83db99ec1ccdaa80d10f9af9b
   RCT-Folly: a21c126816d8025b547704b777a2ba552f3d9fa9
   RCTRequired: 59d2b744d8c2bf2d9bc7032a9f654809adcf7d50
@@ -532,6 +531,7 @@ SPEC CHECKSUMS:
   React-runtimeexecutor: bbbdb3d8fcf327c6e2249ee71b6ef1764b7dc266
   ReactCommon: 9bac022ab71596f2b0fde1268272543184c63971
   Web3Auth: 81df9a25d1ca80b10ac1f0447713297fc9b3aa48
+  web3auth-react-native-sdk: 1de0e7e1fb8dab8100c7b5a0e0900284aa398f07
   Yoga: 32a18c0e845e185f4a2a66ec76e1fd1f958f22fa
   YogaKit: f782866e155069a2cca2517aafea43200b01fd5a
 
