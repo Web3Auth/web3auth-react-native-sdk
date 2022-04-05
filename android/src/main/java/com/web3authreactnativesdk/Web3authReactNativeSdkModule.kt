@@ -1,4 +1,4 @@
-package com.openloginreactnativesdk
+package com.web3authreactnativesdk
 
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -12,34 +12,30 @@ import com.facebook.react.bridge.*
 import com.web3auth.core.Web3Auth
 import java.lang.Exception
 import java.util.*
-import com.facebook.react.bridge.WritableMap
 
-import com.facebook.react.bridge.ReactContext
-import com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter
 import com.web3auth.core.types.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java8.util.concurrent.CompletableFuture
 
 // Quick note on allowing RN Modules to receive Activity Events
 // https://stackoverflow.com/questions/45744013/onnewintent-is-not-called-on-reactcontextbasejavamodule-react-native
 
-class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) :
+class Web3authReactNativeSdkModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
 
   override fun getName(): String {
-    return "OpenloginReactNativeSdk"
+    return "Web3authReactNativeSdk"
   }
 
-  private lateinit var openlogin: Web3Auth
+  private lateinit var web3auth: Web3Auth
 
   @ReactMethod
   fun init(params: ReadableMap, promise: Promise) = try {
     val clientId = params.getString("clientId") as String
     val network = params.getString("network") as String
     val redirectUrl = params.getString("redirectUrl")
-    openlogin = Web3Auth(
+    web3auth = Web3Auth(
       Web3AuthOptions(
         context = currentActivity!!,
         clientId = clientId,
@@ -48,13 +44,13 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) :
       )
     )
 
-    openlogin.setResultUrl(reactApplicationContext.currentActivity?.intent?.data)
+    web3auth.setResultUrl(reactApplicationContext.currentActivity?.intent?.data)
 
     reactApplicationContext.addActivityEventListener(object : ActivityEventListener {
       override fun onActivityResult(p0: Activity?, p1: Int, p2: Int, p3: Intent?) {}
 
       override fun onNewIntent(p0: Intent?) {
-        openlogin.setResultUrl(p0?.data)
+        web3auth.setResultUrl(p0?.data)
       }
     })
     promise.resolve(null)
@@ -82,7 +78,7 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) :
 
           )
         )
-        val loginCF = openlogin.login(
+        val loginCF = web3auth.login(
           loginParams,
         )
         loginCF.join()
@@ -118,7 +114,7 @@ class OpenloginReactNativeSdkModule(reactContext: ReactApplicationContext) :
   fun logout(params: ReadableMap, promise: Promise) {
     CoroutineScope(Dispatchers.Default).launch {
       try {
-        val logoutCF = openlogin.logout()
+        val logoutCF = web3auth.logout()
         logoutCF.join()
         logoutCF.whenComplete { _, error ->
           launch(Dispatchers.Main) {

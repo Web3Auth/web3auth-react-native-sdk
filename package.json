@@ -1,7 +1,7 @@
 {
   "name": "@web3auth/react-native-sdk",
   "version": "1.0.0",
-  "description": "React Native SDK for Torus OpenLogin",
+  "description": "React Native SDK for Web3Auth (previosly Torus)",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
   "types": "lib/typescript/index.d.ts",
@@ -13,7 +13,7 @@
     "android",
     "ios",
     "cpp",
-    "openlogin-react-native-sdk.podspec",
+    "web3auth-react-native-sdk.podspec",
     "!lib/typescript/example",
     "!android/build",
     "!ios/build",
@@ -27,8 +27,8 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "prepare": "bob build",
     "release": "release-it",
-    "example": "yarn --cwd OpenLoginReactNativeSDKDemo2",
-    "pods": "cd OpenLoginReactNativeSDKDemo2 && pod-install --quiet",
+    "example": "yarn --cwd Web3AuthReactNativeSDKDemo2",
+    "pods": "cd Web3AuthReactNativeSDKDemo2 && pod-install --quiet",
     "bootstrap": "yarn example && yarn && yarn pods"
   },
   "keywords": [
@@ -36,13 +36,13 @@
     "ios",
     "android"
   ],
-  "repository": "https://github.com/torusresearch/openlogin-react-native-sdk",
+  "repository": "https://github.com/torusresearch/web3auth-react-native-sdk",
   "author": "torusresearch <hello@tor.us> (https://github.com/torusresearch)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/torusresearch/openlogin-react-native-sdk/issues"
+    "url": "https://github.com/torusresearch/web3auth-react-native-sdk/issues"
   },
-  "homepage": "https://github.com/torusresearch/openlogin-react-native-sdk#readme",
+  "homepage": "https://github.com/torusresearch/web3auth-react-native-sdk#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"

@@ -1,6 +1,6 @@
 #import <React/RCTBridgeModule.h>
 
-@interface RCT_EXTERN_MODULE(OpenloginReactNativeSdk, NSObject)
+@interface RCT_EXTERN_MODULE(Web3authReactNativeSdk, NSObject)
 
 RCT_EXTERN_METHOD(init: (NSDictionary *)params
                   withResolver:(RCTPromiseResolveBlock)resolve
