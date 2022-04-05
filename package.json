@@ -27,8 +27,8 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "prepare": "bob build",
     "release": "release-it",
-    "example": "yarn --cwd Web3AuthReactNativeSDKDemo2",
-    "pods": "cd Web3AuthReactNativeSDKDemo2 && pod-install --quiet",
+    "example": "yarn --cwd Web3AuthReactNativeSDKDemo",
+    "pods": "cd Web3AuthReactNativeSDKDemo && pod-install --quiet",
     "bootstrap": "yarn example && yarn && yarn pods"
   },
   "keywords": [
