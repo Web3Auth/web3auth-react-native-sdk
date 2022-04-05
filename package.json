@@ -1,6 +1,6 @@
 {
   "name": "@web3auth/react-native-sdk",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "React Native SDK for Web3Auth (previosly Torus)",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
