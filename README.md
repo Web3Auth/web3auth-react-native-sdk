@@ -24,7 +24,7 @@ Refer to the demo app for more detailed example.
 ```js
 import OpenloginReactNativeSdk, {
   LoginProvider,
-  OpenloginNetwork,
+  Web3authNetwork,
 } from '@web3auth/react-native-sdk';
 
 React.useEffect(() => {
@@ -33,7 +33,7 @@ React.useEffect(() => {
     clientId:
       'BKJ3HmEqVmMHbFeW6E-CVPmdnVrnPhdBEI82kxgBVJGtaS4XlylvAE-1gmsv_Fa1CDj-xIhvTf3Kgd6mTn8nJtw',
     // TESTNET is currently broken on iOS.
-    network: OpenloginNetwork.MAINNET,
+    network: Web3authNetwork.MAINNET,
     // redirectUrl only applies for Android SDK, it is designated by iOS SDK in iOS, which is \(bundleId)://auth
     redirectUrl: 'com.example.openloginreactnativesdk://auth',
   })
