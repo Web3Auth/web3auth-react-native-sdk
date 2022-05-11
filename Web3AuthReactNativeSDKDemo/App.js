@@ -3,6 +3,7 @@ import React, {useState} from 'react';
 import {StyleSheet, View, Text, Button} from 'react-native';
 import Web3authReactNativeSdk, {
   LoginProvider,
+  MfaLevel,
   Web3authNetwork,
 } from '@web3auth/react-native-sdk';
 
@@ -67,6 +68,32 @@ export default function App() {
           title="Login with Web3Auth"
           onPress={() =>
             Web3authReactNativeSdk.login({extraLoginOptions: {}})
+              .then(result => setLoginResult(JSON.stringify(result)))
+              .catch(err => console.log(`error: ${err}`))
+          }
+        />
+      </View>
+      <View style={styles.box}>
+        <Button
+          title="Login with Google with mandatory MFA"
+          onPress={() =>
+            Web3authReactNativeSdk.login({
+              provider: LoginProvider.GOOGLE,
+              mfaLevel: MfaLevel.MANDATORY,
+            })
+              .then(result => setLoginResult(JSON.stringify(result)))
+              .catch(err => console.log(`error: ${err}`))
+          }
+        />
+      </View>
+      <View style={styles.box}>
+        <Button
+          title="Login with Google with none MFA"
+          onPress={() =>
+            Web3authReactNativeSdk.login({
+              provider: LoginProvider.GOOGLE,
+              mfaLevel: MfaLevel.NONE,
+            })
               .then(result => setLoginResult(JSON.stringify(result)))
               .catch(err => console.log(`error: ${err}`))
           }
