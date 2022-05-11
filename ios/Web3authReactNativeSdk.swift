@@ -28,14 +28,16 @@ class Web3authReactNativeSdk: NSObject {
         let redirectUrl = params["redirectUrl"] as? String
         let appState = params["appState"] as? String
         let login_hint = (params["extraLoginOptions"] as? [String: Any?])?["login_hint"] as? String
+        let mfaLevel = getMfaLevel(params["mfaLevel"] as? String)
         if let w3a = web3auth {
             w3a.login(W3ALoginParams(
                 loginProvider: provider,
                 relogin: relogin,
                 dappShare: dappShare,
-                extraLoginOptions: login_hint == nil ? nil : ExtraLoginOptions(display: nil, prompt: nil, max_age: nil, ui_locales: nil, id_token_hint: nil, login_hint: login_hint, acr_values: nil, scope: nil, audience: nil, connection: nil, domain: nil, client_id: nil, redirect_uri: nil, leeway: nil, verifierIdField: nil, isVerifierIdCaseSensitive: nil),
+                extraLoginOptions: login_hint == nil ? nil : ExtraLoginOptions(display: nil, prompt: nil, max_age: nil, ui_locales: nil, id_token_hint: nil, id_token: nil, login_hint: login_hint, acr_values: nil, scope: nil, audience: nil, connection: nil, domain: nil, client_id: nil, redirect_uri: nil, leeway: nil, verifierIdField: nil, isVerifierIdCaseSensitive: nil),
                 redirectUrl: redirectUrl,
-                appState: appState
+                appState: appState,
+                mfaLevel: mfaLevel
             )) {
                 switch $0 {
                 case .success(let result):
@@ -69,7 +71,7 @@ class Web3authReactNativeSdk: NSObject {
     
 }
 
-func getWeb3AuthProvider(_ str: String?) -> Web3AuthProvider?{
+func getWeb3AuthProvider(_ str: String?) -> Web3AuthProvider? {
     guard
         let unwrappedStr = str
     else {
@@ -90,6 +92,21 @@ func getWeb3AuthProvider(_ str: String?) -> Web3AuthProvider?{
         "weibo": .WEIBO,
         "wechat": .WECHAT,
         "email_passwordless": .EMAIL_PASSWORDLESS
+    ]
+    return mapping[unwrappedStr]
+}
+
+func getMfaLevel(_ str: String?) -> MFALevel? {
+    guard
+        let unwrappedStr = str
+    else {
+        return nil
+    }
+    let mapping: [String: MFALevel] = [
+        "default": .DEFAULT,
+        "optional": .OPTIONAL,
+        "mandatory": .MANDATORY,
+        "none": .NONE
     ]
     return mapping[unwrappedStr]
 }

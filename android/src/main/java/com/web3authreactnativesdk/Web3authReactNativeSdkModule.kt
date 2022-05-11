@@ -76,7 +76,9 @@ class Web3authReactNativeSdkModule(reactContext: ReactApplicationContext) :
                 ?.hasKey("login_hint") == true
             ) params.getMap("extraLoginOptions")?.getString("login_hint") else null
 
-          )
+          ),
+          mfaLevel = getMFALevel(if (!params.hasKey("mfaLevel")) null else params.getString("mfaLevel"))
+
         )
         val loginCF = web3auth.login(
           loginParams,
@@ -149,6 +151,17 @@ class Web3authReactNativeSdkModule(reactContext: ReactApplicationContext) :
       "email_passwordless" -> Provider.EMAIL_PASSWORDLESS
 
       else -> Provider.GOOGLE
+    }
+  }
+
+  fun getMFALevel(str: String?): MFALevel? {
+    return when (str) {
+      "default" -> MFALevel.DEFAULT
+      "optional" -> MFALevel.OPTIONAL
+      "mandatory" -> MFALevel.MANDATORY
+      "none" -> MFALevel.NONE
+
+      else -> null
     }
   }
 
