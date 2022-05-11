@@ -338,10 +338,10 @@ PODS:
     - React-jsi (= 0.66.3)
     - React-logger (= 0.66.3)
     - React-perflogger (= 0.66.3)
-  - Web3Auth (3.1.0)
+  - Web3Auth (3.3.0)
   - web3auth-react-native-sdk (2.0.1):
     - React-Core
-    - Web3Auth (= 3.1.0)
+    - Web3Auth (= 3.3.0)
   - Yoga (1.14.0)
   - YogaKit (1.18.1):
     - Yoga (~> 1.14)
@@ -400,6 +400,7 @@ DEPENDENCIES:
   - React-RCTVibration (from `../node_modules/react-native/Libraries/Vibration`)
   - React-runtimeexecutor (from `../node_modules/react-native/ReactCommon/runtimeexecutor`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
+  - Web3Auth (= 3.3.0)
   - "web3auth-react-native-sdk (from `../node_modules/@web3auth/react-native-sdk`)"
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -530,11 +531,11 @@ SPEC CHECKSUMS:
   React-RCTVibration: 50cfe7049167cfc7e83ac5542c6fff0c76791a9b
   React-runtimeexecutor: bbbdb3d8fcf327c6e2249ee71b6ef1764b7dc266
   ReactCommon: 9bac022ab71596f2b0fde1268272543184c63971
-  Web3Auth: 81df9a25d1ca80b10ac1f0447713297fc9b3aa48
-  web3auth-react-native-sdk: c2e85abb10b6682f51ecf9ad702ebcf01b0001b1
+  Web3Auth: 83062b2ccc9b5882f44c02fa3464283f833c169f
+  web3auth-react-native-sdk: a9b8461877ae8445fa8714db1f8d4d8f91eec839
   Yoga: 32a18c0e845e185f4a2a66ec76e1fd1f958f22fa
   YogaKit: f782866e155069a2cca2517aafea43200b01fd5a
 
-PODFILE CHECKSUM: f639bdb942438e529c11bb045d929f10d5f30ece
+PODFILE CHECKSUM: 7a8d270f572e0a9fc7563775996efa33747cf55e
 
 COCOAPODS: 1.11.2

@@ -11,6 +11,8 @@ target 'OpenLoginReactNativeSDKDemo2' do
 
   pod 'OpenLogin', '1.0.0'
 
+  pod 'Web3Auth', '3.3.0'
+
   use_react_native!(
     :path => config[:reactNativePath],
     # to enable hermes on iOS, change `false` to `true` and then install pods
