@@ -339,7 +339,7 @@ PODS:
     - React-logger (= 0.66.3)
     - React-perflogger (= 0.66.3)
   - Web3Auth (3.1.0)
-  - web3auth-react-native-sdk (2.0.0):
+  - web3auth-react-native-sdk (2.0.1):
     - React-Core
     - Web3Auth (= 3.1.0)
   - Yoga (1.14.0)
@@ -404,7 +404,7 @@ DEPENDENCIES:
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
-  trunk:
+  https://github.com/CocoaPods/Specs.git:
     - CocoaAsyncSocket
     - Flipper
     - Flipper-Boost-iOSX
@@ -531,10 +531,10 @@ SPEC CHECKSUMS:
   React-runtimeexecutor: bbbdb3d8fcf327c6e2249ee71b6ef1764b7dc266
   ReactCommon: 9bac022ab71596f2b0fde1268272543184c63971
   Web3Auth: 81df9a25d1ca80b10ac1f0447713297fc9b3aa48
-  web3auth-react-native-sdk: ef9267bff580c28c7d578fbb10831f2b6ae43d1e
+  web3auth-react-native-sdk: c2e85abb10b6682f51ecf9ad702ebcf01b0001b1
   Yoga: 32a18c0e845e185f4a2a66ec76e1fd1f958f22fa
   YogaKit: f782866e155069a2cca2517aafea43200b01fd5a
 
-PODFILE CHECKSUM: c2aa5d35f844d5e7a411cddb5201a81ba32e0078
+PODFILE CHECKSUM: f639bdb942438e529c11bb045d929f10d5f30ece
 
 COCOAPODS: 1.11.2

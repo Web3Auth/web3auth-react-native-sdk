@@ -29,11 +29,12 @@ export interface LoginParams {
   redirectUrl?: string;
   appState?: string;
   extraLoginOptions?: { login_hint?: string };
+  mfaLevel?: MfaLevel;
 }
 
 type Web3authReactNativeSdkType = {
   init(params: InitParams): Promise<void>;
-  login(params: { provider?: LoginProvider }): Promise<AuthState>;
+  login(params: LoginParams): Promise<AuthState>;
   logout(params: {}): Promise<void>;
 };
 
@@ -60,6 +61,13 @@ export enum Web3authNetwork {
   MAINNET = 'mainnet',
   TESTNET = 'testnet',
   DEVELOPMENT = 'development',
+}
+
+export enum MfaLevel {
+  DEFAULT = 'default',
+  OPTIONAL = 'optional',
+  MANDATORY = 'mandatory',
+  NONE = 'none',
 }
 
 const { Web3authReactNativeSdk } = NativeModules;
