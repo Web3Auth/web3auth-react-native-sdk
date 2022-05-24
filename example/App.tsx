@@ -9,8 +9,11 @@ import Web3Auth, {
 import Constants, { AppOwnership } from "expo-constants";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
+import { Buffer } from "buffer";
 
-const scheme = "openloginexposdkexampleexpo";
+global.Buffer = global.Buffer || Buffer;
+
+const scheme = "web3authreactnativesdkexample";
 
 const resolvedRedirectUrl =
   Constants.appOwnership == AppOwnership.Expo ||

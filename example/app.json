@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "openlogin-expo-sdk-example-expo",
-    "slug": "openlogin-expo-sdk-example-expo",
-    "scheme": "openloginexposdkexampleexpo",
+    "name": "web3auth-react-native-sdk-example",
+    "slug": "web3auth-react-native-sdk-example",
+    "scheme": "web3authreactnativesdkexample",
     "version": "1.0.6",
     "owner": "michaellee8",
     "orientation": "portrait",
