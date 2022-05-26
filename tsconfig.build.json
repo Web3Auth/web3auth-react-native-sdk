@@ -1,4 +1,0 @@
-{
-  "extends": "./tsconfig",
-  "exclude": ["example", "Web3AuthReactNativeSDKDemo"]
-}

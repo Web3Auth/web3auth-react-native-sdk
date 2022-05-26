@@ -1,6 +1,4 @@
-# @web3auth/react-native-sdk
-
-React Native SDK for Torus OpenLogin
+# React Native SDK for Web3Auth
 
 ## Installation
 
@@ -8,57 +6,29 @@ React Native SDK for Torus OpenLogin
 npm install @web3auth/react-native-sdk
 ```
 
-Please refer to the native SDKs for platform-specific configuration.
+To allow the SDK to work with exported Expo Android apps, you need to place a designated scheme into `app.json`, like below:
 
-- [Android SDK](https://github.com/torusresearch/openlogin-android-sdk)
-- [iOS SDK](https://github.com/torusresearch/openlogin-swift-sdk)
-
-For iOS, the redirectUrl parameter is fixed, which is `\(bundleId)://auth`, and does not need to be added as a iOS Custom URL Scheme.
-
-For Android, the redirectUrl parameter is specificable, and has to be added into the AndroidManifest.xml.
+```js
+    "scheme": "web3authreactnativesdkexample",
+```
 
 ## Usage
 
-Refer to the demo app for more detailed example.
+Please see [App.tsx](./example/App.tsx) for detailed example.
 
 ```js
-import OpenloginReactNativeSdk, {
-  LoginProvider,
-  Web3authNetwork,
-} from '@web3auth/react-native-sdk';
+import * as WebBrowser from "@toruslabs/react-native-web-browser";
+// or  import * as WebBrowser from "expo-web-browser"; (for expo)
 
-React.useEffect(() => {
-  OpenloginReactNativeSdk.init({
-    // Your clientId obtained from OpenLogin dashboard.
-    clientId:
-      'BKJ3HmEqVmMHbFeW6E-CVPmdnVrnPhdBEI82kxgBVJGtaS4XlylvAE-1gmsv_Fa1CDj-xIhvTf3Kgd6mTn8nJtw',
-    // TESTNET is currently broken on iOS.
-    network: Web3authNetwork.MAINNET,
-    // redirectUrl only applies for Android SDK, it is designated by iOS SDK in iOS, which is \(bundleId)://auth
-    redirectUrl: 'com.example.openloginreactnativesdk://auth',
-  })
-    .then(result => console.log(`success: ${result}`))
-    .catch(err => console.log(`error: ${err}`));
-}, []);
-
-OpenloginReactNativeSdk.login({
-  provider: LoginProvider.GOOGLE,
-})
-  .then(result => console.log(`success: ${result.privKey}, ${result.userInfo}`))
-  .catch(err => console.log(`error: ${err}`))
-
-// For iOS, it is also possible to get the default OpenLogin login screen, which let users to choose their own providers, by not specifying a provider.
-// For Android, not specifying a provider will default to Google.
-OpenloginReactNativeSdk.login({})
-  .then(result => console.log(`success: ${result.privKey}, ${result.userInfo}`))
-  .catch(err => console.log(`error: ${err}`))
+const web3auth = new Web3Auth(WebBrowser, {
+  clientId: "BC5bANkU4-fil7C5s1uKzRfF0VGqbuaxDQiLnQ8WgF7SEA32lGegAhu7dk4dZf3Rk397blIvfWytXwsRvs9dOaQ",
+  network: Network.TESTNET,
+});
+const state = await web3auth.login({
+  loginProvider: LoginProvider.GOOGLE,
+  redirectUrl: resolvedRedirectUrl,
+});
 ```
-
-## Contributing
-
-See the [contributing guide](CONTRIBUTING.md) to learn how to contribute to the repository and the development workflow.
-
-This project uses `yarn` for package management.
 
 ## License
 
