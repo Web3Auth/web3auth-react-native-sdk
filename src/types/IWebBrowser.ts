@@ -1,10 +1,7 @@
 export declare type RedirectEvent = {
   url: string;
 };
-export declare type WebBrowserWindowFeatures = Record<
-  string,
-  number | boolean | string
->;
+export declare type WebBrowserWindowFeatures = Record<string, number | boolean | string>;
 export declare type WebBrowserOpenOptions = {
   /**
    * Color of the toolbar in either `#AARRGGBB` or `#RRGGBB` format.
@@ -75,9 +72,7 @@ export declare type WebBrowserOpenOptions = {
    */
   windowFeatures?: string | WebBrowserWindowFeatures;
 };
-export declare type WebBrowserAuthSessionResult =
-  | WebBrowserRedirectResult
-  | WebBrowserResult;
+export declare type WebBrowserAuthSessionResult = WebBrowserRedirectResult | WebBrowserResult;
 export declare type WebBrowserCustomTabsResults = {
   /**
    * Default package chosen by user, `null` if there is no such packages. Also `null` usually means,
@@ -275,11 +270,7 @@ export interface IWebBrowser {
    * - If the browser is closed using [`dismissBrowser`](#webbrowserdismissbrowser),
    * the Promise fulfills with `{ type: 'dismiss' }` object.
    */
-  openAuthSessionAsync(
-    url: string,
-    redirectUrl: string,
-    browserParams?: WebBrowserOpenOptions
-  ): Promise<WebBrowserAuthSessionResult>;
+  openAuthSessionAsync(url: string, redirectUrl: string, browserParams?: WebBrowserOpenOptions): Promise<WebBrowserAuthSessionResult>;
   // dismissAuthSession(): void;
   /**
    * Possibly completes an authentication session on web in a window popup. The method

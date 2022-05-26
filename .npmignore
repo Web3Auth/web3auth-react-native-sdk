@@ -581,12 +581,10 @@ fabric.properties
 
 # End of https://www.toptal.com/developers/gitignore/api/android,androidstudio,xcode,reactnative,node,yarn
 
-/openlogin-expo-sdk-example-report
+
 
 /node_modules
 
 /
 
 /.yalc/
-
-/openlogin-expo-sdk-example-expo/

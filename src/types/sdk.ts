@@ -1,9 +1,4 @@
-import {
-  BaseLogoutParams,
-  BaseRedirectParams,
-  LoginParams,
-  OpenLoginOptions,
-} from "./core";
+import { BaseLogoutParams, BaseRedirectParams, LoginParams, OpenLoginOptions } from "./core";
 
 type SdkSpecificInitParams = {
   sdkUrl?: string;
@@ -11,19 +6,9 @@ type SdkSpecificInitParams = {
 
 export type SdkInitParams = Omit<
   OpenLoginOptions & SdkSpecificInitParams,
-  | "no3PC"
-  | "uxMode"
-  | "replaceUrlOnRedirect"
-  | "originData"
-  | "_iframeUrl"
-  | "_startUrl"
-  | "_popupUrl"
+  "no3PC" | "uxMode" | "replaceUrlOnRedirect" | "originData" | "_iframeUrl" | "_startUrl" | "_popupUrl"
 >;
 
-export type SdkLoginParams = Omit<
-  LoginParams,
-  "fastLogin" | "skipTKey" | "getWalletKey"
->;
+export type SdkLoginParams = Omit<LoginParams, "fastLogin" | "skipTKey" | "getWalletKey">;
 
-export type SdkLogoutParams = Partial<BaseLogoutParams> &
-  Partial<BaseRedirectParams>;
+export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;

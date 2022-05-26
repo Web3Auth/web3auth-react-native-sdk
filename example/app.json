@@ -18,7 +18,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.torus.samples.openloginexposdkexampleexpo",
+      "bundleIdentifier": "com.torus.samples.web3authexposample",
       "buildNumber": "0.0.6"
     },
     "android": {
@@ -26,7 +26,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.torus.samples.openloginexposdkexampleexpo",
+      "package": "com.torus.samples.web3authexposample",
       "versionCode": 6
     },
     "web": {

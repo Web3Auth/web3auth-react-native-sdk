@@ -1,11 +1,11 @@
 import {
   LOGIN_PROVIDER,
   LOGIN_PROVIDER_TYPE,
-  MfaLevelType,
   MFA_LEVELS,
-  OpenloginUserInfo,
+  MfaLevelType,
   OPENLOGIN_NETWORK,
   OPENLOGIN_NETWORK_TYPE,
+  OpenloginUserInfo,
 } from "./types/core";
 import { LoginConfig, TypeOfLogin, WhiteLabelData } from "./types/jrpc";
 import { SdkInitParams, SdkLoginParams, SdkLogoutParams } from "./types/sdk";
@@ -14,20 +14,20 @@ import { ExtraLoginOptions } from "./types/utils";
 import Web3Auth from "./Web3Auth";
 
 export type {
-  LoginConfig,
-  WhiteLabelData,
-  LOGIN_PROVIDER_TYPE,
-  OPENLOGIN_NETWORK_TYPE,
-  MfaLevelType,
   ExtraLoginOptions,
+  LOGIN_PROVIDER_TYPE,
+  LoginConfig,
+  MfaLevelType,
+  OPENLOGIN_NETWORK_TYPE,
   OpenloginUserInfo,
-  TypeOfLogin,
   SdkInitParams,
   SdkLoginParams,
   SdkLogoutParams,
+  TypeOfLogin,
   State as Web3AuthState,
+  WhiteLabelData,
 };
 
-export { MFA_LEVELS, LOGIN_PROVIDER, OPENLOGIN_NETWORK };
+export { LOGIN_PROVIDER, MFA_LEVELS, OPENLOGIN_NETWORK };
 
 export default Web3Auth;

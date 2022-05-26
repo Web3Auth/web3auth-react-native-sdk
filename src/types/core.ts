@@ -51,8 +51,7 @@ export const OPENLOGIN_NETWORK = {
   DEVELOPMENT: "development",
 } as const;
 
-export type OPENLOGIN_NETWORK_TYPE =
-  typeof OPENLOGIN_NETWORK[keyof typeof OPENLOGIN_NETWORK];
+export type OPENLOGIN_NETWORK_TYPE = typeof OPENLOGIN_NETWORK[keyof typeof OPENLOGIN_NETWORK];
 
 export type OpenLoginOptions = {
   /**
@@ -186,8 +185,7 @@ export const LOGIN_PROVIDER = {
 /**
  * {@label loginProviderType}
  */
-export type LOGIN_PROVIDER_TYPE =
-  typeof LOGIN_PROVIDER[keyof typeof LOGIN_PROVIDER];
+export type LOGIN_PROVIDER_TYPE = typeof LOGIN_PROVIDER[keyof typeof LOGIN_PROVIDER];
 
 // autocomplete workaround https://github.com/microsoft/TypeScript/issues/29729
 export type CUSTOM_LOGIN_PROVIDER_TYPE = string & {
