@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import { StyleSheet, Text, View, Button } from "react-native";
-import Web3Auth, { LOGIN_PROVIDER, OPENLOGIN_NETWORK } from "@web3auth/react-native-sdk";
+import Web3Auth, { LOGIN_PROVIDER, OPENLOGIN_NETWORK, State } from "@web3auth/react-native-sdk";
 import Constants, { AppOwnership } from "expo-constants";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
@@ -19,6 +19,7 @@ const resolvedRedirectUrl =
 export default function App() {
   const [key, setKey] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [userInfo, setUserInfo] = useState<State>(null);
   const login = async () => {
     try {
       const web3auth = new Web3Auth(WebBrowser, {
@@ -30,6 +31,7 @@ export default function App() {
         redirectUrl: resolvedRedirectUrl,
       });
       setKey(state.privKey || "no key");
+      setUserInfo(state);
     } catch (e) {
       console.error(e);
       setErrorMsg(String(e));
@@ -37,11 +39,10 @@ export default function App() {
   };
   return (
     <View style={styles.container}>
-      <Text>Key: {key}</Text>
-      <Text>Error: {errorMsg}</Text>
+      {key !== "" ? <Text>Key: {key}</Text> : null}
+      {userInfo !== null ? <Text>UserInfo: {JSON.stringify(userInfo)}</Text> : null}
+      {errorMsg !== "" ? <Text>Error: {errorMsg}</Text> : null}
       <Text>Linking URL: {resolvedRedirectUrl}</Text>
-      <Text>appOwnership: {Constants.appOwnership}</Text>
-      <Text>executionEnvironment: {Constants.executionEnvironment}</Text>
       <Button title="Login with Web3Auth" onPress={login} />
       <StatusBar style="auto" />
     </View>

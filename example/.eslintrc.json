@@ -1,5 +1,4 @@
 {
-  "root": true,
   "extends": ["@toruslabs/eslint-config-react"],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
