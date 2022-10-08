@@ -1316,10 +1316,10 @@
   resolved "https://registry.yarnpkg.com/@tootallnate/once/-/once-1.1.2.tgz#ccb91445360179a04e7fe6aff78c00ffc1eeaf82"
   integrity sha512-RbzJvlNzmRq5c3O09UipeuXno4tA1FE6ikOjxZK0tuxVv3412l64l5t1W5pj4+rJq9vpkm/kwiR07aZXnsKPxw==
 
-"@toruslabs/react-native-web-browser@^1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@toruslabs/react-native-web-browser/-/react-native-web-browser-1.0.0.tgz#42bd564bc963096af4fd8e9771d6016f9b1be8eb"
-  integrity sha512-BusU1QBoGCrKQzvqmEKcMiIV6m7HQ4R0V1jHveP1KcgFf5J3qxbpCFqqNOGIpIJl8s2zfKIiPGh3UcO6EVVEfg==
+"@toruslabs/react-native-web-browser@^1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@toruslabs/react-native-web-browser/-/react-native-web-browser-1.0.1.tgz#a2b38741ff6b22d02e2cbf267b26d9521b22d738"
+  integrity sha512-irbsvLDrUP1rK7I2Nr0Bl+VtB3DO7c9Sf+nzbV9+KkCh+7J5TRzbbIzvvyRcfm58N/DaQoF+Tu4COUeXq91MjQ==
   dependencies:
     compare-urls "^3.0.0"
 
