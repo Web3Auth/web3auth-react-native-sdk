@@ -19,7 +19,6 @@ export const OPENLOGIN_NETWORK = {
   CYAN: "cyan",
 } as const;
 
-
 export const LOGIN_PROVIDER = {
   GOOGLE: "google",
   FACEBOOK: "facebook",
@@ -38,3 +37,7 @@ export const LOGIN_PROVIDER = {
   WEBAUTHN: "webauthn",
   JWT: "jwt",
 } as const;
+
+export type { ALLOWED_INTERACTIONS_TYPE, LOGIN_PROVIDER_TYPE, OPENLOGIN_NETWORK_TYPE, SUPPORTED_KEY_CURVES_TYPE } from "@toruslabs/openlogin";
+export type { ExtraLoginOptions } from "@toruslabs/openlogin-utils";
+export type { WhiteLabelData, TypeOfLogin } from "@toruslabs/openlogin-jrpc";
