@@ -19,6 +19,11 @@ export const OPENLOGIN_NETWORK = {
   CYAN: "cyan",
 } as const;
 
+export const SUPPORTED_KEY_CURVES = {
+  SECP256K1: "secp256k1",
+  ED25519: "ed25519",
+};
+
 export const LOGIN_PROVIDER = {
   GOOGLE: "google",
   FACEBOOK: "facebook",
@@ -38,6 +43,21 @@ export const LOGIN_PROVIDER = {
   JWT: "jwt",
 } as const;
 
-export type { ALLOWED_INTERACTIONS_TYPE, LOGIN_PROVIDER_TYPE, OPENLOGIN_NETWORK_TYPE, SUPPORTED_KEY_CURVES_TYPE } from "@toruslabs/openlogin";
+const MFA_LEVELS = {
+  DEFAULT: "default",
+  OPTIONAL: "optional",
+  MANDATORY: "mandatory",
+  NONE: "none",
+};
+
+export type {
+  ALLOWED_INTERACTIONS_TYPE,
+  LOGIN_PROVIDER_TYPE,
+  OPENLOGIN_NETWORK_TYPE,
+  SUPPORTED_KEY_CURVES_TYPE,
+  MfaLevelType,
+  LoginParams,
+  OpenloginUserInfo,
+} from "@toruslabs/openlogin";
 export type { ExtraLoginOptions } from "@toruslabs/openlogin-utils";
 export type { WhiteLabelData, TypeOfLogin } from "@toruslabs/openlogin-jrpc";
