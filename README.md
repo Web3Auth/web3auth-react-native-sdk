@@ -62,7 +62,7 @@ To allow the SDK to work with exported Expo Android apps, you need to place a de
 ```js
 {
   "expo": {
-    "scheme": "web3authreactnativesdkexample"
+    "scheme": "web3authexposample"
   }
 }
 ```
@@ -71,86 +71,71 @@ To allow the SDK to work with exported Expo Android apps, you need to place a de
 
 When using our SDK with a bare workflow React Native app, you have to install a `WebBrowser` implementation made by us.
 
-```bash npm2yarn
+```sh
 npm install --save @toruslabs/react-native-web-browser
 ```
 
 #### Android
 
-- Perform the native [Android integration steps](https://web3auth.io/docs/sdk/android/).
-- For Android, the `redirectUrl` parameter is configurable, and has to be added into the `AndroidManifest.xml`.
+- The `scheme` parameter in the `redirectUrl` is specificable, and has to be added into the `AndroidManifest.xml`.
+
+```xml
+<data android:scheme="web3authrnexample" />
+```
 
 #### iOS
 
-- Perform the native [iOS integration steps](https://web3auth.io/docs/sdk/ios/).
-
-- You may add the `redirectUrl` to your iOS `Info.plist`, but it is not required.
+- The `scheme` parameter in the `redirectUrl` is specificable here as well, however, it does not need to be added as a iOS Custom URL Scheme. You may add the `scheme` to your iOS `Info.plist`, but it is not required.
 
 #### Register the URL scheme you intended to use for redirection
 
-- Android `AndoidManifest.xml` (required)
-- iOS `Info.plist` (optional)
+- In the Web3Auth Developer Dashboard, add the URL scheme you intended to use for redirection to the **Whitelist URLs** section.
 
+For example, the scheme mentioned is `web3authrnexample` and the `redirectUrl` mentioned is `${scheme}://openlogin`, we will whitelist:
+
+```
+web3authrnexample://openlogin
+```
 
 ## 💥 Initialization & Usage
 
 In your sign-in activity', create an `Web3Auth` instance with your Web3Auth project's configurations and 
 configure it like this:
 
-```kotlin
-class MainActivity : AppCompatActivity() {
-    // ...
-    private lateinit var web3Auth: Web3Auth
+### Expo Managed Workflow
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+```js
+import * as WebBrowser from 'expo-web-browser';
+import Web3Auth, { LOGIN_PROVIDER, OPENLOGIN_NETWORK } from "@web3auth/react-native-sdk";
 
-        web3Auth = Web3Auth(
-            Web3AuthOptions(context = this,
-                clientId = getString(R.string.web3auth_project_id),
-                network = Web3Auth.Network.MAINNET,
-                redirectUrl = Uri.parse("{YOUR_APP_PACKAGE_NAME}://auth"),
-                whiteLabel = WhiteLabelData(  // Optional param
-                    "Web3Auth Sample App", null, null, "en", true,
-                    hashMapOf(
-                        "primary" to "#123456"
-                    )
-                )
-            )
-        )
+const web3auth = new Web3Auth(WebBrowser, {
+    clientId,
+    network: OPENLOGIN_NETWORK.TESTNET, // or other networks
+});
+const info = await web3auth.login({
+    loginProvider: LOGIN_PROVIDER.GOOGLE,
+    redirectUrl: resolvedRedirectUrl,
+    mfaLevel: 'mandatory', // optional
+    curve: 'secp256k1', // optional
+});
+```
 
-        // Handle user signing in when app is not alive
-        web3Auth.setResultUrl(intent?.data)
-        
-        // ...
-    }
-    
-    override fun onNewIntent(intent: Intent?) {
-        super.onNewIntent(intent)
+### Bare Workflow
 
-        // Handle user signing in when app is active
-        web3Auth.setResultUrl(intent?.data)
+```js
+import * as WebBrowser from '@toruslabs/react-native-web-browser';
+import Web3Auth, { LOGIN_PROVIDER, OPENLOGIN_NETWORK } from "@web3auth/react-native-sdk";
 
-        // ...
-    }
-
-    private fun onClickLogin() {
-        val selectedLoginProvider = Provider.GOOGLE   // Can be Google, Facebook, Twitch etc
-        val loginCompletableFuture: CompletableFuture<Web3AuthResponse> = web3Auth.login(LoginParams(selectedLoginProvider))
-        
-        loginCompletableFuture.whenComplete { loginResponse, error ->
-            if (error == null) {
-                // render logged in UI
-            } else {
-                // render login error UI
-            }
-
-        }
-    }
-    
-    //...
-}
+const web3auth = new Web3Auth(WebBrowser, {
+    clientId,
+    network: OPENLOGIN_NETWORK.TESTNET, // or other networks
+});
+const info = await web3auth.login({
+    loginProvider: LOGIN_PROVIDER.GOOGLE,
+    redirectUrl: resolvedRedirectUrl,
+    mfaLevel: 'mandatory', // optional
+    curve: 'secp256k1', // optional
+});
 ```
 
 ## 🩹 Examples
