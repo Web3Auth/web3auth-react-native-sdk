@@ -17,6 +17,8 @@ export const OPENLOGIN_NETWORK = {
   MAINNET: "mainnet",
   TESTNET: "testnet",
   CYAN: "cyan",
+  AQUA: "aqua",
+  CELESTE: "celeste",
 } as const;
 
 export const SUPPORTED_KEY_CURVES = {
@@ -39,11 +41,10 @@ export const LOGIN_PROVIDER = {
   WEIBO: "weibo",
   WECHAT: "wechat",
   EMAIL_PASSWORDLESS: "email_passwordless",
-  WEBAUTHN: "webauthn",
   JWT: "jwt",
 } as const;
 
-const MFA_LEVELS = {
+export const MFA_LEVELS = {
   DEFAULT: "default",
   OPTIONAL: "optional",
   MANDATORY: "mandatory",
