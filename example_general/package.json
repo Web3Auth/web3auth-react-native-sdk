@@ -10,10 +10,11 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
+    "@toruslabs/react-native-web-browser": "^1.0.1",
+    "@web3auth/react-native-sdk": "file:../",
     "react": "18.1.0",
     "react-native": "0.70.1",
-    "@toruslabs/react-native-web-browser": "^1.0.1",
-    "@web3auth/react-native-sdk": "file:../"
+    "react-native-encrypted-storage": "^4.0.3"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
