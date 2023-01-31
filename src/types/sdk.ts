@@ -9,7 +9,7 @@ export type SdkInitParams = Omit<
   "no3PC" | "uxMode" | "replaceUrlOnRedirect" | "originData" | "_iframeUrl" | "_startUrl" | "_popupUrl" | "_storageServerUrl"
 >;
 
-export type SdkLoginParams = Omit<LoginParams, "fastLogin" | "skipTKey" | "getWalletKey">;
+export type SdkLoginParams = Omit<LoginParams, "fastLogin" | "skipTKey" | "getWalletKey"> & Required<Pick<LoginParams, "loginProvider">>;
 
 export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;
 

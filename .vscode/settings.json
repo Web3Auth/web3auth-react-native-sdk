@@ -1,0 +1,16 @@
+{
+  "eslint.workingDirectories": [
+    {
+      "directory": "example",
+      "changeProcessCWD": true
+    },
+    {
+      "directory": ".",
+      "changeProcessCWD": true
+    },
+    {
+      "directory": "example_general",
+      "changeProcessCWD": true
+    }
+  ]
+}
