@@ -7,8 +7,6 @@ import Constants, { AppOwnership } from "expo-constants";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from 'expo-secure-store';
-import { useState } from "react";
-import { Button, StyleSheet, Text, View } from "react-native";
 
 global.Buffer = global.Buffer || Buffer;
 
