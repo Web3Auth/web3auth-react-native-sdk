@@ -28,10 +28,16 @@ module.exports = {
       )
     ),
 
-    extraNodeModules: modules.reduce((acc, name) => {
-      acc[name] = path.join(__dirname, "node_modules", name);
-      return acc;
-    }, {}),
+    extraNodeModules: {
+      ... {
+        stream: path.join(__dirname, "node_modules", 'stream-browserify'),
+        crypto: path.join(__dirname, "node_modules", 'crypto-browserify')
+      },
+      ... modules.reduce((acc, name) => {
+        acc[name] = path.join(__dirname, "node_modules", name);
+        return acc;
+      }, {})
+    },
   },
 
   transformer: {

@@ -12,6 +12,12 @@ module.exports = {
         experimentalImportSupport: false,
         inlineRequires: true,
       },
+      extraNodeModules: {
+        ... {
+          stream: path.join(__dirname, "node_modules", 'stream-browserify'),
+          crypto: path.join(__dirname, "node_modules", 'crypto-browserify')
+        }
+      },
     }),
   },
 };

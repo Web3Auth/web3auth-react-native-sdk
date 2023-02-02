@@ -1,12 +1,14 @@
+(process as any).browser = true;
+
 import base64url from "base64url";
 import log from "loglevel";
 import { URL } from "react-native-url-polyfill";
 import EventEmitter from 'events';
-
+import {encryptData, decryptData, keccak256 } from '@toruslabs/metadata-helpers';
+import { getPublic, sign } from "@toruslabs/eccrypto";
 import { IWebBrowser } from "./types/IWebBrowser";
 import { SdkInitParams, SdkLoginParams, SdkLogoutParams } from "./types/sdk";
 import { State } from "./types/State";
-import { SessionManagement } from "./session/SessionManagment";
 import { Web3AuthApi } from "./api/Web3AuthApi";
 import { ShareMetadata } from "./api/model";
 import { SecureStore } from "./types/IExpoSecureStore";
@@ -90,20 +92,18 @@ class Web3Auth {
   async authorizeSession() {
      const sessionId = await this.keyStore.get("sessionId");
      if (sessionId && sessionId.length > 0) {
-      var pubKey = SessionManagement.getPubKey(sessionId);
+      var pubKey = getPublic(Buffer.from(sessionId, "hex")).toString("hex");
       var response = await Web3AuthApi.authorizeSession(pubKey);
+      if (response.success == false) {
+        return;
+      }
       var shareMetadata = JSON.parse(response.message) as ShareMetadata;
       
       this.keyStore.set("ephemPublicKey", shareMetadata.ephemPublicKey);
       this.keyStore.set("ivKey", shareMetadata.iv);
       this.keyStore.set("mac", shareMetadata.mac);
 
-      var session = new SessionManagement(
-          sessionId,
-          shareMetadata.ephemPublicKey,
-          shareMetadata.iv
-      );
-      var web3AuthResponse = JSON.parse(session.decrypt(shareMetadata.ciphertext));
+      var web3AuthResponse = await decryptData<any>(sessionId, response.message);
       web3AuthResponse["userInfo"] = web3AuthResponse["store"]
       delete web3AuthResponse['store'];
 
@@ -128,13 +128,7 @@ class Web3Auth {
       if (ephemKey?.length == 0 && ivKey?.length == 0) 
         return;
 
-      var session = new SessionManagement(
-        sessionId,
-        ephemKey,
-        ivKey
-      );
-
-      var encryptedData = session.encrypt("");
+      var encryptedData = await encryptData(sessionId, "");
       var encryptedMetadata: ShareMetadata = {
           iv: ivKey,
           ephemPublicKey: ephemKey,
@@ -142,12 +136,12 @@ class Web3Auth {
           mac: mac
       };
       var jsonData = JSON.stringify(encryptedMetadata);
-
+      var hashData = keccak256(jsonData);
       try {
         await Web3AuthApi.logout({
-          key: SessionManagement.getPubKey(sessionId),
+          key: getPublic(Buffer.from(sessionId, "hex")).toString("hex"),
           data: jsonData,
-          signature: SessionManagement.getECDSASignature(sessionId, jsonData),
+          signature: (await sign(Buffer.from(sessionId, "hex"), hashData)).toString("hex"),
           timeout: 1
         });
       } catch (ex) {
