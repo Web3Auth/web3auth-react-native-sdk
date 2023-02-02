@@ -2,20 +2,31 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View, Button } from "react-native";
 import Web3Auth, { LOGIN_PROVIDER, OPENLOGIN_NETWORK, State } from "@web3auth/react-native-sdk";
+import { Buffer } from "buffer";
 import Constants, { AppOwnership } from "expo-constants";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from 'expo-secure-store';
-import { Buffer } from "buffer";
+import { useState } from "react";
+import { Button, StyleSheet, Text, View } from "react-native";
 
 global.Buffer = global.Buffer || Buffer;
 
 const scheme = "web3authexposample";
 
 const resolvedRedirectUrl =
-  Constants.appOwnership == AppOwnership.Expo || Constants.appOwnership == AppOwnership.Guest
+  Constants.appOwnership === AppOwnership.Expo || Constants.appOwnership === AppOwnership.Guest
     ? Linking.createURL("web3auth", {})
-    : Linking.createURL("web3auth", { scheme: scheme });
+    : Linking.createURL("web3auth", { scheme });
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
 
 export default function App() {
   const [key, setKey] = useState("");
@@ -39,11 +50,11 @@ export default function App() {
     try {
       const state = await web3auth.current.login({
         loginProvider: LOGIN_PROVIDER.GOOGLE,
-        redirectUrl: resolvedRedirectUrl,
       });
       setKey(state.privKey || "no key");
       setUserInfo(state);
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.error(e);
       setErrorMsg(String(e));
     }
@@ -59,12 +70,3 @@ export default function App() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
