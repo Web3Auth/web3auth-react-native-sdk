@@ -18,7 +18,6 @@ import KeyStore from "./session/KeyStore";
 class Web3Auth {
   initParams: SdkInitParams;
   webBrowser: IWebBrowser;
-  sessionResponse: EventEmitter;
   keyStore: KeyStore;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore|EncryptedStorage, initParams: SdkInitParams) {
@@ -27,10 +26,11 @@ class Web3Auth {
       this.initParams.sdkUrl = "https://sdk.openlogin.com";
     }
     this.webBrowser = webBrowser;
-    this.sessionResponse = new EventEmitter();
     this.keyStore = new KeyStore(storage);
+  }
 
-    this.authorizeSession();
+  async init(): Promise<State> {
+    return this.authorizeSession();
   }
 
   async login(options: SdkLoginParams): Promise<State> {
@@ -107,7 +107,7 @@ class Web3Auth {
     return this.webBrowser.openAuthSessionAsync(url.href, redirectUrl);
   }
 
-  async authorizeSession() {
+  async authorizeSession(): Promise<State> {
      const sessionId = await this.keyStore.get("sessionId");
      if (sessionId && sessionId.length > 0) {
       var pubKey = getPublic(Buffer.from(sessionId, "hex")).toString("hex");
@@ -128,10 +128,10 @@ class Web3Auth {
       if (!web3AuthResponse.error) {
         web3AuthResponse = web3AuthResponse as State;
         if (web3AuthResponse.privKey && web3AuthResponse.privKey.trim('0').length > 0) {
-          this.sessionResponse.emit("login", web3AuthResponse);
+          return Promise.resolve(web3AuthResponse);
         }
       } else {
-        throw new Error(`session recovery failed with error ${web3AuthResponse.error}`);
+        return Promise.reject(`session recovery failed with error ${web3AuthResponse.error}`);
       }
     }
   }
@@ -166,7 +166,7 @@ class Web3Auth {
         this.keyStore.remove("ephemPublicKey");
         this.keyStore.remove("ivKey");
         this.keyStore.remove("mac");
-        
+
         if (this.initParams.loginConfig) {
           var loginConfigItem = Object.values(this.initParams.loginConfig)[0];
           if (loginConfigItem) {

@@ -37,7 +37,7 @@ const App = () => {
       clientId: "BDj1toq1N1xYgDIJ00ADR-QPJ71ESzJcB3ijVHP1TsIX7nsx_lu6uLoJQMPze1vpGDt--Ew95RGxz-RgOh1tcxM",
       network: OPENLOGIN_NETWORK.TESTNET,
     });
-    web3auth.current.sessionResponse.on("login", function(state: State) {
+    web3auth.current.init().then(function(state) {
       setKey(state.privKey || "no key");
       setUserInfo(state);
     });
