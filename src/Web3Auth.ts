@@ -34,6 +34,17 @@ class Web3Auth {
   }
 
   async login(options: SdkLoginParams): Promise<State> {
+    //check for share
+    if (this.initParams.loginConfig) {
+      var loginConfigItem = Object.values(this.initParams.loginConfig)[0];
+      if (loginConfigItem) {
+        var share = await this.keyStore.get(loginConfigItem.verifier);
+        if (share) {
+            options.dappShare = share
+        }
+      }
+    }
+
     const result = await this.request("login", options.redirectUrl, options);
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
@@ -42,9 +53,16 @@ class Web3Auth {
 
     const fragment = new URL(result.url).hash;
     const decodedPayload = base64url.decode(fragment);
-    const state = JSON.parse(decodedPayload);
+    const state = JSON.parse(decodedPayload) as State;
 
     await this.keyStore.set("sessionId", state?.sessionId);
+
+    if (state.userInfo?.dappShare.length > 0) {
+        this.keyStore.set(
+          state.userInfo?.verifier,
+          state.userInfo?.dappShare,
+        )
+    }
 
     return state;
   }
@@ -144,8 +162,19 @@ class Web3Auth {
           signature: (await sign(Buffer.from(sessionId, "hex"), hashData)).toString("hex"),
           timeout: 1
         });
+
+        this.keyStore.remove("ephemPublicKey");
+        this.keyStore.remove("ivKey");
+        this.keyStore.remove("mac");
+        
+        if (this.initParams.loginConfig) {
+          var loginConfigItem = Object.values(this.initParams.loginConfig)[0];
+          if (loginConfigItem) {
+            this.keyStore.remove(loginConfigItem.verifier);
+          }
+        }
       } catch (ex) {
-        console.log(ex);
+        log.error(ex);
       }
     }
   }
