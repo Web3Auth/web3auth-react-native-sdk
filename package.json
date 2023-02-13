@@ -52,7 +52,7 @@
     "react-native": "~0.68.2",
     "@babel/runtime": "^7.20.13",
     "@toruslabs/openlogin": "^2.13.0",
-    "@toruslabs/torus-scripts": "^1.4.0",
+    "@toruslabs/torus-scripts": "^3.0.2",
     "@toruslabs/eslint-config-typescript": "1.3.0",
     "@typescript-eslint/eslint-plugin": "^5.49.0",
     "@typescript-eslint/parser": "^5.49.0",
