@@ -1,11 +1,12 @@
+import { StatusBar } from "expo-status-bar";
+import { useEffect, useRef, useState } from "react";
+import { StyleSheet, Text, View, Button } from "react-native";
 import Web3Auth, { LOGIN_PROVIDER, OPENLOGIN_NETWORK, State } from "@web3auth/react-native-sdk";
 import { Buffer } from "buffer";
 import Constants, { AppOwnership } from "expo-constants";
 import * as Linking from "expo-linking";
-import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
-import { useState } from "react";
-import { Button, StyleSheet, Text, View } from "react-native";
+import * as SecureStore from 'expo-secure-store';
 
 global.Buffer = global.Buffer || Buffer;
 
@@ -29,15 +30,25 @@ export default function App() {
   const [key, setKey] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [userInfo, setUserInfo] = useState<State>(null);
+
+  var web3auth = useRef<Web3Auth>();
+
+  useEffect(() => {
+    web3auth.current = new Web3Auth(WebBrowser, SecureStore, {
+      clientId: "BDj1toq1N1xYgDIJ00ADR-QPJ71ESzJcB3ijVHP1TsIX7nsx_lu6uLoJQMPze1vpGDt--Ew95RGxz-RgOh1tcxM",
+      network: OPENLOGIN_NETWORK.TESTNET,
+    });
+    web3auth.current.init().then(function(state) {
+      setKey(state.privKey || "no key");
+      setUserInfo(state);
+    });
+  }, []);
+
   const login = async () => {
     try {
-      const web3auth = new Web3Auth(WebBrowser, {
-        clientId: "BA0mVyeHATikwuXVhXWCNjAxHthlw0w84mUhLuxlC4KZKjvmBsbdbmEWTizJ26YzrbKSWbOZbtGYdVDm0ESuYSg",
-        network: OPENLOGIN_NETWORK.TESTNET,
-      });
-      const state = await web3auth.login({
-        redirectUrl: resolvedRedirectUrl,
+      const state = await web3auth.current.login({
         loginProvider: LOGIN_PROVIDER.GOOGLE,
+        redirectUrl: resolvedRedirectUrl,
       });
       setKey(state.privKey || "no key");
       setUserInfo(state);
