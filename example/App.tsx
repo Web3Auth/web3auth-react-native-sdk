@@ -48,6 +48,7 @@ export default function App() {
     try {
       const state = await web3auth.current.login({
         loginProvider: LOGIN_PROVIDER.GOOGLE,
+        redirectUrl: resolvedRedirectUrl,
       });
       setKey(state.privKey || "no key");
       setUserInfo(state);
