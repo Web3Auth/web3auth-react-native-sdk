@@ -2,6 +2,7 @@ import type { BaseLogoutParams, BaseRedirectParams, LoginParams, OpenLoginOption
 
 type SdkSpecificInitParams = {
   sdkUrl?: string;
+  useCoreKitKey?: boolean;
 };
 
 export type SdkInitParams = Omit<
