@@ -41,7 +41,8 @@
     "base64url": "^3.0.1",
     "buffer": "^6.0.3",
     "loglevel": "^1.8.1",
-    "react-native-url-polyfill": "^1.3.0"
+    "react-native-url-polyfill": "^1.3.0",
+    "node-libs-react-native": "./node-libs-react-native-1.2.1.tgz"
   },
   "peerDependencies": {
     "@babel/runtime": "^7.x",
