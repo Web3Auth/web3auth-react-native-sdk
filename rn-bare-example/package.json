@@ -16,7 +16,8 @@
     "buffer": "^6.0.3",
     "ethers": "^5.7.1",
     "react": "18.1.0",
-    "react-native": "0.70.1"
+    "react-native": "0.70.1",
+    "node-libs-react-native": "./node-libs-react-native-1.2.1.tgz"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
