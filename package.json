@@ -36,7 +36,7 @@
     "web3auth"
   ],
   "dependencies": {
-    "@toruslabs/eccrypto": "^2.0.0",
+    "@toruslabs/eccrypto": "^1.1.8",
     "@toruslabs/metadata-helpers": "^3.1.0",
     "base64url": "^3.0.1",
     "buffer": "^6.0.3",
