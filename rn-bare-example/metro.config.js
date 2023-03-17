@@ -1,5 +1,4 @@
 const {getDefaultConfig} = require('metro-config');
-const nodeLibs = require('node-libs-react-native');
 
 module.exports = (async () => {
   const {
@@ -11,7 +10,12 @@ module.exports = (async () => {
   return {
     resolver: {
       extraNodeModules: {
-        ...nodeLibs,
+        crypto: require.resolve('crypto-browserify'),
+        stream: require.resolve('stream-browserify'),
+        buffer: require.resolve('buffer/'),
+        http: require.resolve('stream-http'),
+        https: require.resolve('https-browserify'),
+        url: require.resolve('url/'),
       },
 
       assetExts: assetExts.filter(ext => ext !== 'svg'),
