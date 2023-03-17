@@ -14,9 +14,12 @@
     "@toruslabs/react-native-web-browser": "^1.1.0",
     "@web3auth/react-native-sdk": "file:../",
     "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.0",
     "ethers": "^5.7.1",
+    "node-libs-react-native": "^1.2.1",
     "react": "18.1.0",
-    "react-native": "0.70.1"
+    "react-native": "0.70.1",
+    "stream-browserify": "^3.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
