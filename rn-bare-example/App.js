@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import * as WebBrowser from '@toruslabs/react-native-web-browser';
+import EncryptedStorage from 'react-native-encrypted-storage';
 import Web3Auth, {
   LOGIN_PROVIDER,
   OPENLOGIN_NETWORK,
@@ -23,16 +24,15 @@ export default function App() {
   const [key, setKey] = useState('');
   const [userInfo, setUserInfo] = useState('');
   const [console, setConsole] = useState('');
+  const [web3auth, setWeb3Auth] = useState(null);
 
   const login = async () => {
     try {
+      if (!web3auth) {
+        setConsole('Web3auth not initialized');
+      }
+
       setConsole('Logging in');
-      const web3auth = new Web3Auth(WebBrowser, {
-        clientId,
-        network: OPENLOGIN_NETWORK.CYAN, // or other networks
-        sdkUrl: 'localhost:8080',
-        useCoreKitKey: true,
-      });
       const info = await web3auth.login({
         loginProvider: LOGIN_PROVIDER.GOOGLE,
         redirectUrl: resolvedRedirectUrl,
@@ -44,9 +44,30 @@ export default function App() {
       setKey(info.privKey);
       uiConsole('Logged In');
     } catch (e) {
-      console.error(e);
+      setConsole(e.message);
     }
   };
+
+  useEffect(() => {
+    const init = async () => {
+      const auth = new Web3Auth(WebBrowser, EncryptedStorage, {
+        clientId,
+        network: OPENLOGIN_NETWORK.TESTNET, // or other networks
+        sdkUrl: 'http://localhost:8080',
+        useCoreKitKey: true,
+      });
+
+      setWeb3Auth(auth);
+      setConsole('Web3auth init');
+      const result = await auth.init();
+      const sessionId = await auth.keyStore.get('sessionId');
+      uiConsole(`sessionId: ${sessionId}`);
+      uiConsole(`result: ${result.privKey}`);
+      setUserInfo(result);
+      setKey(result.privKey);
+    };
+    init();
+  }, []);
 
   const getChainId = async () => {
     setConsole('Getting chain id');

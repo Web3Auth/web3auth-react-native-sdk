@@ -90,11 +90,10 @@ class Web3Auth {
       let web3AuthResponse = await decryptData<any>(sessionId, response.message);
       web3AuthResponse.userInfo = web3AuthResponse.store;
       delete web3AuthResponse.store;
-
       if (!web3AuthResponse.error) {
         web3AuthResponse = web3AuthResponse as State;
         if (this.initParams.useCoreKitKey) {
-          web3AuthResponse.privKey = web3AuthResponse.tKey ? web3AuthResponse.tKey : web3AuthResponse.privKey;
+          web3AuthResponse.privKey = web3AuthResponse.coreKitKey ? web3AuthResponse.coreKitKey : web3AuthResponse.privKey;
         }
         if (web3AuthResponse.privKey && web3AuthResponse.privKey.trim("0").length > 0) {
           return Promise.resolve(web3AuthResponse);

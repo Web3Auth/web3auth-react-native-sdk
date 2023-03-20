@@ -6,11 +6,18 @@ module.exports = (async () => {
   } = await getDefaultConfig();
 
   const defaultSourceExts = [...sourceExts, 'svg', 'mjs', 'cjs'];
-
+  // Reflect.deleteProperty(nodeLibs, 'buffer');
   return {
     resolver: {
       extraNodeModules: {
-        ...nodeLibs,
+        // ...nodeLibs,
+        buffer: require.resolve('buffer/'),
+        stream: require.resolve('readable-stream'),
+        assert: require.resolve('assert'),
+        http: require.resolve('stream-http'),
+        https: require.resolve('https-browserify'),
+        os: require.resolve('os-browserify'),
+        url: require.resolve('url'),
         crypto: require.resolve('crypto-browserify'),
       },
 
