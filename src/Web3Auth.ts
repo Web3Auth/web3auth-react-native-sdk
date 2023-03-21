@@ -10,32 +10,87 @@ import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
 import { IWebBrowser } from "./types/IWebBrowser";
-import { SdkInitParams, SdkLoginParams, SdkLogoutParams } from "./types/sdk";
-import { State } from "./types/State";
+import {
+  CUSTOM_LOGIN_PROVIDER_TYPE,
+  IWeb3Auth,
+  LOGIN_PROVIDER_TYPE,
+  OPENLOGIN_NETWORK,
+  OpenloginUserInfo,
+  SdkInitParams,
+  SdkLoginParams,
+  SdkLogoutParams,
+} from "./types/sdk";
+import { SessionData, State } from "./types/State";
 
 (process as any).browser = true;
 
-class Web3Auth {
-  initParams: SdkInitParams;
+class Web3Auth implements IWeb3Auth {
+  private initParams: SdkInitParams;
 
-  webBrowser: IWebBrowser;
+  private webBrowser: IWebBrowser;
 
-  keyStore: KeyStore;
+  private keyStore: KeyStore;
+
+  private state: State;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, initParams: SdkInitParams) {
     this.initParams = initParams;
     if (!this.initParams.sdkUrl) {
-      this.initParams.sdkUrl = "https://sdk.openlogin.com";
+      const { network } = this.initParams;
+      if (network === OPENLOGIN_NETWORK.TESTNET) {
+        this.initParams.sdkUrl = "https://dev-sdk.openlogin.com";
+      } else {
+        this.initParams.sdkUrl = "https://sdk.openlogin.com";
+      }
     }
     this.webBrowser = webBrowser;
     this.keyStore = new KeyStore(storage);
+    this.state = {};
   }
 
-  async init(): Promise<State> {
+  get privKey(): string {
+    if (this.initParams.useCoreKitKey) {
+      if (!this.state.coreKitKey) throw new Error("useCoreKitKey flag is enabled but coreKitKey is not available.");
+      return this.state.coreKitKey;
+    }
+    return this.state.privKey;
+  }
+
+  get ed25519Key(): string {
+    if (this.initParams.useCoreKitKey) {
+      if (!this.state.coreKitEd25519PrivKey) throw new Error("useCoreKitKey flag is enabled but coreKitEd25519PrivKey is not available.");
+      return this.state.coreKitEd25519PrivKey;
+    }
+    return this.state.ed25519PrivKey;
+  }
+
+  get userInfo(): State["userInfo"] {
+    if (this.privKey) {
+      const storeData = this.state.userInfo;
+      const userInfo: OpenloginUserInfo = {
+        email: (storeData.email as string) || "",
+        name: (storeData.name as string) || "",
+        profileImage: (storeData.profileImage as string) || "",
+        aggregateVerifier: (storeData.aggregateVerifier as string) || "",
+        verifier: (storeData.verifier as string) || "",
+        verifierId: (storeData.verifierId as string) || "",
+        typeOfLogin: (storeData.typeOfLogin as LOGIN_PROVIDER_TYPE | CUSTOM_LOGIN_PROVIDER_TYPE) || "",
+        dappShare: (storeData.dappShare as string) || "",
+        idToken: (storeData.idToken as string) || "",
+        oAuthIdToken: (storeData.oAuthIdToken as string) || "",
+        oAuthAccessToken: (storeData.oAuthAccessToken as string) || "",
+      };
+
+      return userInfo;
+    }
+    throw new Error("user should be logged in to fetch userInfo");
+  }
+
+  async init(): Promise<boolean> {
     return this.authorizeSession();
   }
 
-  async login(options: SdkLoginParams): Promise<State> {
+  async login(options: SdkLoginParams): Promise<boolean> {
     // check for share
     if (this.initParams.loginConfig) {
       const loginConfigItem = Object.values(this.initParams.loginConfig)[0];
@@ -63,40 +118,53 @@ class Web3Auth {
       this.keyStore.set(state.userInfo?.verifier, state.userInfo?.dappShare);
     }
 
-    if (this.initParams.useCoreKitKey && state.coreKitKey) {
-      state.privKey = state.coreKitKey;
-      // TODO: to confirm should we delete this or not.
-      delete state.coreKitKey;
-    }
+    this._syncState(state);
 
-    return state;
+    return true;
   }
 
-  async logout(options: SdkLogoutParams): Promise<void> {
+  async logout(options: SdkLogoutParams): Promise<boolean> {
     this.sessionTimeout();
     const result = await this.request("logout", options.redirectUrl, options);
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] logout flow failed with error type ${result.type}`);
       throw new Error(`logout flow failed with error type ${result.type}`);
     }
+    this._syncState({
+      privKey: "",
+      coreKitKey: "",
+      coreKitEd25519PrivKey: "",
+      ed25519PrivKey: "",
+      userInfo: {
+        email: "",
+        name: "",
+        profileImage: "",
+        dappShare: "",
+        idToken: "",
+        oAuthIdToken: "",
+        oAuthAccessToken: "",
+        aggregateVerifier: "",
+        verifier: "",
+        verifierId: "",
+        typeOfLogin: "",
+      },
+    });
+    return true;
   }
 
-  async authorizeSession(): Promise<State> {
+  private async authorizeSession(): Promise<boolean> {
     const sessionId = await this.keyStore.get("sessionId");
     if (sessionId && sessionId.length > 0) {
       const pubKey = getPublic(Buffer.from(sessionId, "hex")).toString("hex");
       const response = await Web3AuthApi.authorizeSession(pubKey);
 
-      let web3AuthResponse = await decryptData<any>(sessionId, response.message);
+      const web3AuthResponse = await decryptData<SessionData>(sessionId, response.message);
       web3AuthResponse.userInfo = web3AuthResponse.store;
       delete web3AuthResponse.store;
       if (!web3AuthResponse.error) {
-        web3AuthResponse = web3AuthResponse as State;
-        if (this.initParams.useCoreKitKey) {
-          web3AuthResponse.privKey = web3AuthResponse.coreKitKey ? web3AuthResponse.coreKitKey : web3AuthResponse.privKey;
-        }
-        if (web3AuthResponse.privKey && web3AuthResponse.privKey.trim("0").length > 0) {
-          return Promise.resolve(web3AuthResponse);
+        if (web3AuthResponse.privKey && web3AuthResponse.privKey.length > 0) {
+          this._syncState(web3AuthResponse);
+          return true;
         }
       } else {
         throw new Error(`session recovery failed with error ${web3AuthResponse.error}`);
@@ -104,7 +172,7 @@ class Web3Auth {
     }
   }
 
-  async sessionTimeout() {
+  private async sessionTimeout() {
     const sessionId = await this.keyStore.get("sessionId");
     if (sessionId && sessionId.length > 0) {
       const pubKey = getPublic(Buffer.from(sessionId, "hex")).toString("hex");
@@ -140,6 +208,10 @@ class Web3Auth {
         log.error(ex);
       }
     }
+  }
+
+  private _syncState(newState: State) {
+    this.state = newState;
   }
 
   private async request(path: string, redirectUrl: string, params: Record<string, unknown> = {}) {

@@ -12,37 +12,42 @@ import EncryptedStorage from 'react-native-encrypted-storage';
 import Web3Auth, {
   LOGIN_PROVIDER,
   OPENLOGIN_NETWORK,
+  IWeb3Auth,
+  OpenloginUserInfo,
 } from '@web3auth/react-native-sdk';
 import RPC from './ethersRPC'; // for using ethers.js
 
-const scheme = 'web3authrnexample'; // Or your desired app redirection scheme
+const scheme = 'web3authrnbareaggregateexample'; // Or your desired app redirection scheme
 const resolvedRedirectUrl = `${scheme}://openlogin`;
 const clientId =
-  'BEglQSgt4cUWcj6SKRdu5QkOXTsePmMcusG5EAoyjyOYKlVRjIF1iCNnMOTfpzCiunHRrMui8TIwQPXdkQ8Yxuk';
+  'BHZPoRIHdrfrdXj5E8G5Y72LGnh7L8UFuM8O0KrZSOs4T8lgiZnebB5Oc6cbgYSo3qSz7WBZXIs8fs6jgZqFFgw';
 
 export default function App() {
-  const [key, setKey] = useState('');
-  const [userInfo, setUserInfo] = useState('');
-  const [console, setConsole] = useState('');
-  const [web3auth, setWeb3Auth] = useState(null);
+  const [userInfo, setUserInfo] = useState<OpenloginUserInfo | undefined>();
+  const [key, setKey] = useState<string | undefined>('');
+  const [console, setConsole] = useState<string>('');
+  const [web3auth, setWeb3Auth] = useState<IWeb3Auth | null>(null);
 
   const login = async () => {
     try {
       if (!web3auth) {
         setConsole('Web3auth not initialized');
+        return;
       }
 
       setConsole('Logging in');
-      const info = await web3auth.login({
+      const result = await web3auth.login({
         loginProvider: LOGIN_PROVIDER.GOOGLE,
         redirectUrl: resolvedRedirectUrl,
         mfaLevel: 'default',
         curve: 'secp256k1',
       });
 
-      setUserInfo(info);
-      setKey(info.privKey);
-      uiConsole('Logged In');
+      if (result) {
+        setUserInfo(web3auth.userInfo);
+        setKey(web3auth.privKey);
+        uiConsole('Logged In');
+      }
     } catch (e) {
       setConsole(e.message);
     }
@@ -53,18 +58,25 @@ export default function App() {
       const auth = new Web3Auth(WebBrowser, EncryptedStorage, {
         clientId,
         network: OPENLOGIN_NETWORK.TESTNET, // or other networks
-        sdkUrl: 'http://localhost:8080',
         useCoreKitKey: true,
+        loginConfig: {
+          google: {
+            verifier: 'agg-google-emailpswd-github',
+            verifierSubIdentifier: 'w3a-google',
+            typeOfLogin: 'google',
+            clientId:
+              '774338308167-q463s7kpvja16l4l0kko3nb925ikds2p.apps.googleusercontent.com',
+          },
+        },
       });
 
       setWeb3Auth(auth);
-      setConsole('Web3auth init');
       const result = await auth.init();
-      const sessionId = await auth.keyStore.get('sessionId');
-      uiConsole(`sessionId: ${sessionId}`);
-      uiConsole(`result: ${result.privKey}`);
-      setUserInfo(result);
-      setKey(result.privKey);
+      if (result) {
+        uiConsole('Re logged in');
+        setUserInfo(auth.userInfo);
+        setKey(auth.privKey);
+      }
     };
     init();
   }, []);

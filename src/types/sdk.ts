@@ -1,4 +1,4 @@
-import type { BaseLogoutParams, BaseRedirectParams, LoginParams, OpenLoginOptions } from "@toruslabs/openlogin";
+import type { BaseLogoutParams, BaseRedirectParams, LoginParams, OpenLoginOptions, OpenloginUserInfo } from "@toruslabs/openlogin";
 
 type SdkSpecificInitParams = {
   sdkUrl?: string;
@@ -61,6 +61,16 @@ export type {
   MfaLevelType,
   LoginParams,
   OpenloginUserInfo,
+  CUSTOM_LOGIN_PROVIDER_TYPE
 } from "@toruslabs/openlogin";
 export type { ExtraLoginOptions } from "@toruslabs/openlogin-utils";
 export type { WhiteLabelData, TypeOfLogin } from "@toruslabs/openlogin-jrpc";
+
+export interface IWeb3Auth {
+  privKey: string | undefined;
+  ed25519Key: string | undefined;
+  userInfo: OpenloginUserInfo | undefined;
+  init: () => Promise<boolean>;
+  login: (params: SdkLoginParams) => Promise<boolean>;
+  logout: (params: SdkLogoutParams) => Promise<boolean>;
+}
