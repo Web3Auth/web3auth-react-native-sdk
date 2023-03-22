@@ -20,7 +20,7 @@ import RPC from './ethersRPC'; // for using ethers.js
 const scheme = 'web3authrnbareaggregateexample'; // Or your desired app redirection scheme
 const resolvedRedirectUrl = `${scheme}://openlogin`;
 const clientId =
-  'BHZPoRIHdrfrdXj5E8G5Y72LGnh7L8UFuM8O0KrZSOs4T8lgiZnebB5Oc6cbgYSo3qSz7WBZXIs8fs6jgZqFFgw';
+  'BHr_dKcxC0ecKn_2dZQmQeNdjPgWykMkcodEHkVvPMo71qzOV6SgtoN8KCvFdLN7bf34JOm89vWQMLFmSfIo84A';
 
 export default function App() {
   const [userInfo, setUserInfo] = useState<OpenloginUserInfo | undefined>();
@@ -61,7 +61,7 @@ export default function App() {
         useCoreKitKey: true,
         loginConfig: {
           google: {
-            verifier: 'agg-google-emailpswd-github',
+            verifier: 'w3a-agg-example',
             verifierSubIdentifier: 'w3a-google',
             typeOfLogin: 'google',
             clientId:
