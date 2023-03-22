@@ -1,6 +1,5 @@
 export interface StoreApiResponse {
   message?: string;
-  success: boolean;
 }
 
 export interface LogoutApiRequest {

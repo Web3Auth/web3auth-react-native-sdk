@@ -4,7 +4,6 @@ import base64url from "base64url";
 import log from "loglevel";
 import { URL } from "react-native-url-polyfill";
 
-import { ShareMetadata } from "./api/model";
 import { Web3AuthApi } from "./api/Web3AuthApi";
 import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
@@ -124,7 +123,7 @@ class Web3Auth implements IWeb3Auth {
   }
 
   async logout(options: SdkLogoutParams): Promise<boolean> {
-    this.sessionTimeout();
+    await this.sessionTimeout();
     const result = await this.request("logout", options.redirectUrl, options);
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] logout flow failed with error type ${result.type}`);
@@ -175,37 +174,25 @@ class Web3Auth implements IWeb3Auth {
   private async sessionTimeout() {
     const sessionId = await this.keyStore.get("sessionId");
     if (sessionId && sessionId.length > 0) {
-      const pubKey = getPublic(Buffer.from(sessionId, "hex")).toString("hex");
-      const response = await Web3AuthApi.authorizeSession(pubKey);
-      if (!response.success) {
-        return;
-      }
-      const shareMetadata = JSON.parse(response.message) as ShareMetadata;
-      const encryptedData = await encryptData(sessionId, "");
-      const encryptedMetadata: ShareMetadata = {
-        ...shareMetadata,
-        ciphertext: encryptedData,
-      };
-      const jsonData = JSON.stringify(encryptedMetadata);
-      const hashData = keccak256(jsonData);
+      const privKey = Buffer.from(sessionId.padStart(64, "0"), "hex");
+      const pubKey = getPublic(privKey).toString("hex");
+      const encData = await encryptData(sessionId.padStart(64, "0"), {});
       try {
         await Web3AuthApi.logout({
-          key: getPublic(Buffer.from(sessionId, "hex")).toString("hex"),
-          data: jsonData,
-          signature: (await sign(Buffer.from(sessionId, "hex"), hashData)).toString("hex"),
+          key: pubKey,
+          data: encData,
+          signature: (await sign(privKey, keccak256(encData))).toString("hex"),
           timeout: 1,
         });
 
-        this.keyStore.remove("sessionId");
+        await this.keyStore.remove("sessionId");
 
-        if (this.initParams.loginConfig) {
-          const loginConfigItem = Object.values(this.initParams.loginConfig)[0];
-          if (loginConfigItem) {
-            this.keyStore.remove(loginConfigItem.verifier);
-          }
+        if (this.userInfo?.verifier && this.userInfo?.dappShare.length > 0) {
+          await this.keyStore.remove(this.userInfo.verifier);
         }
-      } catch (ex) {
+      } catch (ex: unknown) {
         log.error(ex);
+        throw new Error(`Logout failed: ${(ex as Error).message}`);
       }
     }
   }

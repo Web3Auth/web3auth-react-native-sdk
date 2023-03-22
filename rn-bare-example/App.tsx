@@ -53,12 +53,30 @@ export default function App() {
     }
   };
 
+  const logout = async () => {
+    if (!web3auth) {
+      setConsole('Web3auth not initialized');
+      return;
+    }
+
+    setConsole('Logging out');
+    const result = await web3auth.logout({
+      redirectUrl: resolvedRedirectUrl,
+    });
+
+    if (result) {
+      setUserInfo(undefined);
+      setKey('');
+      uiConsole('Logged out');
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
       const auth = new Web3Auth(WebBrowser, EncryptedStorage, {
         clientId,
         network: OPENLOGIN_NETWORK.TESTNET, // or other networks
-        useCoreKitKey: true,
+        useCoreKitKey: false,
         loginConfig: {
           google: {
             verifier: 'w3a-agg-example',
@@ -76,6 +94,7 @@ export default function App() {
         uiConsole('Re logged in');
         setUserInfo(auth.userInfo);
         setKey(auth.privKey);
+        window.console.log(auth.privKey);
       }
     };
     init();
@@ -121,7 +140,7 @@ export default function App() {
       <Button title="Send Transaction" onPress={() => sendTransaction()} />
       <Button title="Sign Message" onPress={() => signMessage()} />
       <Button title="Get Private Key" onPress={() => uiConsole(key)} />
-      <Button title="Log Out" onPress={() => setKey('')} />
+      <Button title="Log Out" onPress={logout} />
     </View>
   );
 
