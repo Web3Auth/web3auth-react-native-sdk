@@ -17,7 +17,6 @@ import {
   OpenloginUserInfo,
   SdkInitParams,
   SdkLoginParams,
-  SdkLogoutParams,
 } from "./types/sdk";
 import { SessionData, State } from "./types/State";
 
@@ -122,13 +121,13 @@ class Web3Auth implements IWeb3Auth {
     return true;
   }
 
-  async logout(options: SdkLogoutParams): Promise<boolean> {
+  async logout(): Promise<boolean> {
     await this.sessionTimeout();
-    const result = await this.request("logout", options.redirectUrl, options);
-    if (result.type !== "success" || !result.url) {
-      log.error(`[Web3Auth] logout flow failed with error type ${result.type}`);
-      throw new Error(`logout flow failed with error type ${result.type}`);
-    }
+    // const result = await this.request("logout", options.redirectUrl, options);
+    // if (result.type !== "success" || !result.url) {
+    //   log.error(`[Web3Auth] logout flow failed with error type ${result.type}`);
+    //   throw new Error(`logout flow failed with error type ${result.type}`);
+    // }
     this._syncState({
       privKey: "",
       coreKitKey: "",

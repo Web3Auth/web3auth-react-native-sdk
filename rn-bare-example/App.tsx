@@ -60,9 +60,7 @@ export default function App() {
     }
 
     setConsole('Logging out');
-    const result = await web3auth.logout({
-      redirectUrl: resolvedRedirectUrl,
-    });
+    const result = await web3auth.logout();
 
     if (result) {
       setUserInfo(undefined);
