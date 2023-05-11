@@ -1,5 +1,5 @@
 {
-  "name": "@web3auth/react-native-sdk",
+  "name": "react-native-sdk",
   "version": "3.5.0",
   "description": "Web3Auth SDK that supports Bare (Standalone) and Expo React Native apps.",
   "main": "dist/reactNativeSdk.cjs.js",
@@ -20,14 +20,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/web3auth/web3auth-react-native-sdk.git"
+    "url": "git+https://github.com/ticketland-io/web3auth-react-native-sdk.git"
   },
   "author": "michaellee8",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/web3auth/web3auth-react-native-sdk/issues"
+    "url": "https://github.com/ticketland-io/web3auth-react-native-sdk/issues"
   },
-  "homepage": "https://github.com/web3auth/web3auth-react-native-sdk#readme",
+  "homepage": "https://github.com/ticketland-io/web3auth-react-native-sdk#readme",
   "keywords": [
     "expo",
     "react-native",
