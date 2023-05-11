@@ -1,5 +1,5 @@
 {
-  "name": "react-native-sdk",
+  "name": "@ticketland-io/react-native-sdk",
   "version": "3.5.0",
   "description": "Web3Auth SDK that supports Bare (Standalone) and Expo React Native apps.",
   "main": "dist/reactNativeSdk.cjs.js",
