@@ -1,4 +1,5 @@
 import {ethers} from 'ethers';
+import '@ethersproject/shims';
 
 const providerUrl = 'https://rpc.ankr.com/eth'; // Or your desired provider url
 

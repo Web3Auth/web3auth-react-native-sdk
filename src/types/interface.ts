@@ -1,4 +1,4 @@
-import type { BaseLogoutParams, BaseRedirectParams, LoginParams, OpenLoginOptions, OpenloginUserInfo } from "@toruslabs/openlogin";
+import type { LoginParams, OpenLoginOptions, OpenloginUserInfo } from "@toruslabs/openlogin-utils";
 
 type SdkSpecificInitParams = {
   sdkUrl?: string;
@@ -12,7 +12,7 @@ export type SdkInitParams = Omit<
 
 export type SdkLoginParams = Omit<LoginParams, "fastLogin" | "skipTKey" | "getWalletKey"> & Required<Pick<LoginParams, "loginProvider">>;
 
-export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;
+// export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;
 
 export const OPENLOGIN_NETWORK = {
   MAINNET: "mainnet",
@@ -54,23 +54,40 @@ export const MFA_LEVELS = {
 };
 
 export type {
-  ALLOWED_INTERACTIONS_TYPE,
   LOGIN_PROVIDER_TYPE,
   OPENLOGIN_NETWORK_TYPE,
   SUPPORTED_KEY_CURVES_TYPE,
   MfaLevelType,
   LoginParams,
   OpenloginUserInfo,
-  CUSTOM_LOGIN_PROVIDER_TYPE
-} from "@toruslabs/openlogin";
-export type { ExtraLoginOptions } from "@toruslabs/openlogin-utils";
-export type { WhiteLabelData, TypeOfLogin } from "@toruslabs/openlogin-jrpc";
+  CUSTOM_LOGIN_PROVIDER_TYPE,
+  ExtraLoginOptions,
+  WhiteLabelData, TypeOfLogin,
+} from "@toruslabs/openlogin-utils";
+
+export interface State {
+  privKey?: string;
+  coreKitKey?: string;
+  ed25519PrivKey?: string;
+  coreKitEd25519PrivKey?: string;
+  sessionId?: string;
+  userInfo?: OpenloginUserInfo;
+}
+
+export interface SessionConfig {
+  privKey?: string;
+  coreKitKey?: string;
+  ed25519PrivKey?: string;
+  coreKitEd25519PrivKey?: string;
+  sessionId?: string;
+  store: OpenloginUserInfo;
+}
 
 export interface IWeb3Auth {
   privKey: string | undefined;
   ed25519Key: string | undefined;
-  userInfo: OpenloginUserInfo | undefined;
-  init: () => Promise<boolean>;
-  login: (params: SdkLoginParams) => Promise<boolean>;
-  logout: (params: SdkLogoutParams) => Promise<boolean>;
+  init: () => Promise<void>;
+  login: (params: SdkLoginParams) => Promise<void>;
+  logout: () => Promise<void>;
+  userInfo: () => State["userInfo"];
 }

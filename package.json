@@ -1,6 +1,6 @@
 {
   "name": "@web3auth/react-native-sdk",
-  "version": "3.5.0",
+  "version": "3.5.1",
   "description": "Web3Auth SDK that supports Bare (Standalone) and Expo React Native apps.",
   "main": "dist/reactNativeSdk.cjs.js",
   "module": "dist/reactNativeSdk.esm.js",
@@ -22,7 +22,7 @@
     "type": "git",
     "url": "git+https://github.com/web3auth/web3auth-react-native-sdk.git"
   },
-  "author": "michaellee8",
+  "author": "Web3Auth",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/web3auth/web3auth-react-native-sdk/issues"
@@ -36,8 +36,7 @@
     "web3auth"
   ],
   "dependencies": {
-    "@toruslabs/eccrypto": "^1.1.8",
-    "@toruslabs/metadata-helpers": "^3.1.0",
+    "@toruslabs/openlogin-session-manager": "^1.0.0",
     "base64url": "^3.0.1",
     "buffer": "^6.0.3",
     "loglevel": "^1.8.1",
@@ -45,32 +44,30 @@
   },
   "peerDependencies": {
     "@babel/runtime": "^7.x",
-    "crypto-browserify": "^3.12.0",
-    "react-native": "*",
-    "stream-browserify": "^3.0.0"
+    "react-native": "*"
   },
   "devDependencies": {
-    "@babel/runtime": "^7.21.0",
-    "@toruslabs/eslint-config-typescript": "1.4.1",
-    "@toruslabs/openlogin": "^3.2.1",
-    "@toruslabs/torus-scripts": "^3.0.4",
+    "@babel/runtime": "^7.21.5",
+    "@toruslabs/eslint-config-typescript": "2.0.0",
+    "@toruslabs/openlogin-utils": "^4.2.0",
+    "@toruslabs/torus-scripts": "^4.0.0",
     "@types/node": "^18",
-    "@types/react-native": "^0.71.3",
-    "@typescript-eslint/eslint-plugin": "^5.55.0",
-    "@typescript-eslint/parser": "^5.55.0",
-    "eslint": "^8.36.0",
+    "@types/react-native": "^0.71.6",
+    "@typescript-eslint/eslint-plugin": "^5.59.2",
+    "@typescript-eslint/parser": "^5.59.2",
+    "eslint": "^8.39.0",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-mocha": "^10.1.0",
-    "eslint-plugin-n": "^15.6.1",
+    "eslint-plugin-n": "^15.7.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-promise": "^6.1.1",
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "eslint-plugin-tsdoc": "^0.2.17",
     "husky": "^8.0.3",
-    "lint-staged": "^13.2.0",
-    "prettier": "^2.8.4",
-    "react-native": "~0.68.2",
-    "rimraf": "^4.4.0",
+    "lint-staged": "^13.2.2",
+    "prettier": "^2.8.8",
+    "react-native": "~0.71.7",
+    "rimraf": "^5.0.0",
     "typescript": "^4.9.5"
   }
 }

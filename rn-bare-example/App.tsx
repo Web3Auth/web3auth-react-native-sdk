@@ -36,15 +36,15 @@ export default function App() {
       }
 
       setConsole('Logging in');
-      const result = await web3auth.login({
+      await web3auth.login({
         loginProvider: LOGIN_PROVIDER.GOOGLE,
         redirectUrl: resolvedRedirectUrl,
         mfaLevel: 'default',
         curve: 'secp256k1',
       });
 
-      if (result) {
-        setUserInfo(web3auth.userInfo);
+      if (web3auth.privKey) {
+        setUserInfo(web3auth.userInfo());
         setKey(web3auth.privKey);
         uiConsole('Logged In');
       }
@@ -60,9 +60,9 @@ export default function App() {
     }
 
     setConsole('Logging out');
-    const result = await web3auth.logout();
+    await web3auth.logout();
 
-    if (result) {
+    if (!web3auth.privKey) {
       setUserInfo(undefined);
       setKey('');
       uiConsole('Logged out');
@@ -85,12 +85,11 @@ export default function App() {
           },
         },
       });
-
       setWeb3Auth(auth);
-      const result = await auth.init();
-      if (result) {
+      await auth.init();
+      if (auth?.privKey) {
         uiConsole('Re logged in');
-        setUserInfo(auth.userInfo);
+        setUserInfo(auth.userInfo());
         setKey(auth.privKey);
         window.console.log(auth.privKey);
       }
