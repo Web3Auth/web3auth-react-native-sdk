@@ -1,4 +1,4 @@
-import type { LoginParams, OpenLoginOptions, OpenloginUserInfo } from "@toruslabs/openlogin-utils";
+import type { LoginParams, OpenLoginOptions, OpenloginUserInfo, OpenloginSessionData } from "@toruslabs/openlogin-utils";
 
 type SdkSpecificInitParams = {
   sdkUrl?: string;
@@ -65,23 +65,7 @@ export type {
   WhiteLabelData, TypeOfLogin,
 } from "@toruslabs/openlogin-utils";
 
-export interface State {
-  privKey?: string;
-  coreKitKey?: string;
-  ed25519PrivKey?: string;
-  coreKitEd25519PrivKey?: string;
-  sessionId?: string;
-  userInfo?: OpenloginUserInfo;
-}
-
-export interface SessionConfig {
-  privKey?: string;
-  coreKitKey?: string;
-  ed25519PrivKey?: string;
-  coreKitEd25519PrivKey?: string;
-  sessionId?: string;
-  store: OpenloginUserInfo;
-}
+export type State = OpenloginSessionData;
 
 export interface IWeb3Auth {
   privKey: string | undefined;
@@ -91,3 +75,5 @@ export interface IWeb3Auth {
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
 }
+
+export { OpenloginSessionData }

@@ -11,10 +11,10 @@ import {
   IWeb3Auth,
   LOGIN_PROVIDER_TYPE,
   OPENLOGIN_NETWORK,
+  OpenloginSessionData,
   OpenloginUserInfo,
   SdkInitParams,
   SdkLoginParams,
-  SessionConfig,
   State,
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
@@ -28,7 +28,7 @@ class Web3Auth implements IWeb3Auth {
 
   private state: State;
 
-  private sessionManager: OpenloginSessionManager<SessionConfig>;
+  private sessionManager: OpenloginSessionManager<OpenloginSessionData>;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, initParams: SdkInitParams) {
     this.initParams = initParams;
@@ -65,7 +65,7 @@ class Web3Auth implements IWeb3Auth {
   }
 
   async init(): Promise<void> {
-    this.sessionManager = new OpenloginSessionManager<SessionConfig>({
+    this.sessionManager = new OpenloginSessionManager<OpenloginSessionData>({
       sessionServerBaseUrl: this.initParams.storageServerUrl,
       sessionTime: this.initParams.sessionTime,
       sessionNamespace: this.initParams.sessionNamespace,
@@ -73,15 +73,19 @@ class Web3Auth implements IWeb3Auth {
     const sessionId = await this.keyStore.get("sessionId");
     if (sessionId) {
       this.sessionManager.sessionKey = sessionId;
-      const data = await this.sessionManager.authorizeSession();
-      this._syncState({
-        privKey: data.privKey,
-        coreKitKey: data.coreKitKey,
-        coreKitEd25519PrivKey: data.coreKitEd25519PrivKey,
-        ed25519PrivKey: data.ed25519PrivKey,
-        sessionId: data.sessionId,
-        userInfo: data.store,
-      });
+      const data = await this._authorizeSession();
+      if (Object.keys(data).length > 0) {
+        this._syncState({
+          privKey: data.privKey,
+          coreKitKey: data.coreKitKey,
+          coreKitEd25519PrivKey: data.coreKitEd25519PrivKey,
+          ed25519PrivKey: data.ed25519PrivKey,
+          sessionId: data.sessionId,
+          userInfo: data.userInfo,
+        });
+      } else {
+        this._syncState({});
+      }
     }
   }
 
@@ -116,7 +120,14 @@ class Web3Auth implements IWeb3Auth {
       await this.keyStore.set(state.userInfo?.verifier, state.userInfo?.dappShare);
     }
 
-    this._syncState({});
+    this._syncState({
+      privKey: state.privKey,
+      coreKitKey: state.coreKitKey,
+      coreKitEd25519PrivKey: state.coreKitEd25519PrivKey,
+      ed25519PrivKey: state.ed25519PrivKey,
+      sessionId: state.sessionId,
+      userInfo: state.userInfo,
+    });
   }
 
   async logout(): Promise<void> {
@@ -131,25 +142,7 @@ class Web3Auth implements IWeb3Auth {
       await this.keyStore.remove(currentUserInfo.verifier);
     }
 
-    this._syncState({
-      privKey: "",
-      coreKitKey: "",
-      coreKitEd25519PrivKey: "",
-      ed25519PrivKey: "",
-      userInfo: {
-        email: "",
-        name: "",
-        profileImage: "",
-        dappShare: "",
-        idToken: "",
-        oAuthIdToken: "",
-        oAuthAccessToken: "",
-        aggregateVerifier: "",
-        verifier: "",
-        verifierId: "",
-        typeOfLogin: "",
-      },
-    });
+    this._syncState({});
   }
 
   public userInfo(): State["userInfo"] {
@@ -207,6 +200,15 @@ class Web3Auth implements IWeb3Auth {
     log.info(`[Web3Auth] opening login screen in browser at ${url.href}, will redirect to ${redirectUrl}`);
 
     return this.webBrowser.openAuthSessionAsync(url.href, redirectUrl);
+  }
+
+  private async _authorizeSession(): Promise<OpenloginSessionData> {
+    try {
+      const data = await this.sessionManager.authorizeSession();
+      return data;
+    } catch (error: unknown) {
+      return {};
+    }
   }
 }
 
