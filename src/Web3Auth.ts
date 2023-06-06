@@ -49,9 +49,9 @@ class Web3Auth implements IWeb3Auth {
     if (this.initParams.useCoreKitKey) {
       // only throw error if privKey is there, but coreKitKey is not available.
       if (this.state.privKey && !this.state.coreKitKey) throw new Error("useCoreKitKey flag is enabled but coreKitKey is not available.");
-      return this.state.coreKitKey;
+      return this.state.coreKitKey || "";
     }
-    return this.state.privKey;
+    return this.state.privKey || "";
   }
 
   get ed25519Key(): string {
@@ -59,9 +59,9 @@ class Web3Auth implements IWeb3Auth {
       // only throw error if ed25519PrivKey is there, but coreKitEd25519PrivKey is not available.
       if (this.state.ed25519PrivKey && !this.state.coreKitEd25519PrivKey)
         throw new Error("useCoreKitKey flag is enabled but coreKitEd25519PrivKey is not available.");
-      return this.state.coreKitEd25519PrivKey;
+      return this.state.coreKitEd25519PrivKey || "";
     }
-    return this.state.ed25519PrivKey;
+    return this.state.ed25519PrivKey || "";
   }
 
   async init(): Promise<void> {
@@ -84,6 +84,7 @@ class Web3Auth implements IWeb3Auth {
           userInfo: data.userInfo,
         });
       } else {
+        await this.keyStore.remove("sessionId");
         this._syncState({});
       }
     }

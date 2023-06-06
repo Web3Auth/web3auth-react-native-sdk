@@ -1,0 +1,33 @@
+{
+  "name": "rn-expo-example",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@ethersproject/shims": "^5.7.0",
+    "@web3auth/react-native-sdk": "../../web3auth-react-native-sdk-3.5.2.tgz",
+    "ethers": "5.7",
+    "expo": "~48.0.18",
+    "expo-constants": "^14.2.1",
+    "expo-linking": "^4.0.1",
+    "expo-secure-store": "~12.1.1",
+    "expo-status-bar": "~1.4.4",
+    "expo-web-browser": "^12.1.1",
+    "react": "18.2.0",
+    "react-native": "0.71.8",
+    "expo-crypto": "~12.2.1",
+    "expo-splash-screen": "~0.18.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "buffer": "^6.0.3",
+    "expo-crypto-polyfills": "^1.1.0",
+    "react-native-quick-crypto": "^0.6.1",
+    "readable-stream": "^4.4.0"
+  },
+  "private": true
+}
