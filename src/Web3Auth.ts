@@ -19,8 +19,6 @@ import {
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
 
-(process as any).browser = true;
-
 class Web3Auth implements IWeb3Auth {
   private initParams: SdkInitParams;
 
