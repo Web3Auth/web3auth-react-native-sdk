@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "name": "Attach to Hermes application - Experimental",
+      "request": "attach",
+      "type": "reactnativedirect",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug Android Hermes - Experimental",
+      "request": "launch",
+      "type": "reactnativedirect",
+      "cwd": "${workspaceFolder}/rn-bare-example",
+      "platform": "android"
+    },
+    {
+      "name": "Debug iOS Hermes - Experimental",
+      "request": "launch",
+      "type": "reactnativedirect",
+      "cwd": "${workspaceFolder}/rn-bare-example",
+      "platform": "ios"
+    }
+  ]
+}
