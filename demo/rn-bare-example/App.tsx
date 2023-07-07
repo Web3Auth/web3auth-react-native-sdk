@@ -6,6 +6,7 @@ import {
   Button,
   ScrollView,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import * as WebBrowser from '@toruslabs/react-native-web-browser';
 import EncryptedStorage from 'react-native-encrypted-storage';
@@ -17,7 +18,7 @@ import Web3Auth, {
 } from '@web3auth/react-native-sdk';
 import RPC from './ethersRPC'; // for using ethers.js
 
-const scheme = 'web3authrnbareaggregateexample'; // Or your desired app redirection scheme
+const scheme = 'web3authrnbareexample'; // Or your desired app redirection scheme
 const resolvedRedirectUrl = `${scheme}://openlogin`;
 const clientId =
   'BHr_dKcxC0ecKn_2dZQmQeNdjPgWykMkcodEHkVvPMo71qzOV6SgtoN8KCvFdLN7bf34JOm89vWQMLFmSfIo84A';
@@ -27,6 +28,7 @@ export default function App() {
   const [key, setKey] = useState<string | undefined>('');
   const [console, setConsole] = useState<string>('');
   const [web3auth, setWeb3Auth] = useState<IWeb3Auth | null>(null);
+  const [email, setEmail] = React.useState('hello@tor.us');
 
   const login = async () => {
     try {
@@ -42,7 +44,7 @@ export default function App() {
         mfaLevel: 'default',
         curve: 'secp256k1',
         extraLoginOptions: {
-          login_hint: 'arch1995@gmail.com',
+          login_hint: email,
           connection: 'email',
         },
       });
@@ -52,7 +54,7 @@ export default function App() {
         setKey(web3auth.privKey);
         uiConsole('Logged In');
       }
-    } catch (e) {
+    } catch (e: any) {
       setConsole(e.message);
     }
   };
@@ -136,7 +138,7 @@ export default function App() {
     uiConsole(message);
   };
 
-  const uiConsole = (...args) => {
+  const uiConsole = (...args: unknown[]) => {
     setConsole(JSON.stringify(args || {}, null, 2) + '\n\n\n\n' + console);
   };
 
@@ -155,6 +157,13 @@ export default function App() {
 
   const unloggedInView = (
     <View style={styles.buttonArea}>
+      <TextInput
+        editable
+        onChangeText={text => setEmail(text)}
+        value={email}
+        // eslint-disable-next-line react-native/no-inline-styles
+        style={{padding: 10}}
+      />
       <Button title="Login with Web3Auth" onPress={login} />
     </View>
   );
