@@ -1,26 +1,18 @@
-import type { LoginParams, OpenLoginOptions, OpenloginUserInfo, OpenloginSessionData } from "@toruslabs/openlogin-utils";
+import type { LoginParams, OpenLoginOptions, OpenloginSessionData } from "@toruslabs/openlogin-utils";
 
 type SdkSpecificInitParams = {
-  sdkUrl?: string;
+  enableLogging?: boolean;
   useCoreKitKey?: boolean;
 };
 
 export type SdkInitParams = Omit<
   OpenLoginOptions & SdkSpecificInitParams,
-  "no3PC" | "uxMode" | "replaceUrlOnRedirect" | "originData" | "_iframeUrl" | "_startUrl" | "_popupUrl" | "_storageServerUrl"
+  "no3PC" | "uxMode" | "replaceUrlOnRedirect" | "originData"
 >;
 
 export type SdkLoginParams = Omit<LoginParams, "fastLogin" | "skipTKey" | "getWalletKey"> & Required<Pick<LoginParams, "loginProvider">>;
 
 // export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;
-
-export const OPENLOGIN_NETWORK = {
-  MAINNET: "mainnet",
-  TESTNET: "testnet",
-  CYAN: "cyan",
-  AQUA: "aqua",
-  CELESTE: "celeste",
-} as const;
 
 export const SUPPORTED_KEY_CURVES = {
   SECP256K1: "secp256k1",

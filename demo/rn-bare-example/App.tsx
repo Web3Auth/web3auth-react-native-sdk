@@ -11,7 +11,6 @@ import * as WebBrowser from '@toruslabs/react-native-web-browser';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import Web3Auth, {
   LOGIN_PROVIDER,
-  OPENLOGIN_NETWORK,
   IWeb3Auth,
   OpenloginUserInfo,
 } from '@web3auth/react-native-sdk';
@@ -52,8 +51,9 @@ export default function App() {
         setKey(web3auth.privKey);
         uiConsole('Logged In');
       }
-    } catch (e) {
-      setConsole(e.message);
+    } catch (e: unknown) {
+      window.console.log(e, e.stack);
+      setConsole((e as Error).message);
     }
   };
 
@@ -77,9 +77,11 @@ export default function App() {
     const init = async () => {
       const auth = new Web3Auth(WebBrowser, EncryptedStorage, {
         clientId,
-        network: OPENLOGIN_NETWORK.TESTNET, // or other networks
+        network: 'testnet', // or other networks
         useCoreKitKey: false,
         loginConfig: {},
+        enableLogging: true,
+        buildEnv: 'development',
       });
       setWeb3Auth(auth);
       await auth.init();

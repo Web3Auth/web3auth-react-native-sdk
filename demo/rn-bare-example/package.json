@@ -12,7 +12,7 @@
   "dependencies": {
     "@ethersproject/shims": "^5.7.0",
     "@toruslabs/react-native-web-browser": "^1.1.0",
-    "@web3auth/react-native-sdk": "../../web3auth-react-native-sdk-3.5.2.tgz",
+    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-4.0.0.tgz",
     "ethers": "^5.7.2",
     "react": "18.2.0",
     "react-native": "0.71.8",
