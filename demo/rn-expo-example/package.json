@@ -9,18 +9,18 @@
   },
   "dependencies": {
     "@ethersproject/shims": "^5.7.0",
-    "@web3auth/react-native-sdk": "../../web3auth-react-native-sdk-3.5.2.tgz",
+    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-4.0.0.tgz",
     "ethers": "5.7",
     "expo": "~48.0.18",
     "expo-constants": "^14.2.1",
+    "expo-crypto": "~12.2.1",
     "expo-linking": "^4.0.1",
     "expo-secure-store": "~12.1.1",
+    "expo-splash-screen": "~0.18.2",
     "expo-status-bar": "~1.4.4",
     "expo-web-browser": "^12.1.1",
     "react": "18.2.0",
-    "react-native": "0.71.8",
-    "expo-crypto": "~12.2.1",
-    "expo-splash-screen": "~0.18.2"
+    "react-native": "0.71.8"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
