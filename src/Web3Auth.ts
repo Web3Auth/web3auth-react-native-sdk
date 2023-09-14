@@ -137,11 +137,11 @@ class Web3Auth implements IWeb3Auth {
 
     const dataObject: OpenloginSessionConfig = {
       actionType: OPENLOGIN_ACTIONS.LOGIN,
-      options: {
-        ...this.initParams,
+      options: this.initParams,
+      params: {
+        ...loginParams,
         redirectUrl: loginParams.redirectUrl || this.initParams.redirectUrl,
       },
-      params: loginParams,
     };
 
     const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
@@ -237,7 +237,7 @@ class Web3Auth implements IWeb3Auth {
   }
 
   private async openloginHandler(url: string, dataObject: OpenloginSessionConfig) {
-    log.debug(`[Web3Auth] params passed to Web3Auth: ${dataObject}`);
+    log.debug(`[Web3Auth] config passed: ${JSON.stringify(dataObject)}`);
     const loginId = await this.getLoginId(dataObject);
 
     const configParams: BaseLoginParams = {
@@ -250,7 +250,7 @@ class Web3Auth implements IWeb3Auth {
       hash: { b64Params: jsonToBase64(configParams) },
     });
 
-    return this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.options.redirectUrl);
+    return this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
   }
 
   private async _authorizeSession(): Promise<OpenloginSessionData> {
