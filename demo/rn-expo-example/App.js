@@ -1,5 +1,4 @@
-import "./global";
-import Web3Auth, { LOGIN_PROVIDER, OPENLOGIN_NETWORK } from "@web3auth/react-native-sdk";
+import Web3Auth, { LOGIN_PROVIDER } from "@web3auth/react-native-sdk";
 import Constants, { AppOwnership } from "expo-constants";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
@@ -27,7 +26,7 @@ export default function App() {
       try {
         const auth = new Web3Auth(WebBrowser, SecureStore, {
           clientId,
-          network: OPENLOGIN_NETWORK.CYAN, // or other networks
+          network: "cyan", // or other networks
         });
         setWeb3Auth(auth);
         await auth.init();
@@ -71,6 +70,7 @@ export default function App() {
       return;
     }
 
+    window.console.log(web3auth.sessionManager.sessionId);
     setConsole("Logging out");
     await web3auth.logout();
 

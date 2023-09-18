@@ -159,7 +159,7 @@ class Web3Auth implements IWeb3Auth {
     if (sessionId) {
       await this.keyStore.set("sessionId", sessionId);
       this.sessionManager.sessionId = sessionId;
-      this.sessionManager.sessionNamespace = sessionNamespace;
+      this.sessionManager.sessionNamespace = sessionNamespace || "";
     }
 
     const sessionData = await this._authorizeSession();
