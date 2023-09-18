@@ -2,7 +2,6 @@ import {
   type LoginParams,
   type OpenLoginOptions,
   type OpenloginSessionData,
-  OPENLOGIN_NETWORK,
   BUILD_ENV,
   LANGUAGES,
   LOGIN_PROVIDER,
@@ -56,4 +55,4 @@ export interface IWeb3Auth {
   userInfo: () => State["userInfo"];
 }
 
-export { OPENLOGIN_NETWORK, BUILD_ENV, LANGUAGES, LOGIN_PROVIDER, SUPPORTED_KEY_CURVES, MFA_FACTOR, MFA_LEVELS, THEME_MODES };
+export { BUILD_ENV, LANGUAGES, LOGIN_PROVIDER, SUPPORTED_KEY_CURVES, MFA_FACTOR, MFA_LEVELS, THEME_MODES };
