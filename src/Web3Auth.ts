@@ -1,8 +1,8 @@
 import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
-import base64url from "base64url";
+import { BaseLoginParams, BUILD_ENV, jsonToBase64, OPENLOGIN_ACTIONS, OPENLOGIN_NETWORK, OpenloginSessionConfig } from "@toruslabs/openlogin-utils";
 import log from "loglevel";
-import { URL } from "react-native-url-polyfill";
 
+import { InitializationError, LoginError } from "./errors";
 import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
@@ -10,7 +10,6 @@ import {
   CUSTOM_LOGIN_PROVIDER_TYPE,
   IWeb3Auth,
   LOGIN_PROVIDER_TYPE,
-  OPENLOGIN_NETWORK,
   OpenloginSessionData,
   OpenloginUserInfo,
   SdkInitParams,
@@ -18,8 +17,11 @@ import {
   State,
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
+import { constructURL, extractHashValues } from "./utils";
 
 class Web3Auth implements IWeb3Auth {
+  public ready = false;
+
   private initParams: SdkInitParams;
 
   private webBrowser: IWebBrowser;
@@ -31,15 +33,34 @@ class Web3Auth implements IWeb3Auth {
   private sessionManager: OpenloginSessionManager<OpenloginSessionData>;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, initParams: SdkInitParams) {
-    this.initParams = initParams;
-    if (!this.initParams.sdkUrl) {
-      const { network } = this.initParams;
-      if (network === OPENLOGIN_NETWORK.TESTNET) {
-        this.initParams.sdkUrl = "https://dev-sdk.openlogin.com";
+    if (!initParams.clientId) throw InitializationError.invalidParams("clientId is required");
+    if (!initParams.network) initParams.network = OPENLOGIN_NETWORK.SAPPHIRE_MAINNET;
+    if (!initParams.buildEnv) initParams.buildEnv = BUILD_ENV.PRODUCTION;
+    if (!initParams.sdkUrl) {
+      if (initParams.buildEnv === BUILD_ENV.DEVELOPMENT) {
+        initParams.sdkUrl = "http://localhost:3000";
+      } else if (initParams.buildEnv === BUILD_ENV.STAGING) {
+        initParams.sdkUrl = "https://staging-auth.web3auth.io";
+      } else if (initParams.buildEnv === BUILD_ENV.TESTING) {
+        initParams.sdkUrl = "https://develop-auth.web3auth.io";
       } else {
-        this.initParams.sdkUrl = "https://sdk.openlogin.com";
+        initParams.sdkUrl = "https://auth.web3auth.io";
       }
     }
+    if (!initParams.whiteLabel) initParams.whiteLabel = {};
+    if (!initParams.loginConfig) initParams.loginConfig = {};
+    if (!initParams.mfaSettings) initParams.mfaSettings = {};
+    if (!initParams.storageServerUrl) initParams.storageServerUrl = "https://broadcast-server.tor.us";
+    if (!initParams.storageKey) initParams.storageKey = "local";
+    if (!initParams.webauthnTransports) initParams.webauthnTransports = ["internal"];
+    if (!initParams.sessionTime) initParams.sessionTime = 86400;
+    if (typeof initParams.enableLogging === "undefined") initParams.enableLogging = false;
+    if (initParams.enableLogging) {
+      log.setLevel("debug");
+    } else {
+      log.setLevel("ERROR");
+    }
+    this.initParams = initParams;
     this.webBrowser = webBrowser;
     this.keyStore = new KeyStore(storage);
     this.state = {};
@@ -64,6 +85,12 @@ class Web3Auth implements IWeb3Auth {
     return this.state.ed25519PrivKey || "";
   }
 
+  private get baseUrl(): string {
+    // testing and develop don't have versioning
+    if (this.initParams.buildEnv === BUILD_ENV.DEVELOPMENT || this.initParams.buildEnv === BUILD_ENV.TESTING) return `${this.initParams.sdkUrl}`;
+    return `${this.initParams.sdkUrl}/v5`;
+  }
+
   async init(): Promise<void> {
     this.sessionManager = new OpenloginSessionManager<OpenloginSessionData>({
       sessionServerBaseUrl: this.initParams.storageServerUrl,
@@ -72,7 +99,7 @@ class Web3Auth implements IWeb3Auth {
     });
     const sessionId = await this.keyStore.get("sessionId");
     if (sessionId) {
-      this.sessionManager.sessionKey = sessionId;
+      this.sessionManager.sessionId = sessionId;
       const data = await this._authorizeSession();
       if (Object.keys(data).length > 0) {
         this._syncState({
@@ -88,51 +115,72 @@ class Web3Auth implements IWeb3Auth {
         this._syncState({});
       }
     }
+    this.ready = true;
   }
 
-  async login(options: SdkLoginParams): Promise<void> {
+  async login(loginParams: SdkLoginParams): Promise<void> {
+    if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
+    if (!loginParams.redirectUrl && !this.initParams.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
+    if (!loginParams.loginProvider) throw InitializationError.invalidParams("loginProvider is required");
+
     // check for share
     if (this.initParams.loginConfig) {
       const loginConfigItem = Object.values(this.initParams.loginConfig)[0];
       if (loginConfigItem) {
         const share = await this.keyStore.get(loginConfigItem.verifier);
         if (share) {
-          options.dappShare = share;
+          // eslint-disable-next-line require-atomic-updates
+          loginParams.dappShare = share;
         }
       }
     }
 
-    const result = await this.request("login", options.redirectUrl, options);
+    const dataObject: OpenloginSessionConfig = {
+      actionType: OPENLOGIN_ACTIONS.LOGIN,
+      options: this.initParams,
+      params: {
+        ...loginParams,
+        redirectUrl: loginParams.redirectUrl || this.initParams.redirectUrl,
+      },
+    };
+
+    const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
+
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
       throw new Error(`login flow failed with error type ${result.type}`);
     }
 
-    const fragment = new URL(result.url).hash;
-    const decodedPayload = base64url.decode(fragment);
-    const state = JSON.parse(decodedPayload) as State;
-
-    if (state.sessionId) {
-      await this.keyStore.set("sessionId", state.sessionId);
-      this.sessionManager.sessionKey = state.sessionId;
+    const { sessionId, sessionNamespace, error } = extractHashValues(result.url);
+    if (error || !sessionId) {
+      throw LoginError.loginFailed(error || "SessionId is missing");
     }
 
-    if (state.userInfo?.dappShare.length > 0) {
-      await this.keyStore.set(state.userInfo?.verifier, state.userInfo?.dappShare);
+    if (sessionId) {
+      await this.keyStore.set("sessionId", sessionId);
+      this.sessionManager.sessionId = sessionId;
+      this.sessionManager.sessionNamespace = sessionNamespace || "";
+    }
+
+    const sessionData = await this._authorizeSession();
+
+    if (sessionData.userInfo?.dappShare.length > 0) {
+      const verifier = sessionData.userInfo?.aggregateVerifier || sessionData.userInfo?.verifier;
+      await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
     }
 
     this._syncState({
-      privKey: state.privKey,
-      coreKitKey: state.coreKitKey,
-      coreKitEd25519PrivKey: state.coreKitEd25519PrivKey,
-      ed25519PrivKey: state.ed25519PrivKey,
-      sessionId: state.sessionId,
-      userInfo: state.userInfo,
+      privKey: sessionData.privKey,
+      coreKitKey: sessionData.coreKitKey,
+      coreKitEd25519PrivKey: sessionData.coreKitEd25519PrivKey,
+      ed25519PrivKey: sessionData.ed25519PrivKey,
+      sessionId: sessionData.sessionId,
+      userInfo: sessionData.userInfo,
     });
   }
 
   async logout(): Promise<void> {
-    if (!this.sessionManager.sessionKey) {
+    if (!this.sessionManager.sessionId) {
       throw new Error("user should be logged in.");
     }
     await this.sessionManager.invalidateSession();
@@ -172,35 +220,37 @@ class Web3Auth implements IWeb3Auth {
     this.state = newState;
   }
 
-  private async request(path: string, redirectUrl: string, params: Record<string, unknown> = {}) {
-    const initParams = {
-      ...this.initParams,
-      clientId: this.initParams.clientId,
-      network: this.initParams.network,
-      ...(!!this.initParams.redirectUrl && {
-        redirectUrl: this.initParams.redirectUrl,
-      }),
+  private async getLoginId(data: OpenloginSessionConfig): Promise<string> {
+    if (!this.sessionManager) throw InitializationError.notInitialized();
+
+    const loginId = OpenloginSessionManager.generateRandomSessionKey();
+    const loginSessionMgr = new OpenloginSessionManager<OpenloginSessionConfig>({
+      sessionServerBaseUrl: this.initParams.storageServerUrl,
+      sessionNamespace: "",
+      sessionTime: 600, // each login key must be used with 10 mins (might be used at the end of popup redirect)
+      sessionId: loginId,
+    });
+
+    await loginSessionMgr.createSession(JSON.parse(JSON.stringify(data)));
+
+    return loginId;
+  }
+
+  private async openloginHandler(url: string, dataObject: OpenloginSessionConfig) {
+    log.debug(`[Web3Auth] config passed: ${JSON.stringify(dataObject)}`);
+    const loginId = await this.getLoginId(dataObject);
+
+    const configParams: BaseLoginParams = {
+      loginId,
+      sessionNamespace: "",
     };
 
-    const mergedParams = {
-      init: initParams,
-      params: {
-        ...params,
-        ...(!params.redirectUrl && { redirectUrl }),
-      },
-    };
+    const loginUrl = constructURL({
+      baseURL: url,
+      hash: { b64Params: jsonToBase64(configParams) },
+    });
 
-    log.debug(`[Web3Auth] params passed to Web3Auth: ${mergedParams}`);
-
-    const hash = base64url.encode(JSON.stringify(mergedParams));
-
-    const url = new URL(this.initParams.sdkUrl);
-    url.pathname = `${url.pathname}${path}`;
-    url.hash = hash;
-
-    log.info(`[Web3Auth] opening login screen in browser at ${url.href}, will redirect to ${redirectUrl}`);
-
-    return this.webBrowser.openAuthSessionAsync(url.href, redirectUrl);
+    return this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
   }
 
   private async _authorizeSession(): Promise<OpenloginSessionData> {
