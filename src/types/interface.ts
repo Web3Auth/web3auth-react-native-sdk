@@ -8,6 +8,7 @@ import {
   SUPPORTED_KEY_CURVES,
   MFA_FACTOR,
   MFA_LEVELS,
+  OPENLOGIN_NETWORK,
   THEME_MODES,
 } from "@toruslabs/openlogin-utils";
 
@@ -24,7 +25,6 @@ export type SdkLoginParams = Omit<LoginParams, "fastLogin" | "skipTKey" | "getWa
 
 export type {
   LOGIN_PROVIDER_TYPE,
-  OPENLOGIN_NETWORK,
   OPENLOGIN_NETWORK_TYPE,
   SUPPORTED_KEY_CURVES_TYPE,
   MfaLevelType,
@@ -55,4 +55,4 @@ export interface IWeb3Auth {
   userInfo: () => State["userInfo"];
 }
 
-export { BUILD_ENV, LANGUAGES, LOGIN_PROVIDER, SUPPORTED_KEY_CURVES, MFA_FACTOR, MFA_LEVELS, THEME_MODES };
+export { BUILD_ENV, OPENLOGIN_NETWORK, LANGUAGES, LOGIN_PROVIDER, SUPPORTED_KEY_CURVES, MFA_FACTOR, MFA_LEVELS, THEME_MODES };

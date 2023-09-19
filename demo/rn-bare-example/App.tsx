@@ -54,7 +54,7 @@ export default function App() {
         uiConsole('Logged In');
       }
     } catch (e: unknown) {
-      window.console.log(e, (e as Error).stack);
+      console.log(e, (e as Error).stack);
       setConsole((e as Error).message);
     }
   };
@@ -91,7 +91,6 @@ export default function App() {
         uiConsole('Re logged in');
         setUserInfo(auth.userInfo());
         setKey(auth.privKey);
-        window.console.log(auth.privKey);
       }
     };
     init();

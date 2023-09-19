@@ -34,7 +34,6 @@ export default function App() {
           uiConsole("Re logged in");
           setUserInfo(auth.userInfo());
           setKey(auth.privKey);
-          window.console.log(auth.privKey);
         }
       } catch (e) {
         throw e;
@@ -70,7 +69,6 @@ export default function App() {
       return;
     }
 
-    window.console.log(web3auth.sessionManager.sessionId);
     setConsole("Logging out");
     await web3auth.logout();
 
