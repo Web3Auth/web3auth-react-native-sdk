@@ -88,7 +88,7 @@ class Web3Auth implements IWeb3Auth {
   private get baseUrl(): string {
     // testing and develop don't have versioning
     if (this.initParams.buildEnv === BUILD_ENV.DEVELOPMENT || this.initParams.buildEnv === BUILD_ENV.TESTING) return `${this.initParams.sdkUrl}`;
-    return `${this.initParams.sdkUrl}/v5`;
+    return `${this.initParams.sdkUrl}/v6`;
   }
 
   async init(): Promise<void> {
