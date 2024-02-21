@@ -1,5 +1,13 @@
 import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
-import { BaseLoginParams, BUILD_ENV, jsonToBase64, OPENLOGIN_ACTIONS, OPENLOGIN_NETWORK, OpenloginSessionConfig } from "@toruslabs/openlogin-utils";
+import {
+  BaseLoginParams,
+  BUILD_ENV,
+  jsonToBase64,
+  MFA_LEVELS,
+  OPENLOGIN_ACTIONS,
+  OPENLOGIN_NETWORK,
+  OpenloginSessionConfig,
+} from "@toruslabs/openlogin-utils";
 import log from "loglevel";
 
 import { InitializationError, LoginError } from "./errors";
@@ -88,7 +96,20 @@ class Web3Auth implements IWeb3Auth {
   private get baseUrl(): string {
     // testing and develop don't have versioning
     if (this.initParams.buildEnv === BUILD_ENV.DEVELOPMENT || this.initParams.buildEnv === BUILD_ENV.TESTING) return `${this.initParams.sdkUrl}`;
-    return `${this.initParams.sdkUrl}/v6`;
+    return `${this.initParams.sdkUrl}/v7`;
+  }
+
+  private get walletSdkUrl(): string {
+    const walletServicesVersion: string = "v1";
+    let sdkUrl: string;
+    if (this.initParams.buildEnv === BUILD_ENV.TESTING) {
+      sdkUrl = "https://develop-wallet.web3auth.io";
+    } else if (this.initParams.buildEnv === BUILD_ENV.STAGING) {
+      sdkUrl = `https://staging-wallet.web3auth.io/${walletServicesVersion}`;
+    } else {
+      sdkUrl = `https://wallet.web3auth.io/${walletServicesVersion}`;
+    }
+    return sdkUrl;
   }
 
   async init(): Promise<void> {
@@ -192,6 +213,104 @@ class Web3Auth implements IWeb3Auth {
     }
 
     this._syncState({});
+  }
+
+  async launchWalletServices(loginParams: SdkLoginParams, path: string | null = "wallet"): Promise<void> {
+    if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
+    if (!this.sessionManager.sessionId) {
+      throw new Error("user should be logged in.");
+    }
+
+    const dataObject: OpenloginSessionConfig = {
+      actionType: OPENLOGIN_ACTIONS.LOGIN,
+      options: this.initParams,
+      params: {
+        ...loginParams,
+        redirectUrl: loginParams.redirectUrl || this.initParams.redirectUrl,
+      },
+    };
+
+    const url = `${this.walletSdkUrl}/${path}`;
+    log.debug(`[Web3Auth] config passed: ${JSON.stringify(dataObject)}`);
+    const loginId = await this.getLoginId(dataObject);
+
+    const configParams: BaseLoginParams = {
+      loginId,
+      sessionNamespace: "",
+    };
+
+    const loginUrl = constructURL({
+      baseURL: url,
+      hash: { b64Params: jsonToBase64(configParams) },
+    });
+
+    this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
+  }
+
+  async enableMFA(): Promise<void> {
+    log.debug("enableMFA_1 starts");
+    if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
+    if (!this.sessionManager.sessionId) {
+      throw new Error("user should be logged in.");
+    }
+
+    const loginParams: SdkLoginParams = {
+      loginProvider: this.state.userInfo?.typeOfLogin,
+      mfaLevel: MFA_LEVELS.MANDATORY,
+      extraLoginOptions: {
+        login_hint: this.state.userInfo?.verifierId,
+      },
+      redirectUrl: this.initParams.redirectUrl,
+    };
+
+    log.debug("enableMFA_2 starts");
+    const dataObject: OpenloginSessionConfig = {
+      actionType: OPENLOGIN_ACTIONS.ENABLE_MFA,
+      options: this.initParams,
+      params: {
+        ...loginParams,
+        redirectUrl: loginParams.redirectUrl || this.initParams.redirectUrl,
+      },
+      sessionId: this.sessionManager.sessionId,
+    };
+
+    log.debug("enableMFA_3 starts");
+    const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
+
+    log.debug("enableMFA_4", result);
+    if (result.type !== "success" || !result.url) {
+      log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
+      throw new Error(`login flow failed with error type ${result.type}`);
+    }
+
+    log.debug("enableMFA_5");
+    const { sessionId, sessionNamespace, error } = extractHashValues(result.url);
+    if (error || !sessionId) {
+      throw LoginError.loginFailed(error || "SessionId is missing");
+    }
+
+    log.debug("enableMFA_6");
+    if (sessionId) {
+      await this.keyStore.set("sessionId", sessionId);
+      this.sessionManager.sessionId = sessionId;
+      this.sessionManager.sessionNamespace = sessionNamespace || "";
+    }
+
+    const sessionData = await this._authorizeSession();
+
+    if (sessionData.userInfo?.dappShare.length > 0) {
+      const verifier = sessionData.userInfo?.aggregateVerifier || sessionData.userInfo?.verifier;
+      await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
+    }
+
+    this._syncState({
+      privKey: sessionData.privKey,
+      coreKitKey: sessionData.coreKitKey,
+      coreKitEd25519PrivKey: sessionData.coreKitEd25519PrivKey,
+      ed25519PrivKey: sessionData.ed25519PrivKey,
+      sessionId: sessionData.sessionId,
+      userInfo: sessionData.userInfo,
+    });
   }
 
   public userInfo(): State["userInfo"] {

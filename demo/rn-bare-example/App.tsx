@@ -1,20 +1,22 @@
-import React, {useEffect, useState} from 'react';
+import * as WebBrowser from '@toruslabs/react-native-web-browser';
+
 import {
+  Button,
+  Dimensions,
+  ScrollView,
   StyleSheet,
   Text,
-  View,
-  Button,
-  ScrollView,
-  Dimensions,
   TextInput,
+  View,
 } from 'react-native';
-import * as WebBrowser from '@toruslabs/react-native-web-browser';
-import EncryptedStorage from 'react-native-encrypted-storage';
+import React, { useEffect, useState } from 'react';
 import Web3Auth, {
-  LOGIN_PROVIDER,
   IWeb3Auth,
+  LOGIN_PROVIDER,
   OpenloginUserInfo,
 } from '@web3auth/react-native-sdk';
+
+import EncryptedStorage from 'react-native-encrypted-storage';
 import RPC from './ethersRPC'; // for using ethers.js
 
 const scheme = 'web3authrnbareexample'; // Or your desired app redirection scheme
@@ -27,7 +29,7 @@ export default function App() {
   const [key, setKey] = useState<string | undefined>('');
   const [console, setConsole] = useState<string>('');
   const [web3auth, setWeb3Auth] = useState<IWeb3Auth | null>(null);
-  const [email, setEmail] = React.useState('hello@tor.us');
+  const [email, setEmail] = React.useState('testtkey@gmail.com');
 
   const login = async () => {
     try {
@@ -75,6 +77,27 @@ export default function App() {
     }
   };
 
+  const enableMFA = async () => {
+    if (!web3auth) {
+      setConsole('Web3auth not initialized');
+      return;
+    }
+
+    setConsole('Enable MFA');
+    await web3auth.enableMFA();
+    uiConsole('MFA enabled')
+  }
+
+  const launchWallerSerices = async () => {
+    if (!web3auth) {
+      setConsole('Web3auth not initialized');
+      return;
+    }
+
+    setConsole('Launch Wallet Services');
+    await web3auth.launchWalletServices();
+  }
+
   useEffect(() => {
     const init = async () => {
       const auth = new Web3Auth(WebBrowser, EncryptedStorage, {
@@ -83,7 +106,7 @@ export default function App() {
         useCoreKitKey: false,
         loginConfig: {},
         enableLogging: true,
-        buildEnv: 'development',
+        buildEnv: 'testing',
       });
       setWeb3Auth(auth);
       await auth.init();
@@ -146,6 +169,8 @@ export default function App() {
   const loggedInView = (
     <View style={styles.buttonArea}>
       <Button title="Get User Info" onPress={() => uiConsole(userInfo)} />
+      <Button title="Enable MFA" onPress={() => enableMFA()} />
+      <Button title="launch Wallet Services" onPress={() => launchWallerSerices()} />
       <Button title="Get Chain ID" onPress={() => getChainId()} />
       <Button title="Get Accounts" onPress={() => getAccounts()} />
       <Button title="Get Balance" onPress={() => getBalance()} />
@@ -163,7 +188,7 @@ export default function App() {
         onChangeText={text => setEmail(text)}
         value={email}
         // eslint-disable-next-line react-native/no-inline-styles
-        style={{padding: 10}}
+        style={{ padding: 10 }}
       />
       <Button title="Login with Web3Auth" onPress={login} />
     </View>

@@ -1,4 +1,8 @@
+import { base64toJSON } from "@toruslabs/openlogin-utils";
+import log from "loglevel";
 import { URL } from "react-native-url-polyfill";
+
+import { SessionResponse } from "./index";
 
 export function constructURL(params: { baseURL: string; query?: Record<string, unknown>; hash?: Record<string, unknown> }): string {
   const { baseURL, query, hash } = params;
@@ -38,9 +42,16 @@ export function extractHashValues(url: string): { sessionId: string | null; sess
     });
 
     // Get the values of sessionId and sessionNamespace
-    const sessionId = params.sessionId || null;
     const sessionNamespace = params.sessionNamespace || null;
     const error = params.error || null;
+
+    const b64Params = params.b64Params || null;
+    log.debug("b64Params", b64Params);
+    const sessionResponse: SessionResponse = base64toJSON(b64Params);
+    log.debug("sessionResponse", sessionResponse);
+    const sessionId = sessionResponse.sessionId || null;
+    log.debug("sessionId", sessionId);
+    log.debug("sessionId", sessionId);
 
     return { sessionId, sessionNamespace, error };
   }
