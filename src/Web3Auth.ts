@@ -165,6 +165,8 @@ class Web3Auth implements IWeb3Auth {
       },
     };
 
+    this.initParams.redirectUrl = loginParams.redirectUrl;
+
     const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
@@ -231,6 +233,7 @@ class Web3Auth implements IWeb3Auth {
     };
 
     const url = `${this.walletSdkUrl}/${path}`;
+    log.debug("url => ", url);
     log.debug(`[Web3Auth] config passed: ${JSON.stringify(dataObject)}`);
     const loginId = await this.getLoginId(dataObject);
 
@@ -248,7 +251,6 @@ class Web3Auth implements IWeb3Auth {
   }
 
   async enableMFA(): Promise<void> {
-    log.debug("enableMFA_1 starts");
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!this.sessionManager.sessionId) {
       throw new Error("user should be logged in.");
@@ -263,7 +265,6 @@ class Web3Auth implements IWeb3Auth {
       redirectUrl: this.initParams.redirectUrl,
     };
 
-    log.debug("enableMFA_2 starts");
     const dataObject: OpenloginSessionConfig = {
       actionType: OPENLOGIN_ACTIONS.ENABLE_MFA,
       options: this.initParams,
@@ -274,22 +275,18 @@ class Web3Auth implements IWeb3Auth {
       sessionId: this.sessionManager.sessionId,
     };
 
-    log.debug("enableMFA_3 starts");
     const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
 
-    log.debug("enableMFA_4", result);
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
       throw new Error(`login flow failed with error type ${result.type}`);
     }
 
-    log.debug("enableMFA_5");
     const { sessionId, sessionNamespace, error } = extractHashValues(result.url);
     if (error || !sessionId) {
       throw LoginError.loginFailed(error || "SessionId is missing");
     }
 
-    log.debug("enableMFA_6");
     if (sessionId) {
       await this.keyStore.set("sessionId", sessionId);
       this.sessionManager.sessionId = sessionId;

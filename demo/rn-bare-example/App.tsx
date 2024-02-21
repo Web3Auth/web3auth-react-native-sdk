@@ -95,7 +95,16 @@ export default function App() {
     }
 
     setConsole('Launch Wallet Services');
-    await web3auth.launchWalletServices();
+    await web3auth.launchWalletServices({
+      loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
+      redirectUrl: resolvedRedirectUrl,
+      mfaLevel: 'default',
+      curve: 'secp256k1',
+      extraLoginOptions: {
+        login_hint: email,
+        connection: 'email',
+      },
+    });
   }
 
   useEffect(() => {
