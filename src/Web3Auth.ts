@@ -1,19 +1,12 @@
-import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
 import {
-  BaseLoginParams,
   BUILD_ENV,
-  jsonToBase64,
+  BaseLoginParams,
   MFA_LEVELS,
   OPENLOGIN_ACTIONS,
   OPENLOGIN_NETWORK,
   OpenloginSessionConfig,
+  jsonToBase64,
 } from "@toruslabs/openlogin-utils";
-import log from "loglevel";
-
-import { InitializationError, LoginError } from "./errors";
-import KeyStore from "./session/KeyStore";
-import { EncryptedStorage } from "./types/IEncryptedStorage";
-import { SecureStore } from "./types/IExpoSecureStore";
 import {
   CUSTOM_LOGIN_PROVIDER_TYPE,
   IWeb3Auth,
@@ -23,9 +16,17 @@ import {
   SdkInitParams,
   SdkLoginParams,
   State,
+  WalletLoginParams,
 } from "./types/interface";
-import { IWebBrowser } from "./types/IWebBrowser";
+import { InitializationError, LoginError } from "./errors";
 import { constructURL, extractHashValues } from "./utils";
+
+import { EncryptedStorage } from "./types/IEncryptedStorage";
+import { IWebBrowser } from "./types/IWebBrowser";
+import KeyStore from "./session/KeyStore";
+import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
+import { SecureStore } from "./types/IExpoSecureStore";
+import log from "loglevel";
 
 class Web3Auth implements IWeb3Auth {
   public ready = false;
@@ -53,6 +54,17 @@ class Web3Auth implements IWeb3Auth {
         initParams.sdkUrl = "https://develop-auth.web3auth.io";
       } else {
         initParams.sdkUrl = "https://auth.web3auth.io";
+      }
+    }
+    if (!initParams.walletSdkURL) {
+      if (initParams.buildEnv === BUILD_ENV.DEVELOPMENT) {
+        initParams.walletSdkURL = "http://localhost:3000";
+      } else if (initParams.buildEnv === BUILD_ENV.STAGING) {
+        initParams.walletSdkURL = "https://staging-wallet.web3auth.io";
+      } else if (initParams.buildEnv === BUILD_ENV.TESTING) {
+        initParams.walletSdkURL = "https://develop-wallet.web3auth.io";
+      } else {
+        initParams.walletSdkURL = "https://wallet.web3auth.io";
       }
     }
     if (!initParams.whiteLabel) initParams.whiteLabel = {};
@@ -100,16 +112,9 @@ class Web3Auth implements IWeb3Auth {
   }
 
   private get walletSdkUrl(): string {
-    const walletServicesVersion: string = "v1";
-    let sdkUrl: string;
-    if (this.initParams.buildEnv === BUILD_ENV.TESTING) {
-      sdkUrl = "https://develop-wallet.web3auth.io";
-    } else if (this.initParams.buildEnv === BUILD_ENV.STAGING) {
-      sdkUrl = `https://staging-wallet.web3auth.io/${walletServicesVersion}`;
-    } else {
-      sdkUrl = `https://wallet.web3auth.io/${walletServicesVersion}`;
-    }
-    return sdkUrl;
+    if (this.initParams.buildEnv === BUILD_ENV.DEVELOPMENT || this.initParams.buildEnv === BUILD_ENV.TESTING)
+      return `${this.initParams.walletSdkURL}`;
+    return `${this.initParams.walletSdkURL}/v1`;
   }
 
   async init(): Promise<void> {
@@ -237,9 +242,10 @@ class Web3Auth implements IWeb3Auth {
     log.debug(`[Web3Auth] config passed: ${JSON.stringify(dataObject)}`);
     const loginId = await this.getLoginId(dataObject);
 
-    const configParams: BaseLoginParams = {
+    const { sessionId } = this.sessionManager;
+    const configParams: WalletLoginParams = {
       loginId,
-      sessionNamespace: "",
+      sessionId,
     };
 
     const loginUrl = constructURL({
@@ -278,8 +284,8 @@ class Web3Auth implements IWeb3Auth {
     const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
-      log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
-      throw new Error(`login flow failed with error type ${result.type}`);
+      log.error(`[Web3Auth] enableMFA flow failed with error type ${result.type}`);
+      throw new Error(`enableMFA flow failed with error type ${result.type}`);
     }
 
     const { sessionId, sessionNamespace, error } = extractHashValues(result.url);

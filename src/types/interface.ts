@@ -15,6 +15,7 @@ import {
 type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
+  walletSdkURL?: string;
 };
 
 export type SdkInitParams = Omit<OpenLoginOptions & SdkSpecificInitParams, "no3PC" | "uxMode" | "replaceUrlOnRedirect" | "originData">;
@@ -58,6 +59,11 @@ export interface IWeb3Auth {
 export type SessionResponse = {
   sessionId?: string;
 };
+
+export type WalletLoginParams = {
+  loginId?: string;
+  sessionId?: string;
+}
 
 export type ChainConfig = {
   decimals: number,
