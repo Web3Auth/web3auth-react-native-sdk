@@ -1,5 +1,13 @@
 import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
-import { BaseLoginParams, BUILD_ENV, jsonToBase64, OPENLOGIN_ACTIONS, OPENLOGIN_NETWORK, OpenloginSessionConfig } from "@toruslabs/openlogin-utils";
+import {
+  BaseLoginParams,
+  BUILD_ENV,
+  jsonToBase64,
+  MFA_LEVELS,
+  OPENLOGIN_ACTIONS,
+  OPENLOGIN_NETWORK,
+  OpenloginSessionConfig,
+} from "@toruslabs/openlogin-utils";
 import log from "loglevel";
 
 import { InitializationError, LoginError } from "./errors";
@@ -7,6 +15,7 @@ import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
 import {
+  ChainConfig,
   CUSTOM_LOGIN_PROVIDER_TYPE,
   IWeb3Auth,
   LOGIN_PROVIDER_TYPE,
@@ -15,9 +24,12 @@ import {
   SdkInitParams,
   SdkLoginParams,
   State,
+  WalletLoginParams,
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
 import { constructURL, extractHashValues } from "./utils";
+
+// import WebViewComponent from "./WebViewComponent";
 
 class Web3Auth implements IWeb3Auth {
   public ready = false;
@@ -45,6 +57,17 @@ class Web3Auth implements IWeb3Auth {
         initParams.sdkUrl = "https://develop-auth.web3auth.io";
       } else {
         initParams.sdkUrl = "https://auth.web3auth.io";
+      }
+    }
+    if (!initParams.walletSdkURL) {
+      if (initParams.buildEnv === BUILD_ENV.DEVELOPMENT) {
+        initParams.walletSdkURL = "http://localhost:3000";
+      } else if (initParams.buildEnv === BUILD_ENV.STAGING) {
+        initParams.walletSdkURL = "https://staging-wallet.web3auth.io";
+      } else if (initParams.buildEnv === BUILD_ENV.TESTING) {
+        initParams.walletSdkURL = "https://develop-wallet.web3auth.io";
+      } else {
+        initParams.walletSdkURL = "https://wallet.web3auth.io";
       }
     }
     if (!initParams.whiteLabel) initParams.whiteLabel = {};
@@ -88,7 +111,13 @@ class Web3Auth implements IWeb3Auth {
   private get baseUrl(): string {
     // testing and develop don't have versioning
     if (this.initParams.buildEnv === BUILD_ENV.DEVELOPMENT || this.initParams.buildEnv === BUILD_ENV.TESTING) return `${this.initParams.sdkUrl}`;
-    return `${this.initParams.sdkUrl}/v6`;
+    return `${this.initParams.sdkUrl}/v7`;
+  }
+
+  private get walletSdkUrl(): string {
+    if (this.initParams.buildEnv === BUILD_ENV.DEVELOPMENT || this.initParams.buildEnv === BUILD_ENV.TESTING)
+      return `${this.initParams.walletSdkURL}`;
+    return `${this.initParams.walletSdkURL}/v1`;
   }
 
   async init(): Promise<void> {
@@ -144,6 +173,8 @@ class Web3Auth implements IWeb3Auth {
       },
     };
 
+    this.initParams.redirectUrl = loginParams.redirectUrl;
+
     const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
@@ -192,6 +223,100 @@ class Web3Auth implements IWeb3Auth {
     }
 
     this._syncState({});
+  }
+
+  async launchWalletServices(loginParams: SdkLoginParams, chainConfig: ChainConfig, path: string | null = "wallet"): Promise<void> {
+    if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
+    if (!this.sessionManager.sessionId) {
+      throw new Error("user should be logged in.");
+    }
+
+    this.initParams.chainConfig = chainConfig;
+
+    const dataObject: OpenloginSessionConfig = {
+      actionType: OPENLOGIN_ACTIONS.LOGIN,
+      options: this.initParams,
+      params: {
+        ...loginParams,
+        redirectUrl: loginParams.redirectUrl || this.initParams.redirectUrl,
+      },
+    };
+
+    const url = `${this.walletSdkUrl}/${path}`;
+    const loginId = await this.getLoginId(dataObject);
+
+    const { sessionId } = this.sessionManager;
+    const configParams: WalletLoginParams = {
+      loginId,
+      sessionId,
+    };
+
+    const loginUrl = constructURL({
+      baseURL: url,
+      hash: { b64Params: jsonToBase64(configParams) },
+    });
+
+    this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
+  }
+
+  async enableMFA(): Promise<void> {
+    if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
+    if (!this.sessionManager.sessionId) {
+      throw new Error("user should be logged in.");
+    }
+
+    const loginParams: SdkLoginParams = {
+      loginProvider: this.state.userInfo?.typeOfLogin,
+      mfaLevel: MFA_LEVELS.MANDATORY,
+      extraLoginOptions: {
+        login_hint: this.state.userInfo?.verifierId,
+      },
+      redirectUrl: this.initParams.redirectUrl,
+    };
+
+    const dataObject: OpenloginSessionConfig = {
+      actionType: OPENLOGIN_ACTIONS.ENABLE_MFA,
+      options: this.initParams,
+      params: {
+        ...loginParams,
+        redirectUrl: loginParams.redirectUrl || this.initParams.redirectUrl,
+      },
+      sessionId: this.sessionManager.sessionId,
+    };
+
+    const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
+
+    if (result.type !== "success" || !result.url) {
+      log.error(`[Web3Auth] enableMFA flow failed with error type ${result.type}`);
+      throw new Error(`enableMFA flow failed with error type ${result.type}`);
+    }
+
+    const { sessionId, sessionNamespace, error } = extractHashValues(result.url);
+    if (error || !sessionId) {
+      throw LoginError.loginFailed(error || "SessionId is missing");
+    }
+
+    if (sessionId) {
+      await this.keyStore.set("sessionId", sessionId);
+      this.sessionManager.sessionId = sessionId;
+      this.sessionManager.sessionNamespace = sessionNamespace || "";
+    }
+
+    const sessionData = await this._authorizeSession();
+
+    if (sessionData.userInfo?.dappShare.length > 0) {
+      const verifier = sessionData.userInfo?.aggregateVerifier || sessionData.userInfo?.verifier;
+      await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
+    }
+
+    this._syncState({
+      privKey: sessionData.privKey,
+      coreKitKey: sessionData.coreKitKey,
+      coreKitEd25519PrivKey: sessionData.coreKitEd25519PrivKey,
+      ed25519PrivKey: sessionData.ed25519PrivKey,
+      sessionId: sessionData.sessionId,
+      userInfo: sessionData.userInfo,
+    });
   }
 
   public userInfo(): State["userInfo"] {
