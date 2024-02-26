@@ -16,6 +16,7 @@ import Web3Auth, {
   OpenloginUserInfo,
 } from '@web3auth/react-native-sdk';
 
+import { ChainNamespace } from '@web3auth/react-native-sdk';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import RPC from './ethersRPC'; // for using ethers.js
 
@@ -104,6 +105,12 @@ export default function App() {
         login_hint: email,
         connection: 'email',
       },
+    }, {
+      chainNamespace: ChainNamespace.EIP155,
+      decimals: 18,
+      chainId: "0x1",
+      rpcTarget: "https://mainnet.infura.io/v3/daeee53504be4cd3a997d4f2718d33e0",
+      ticker: "ETH",
     });
   }
 

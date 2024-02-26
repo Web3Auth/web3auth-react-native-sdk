@@ -16,6 +16,7 @@ type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
   walletSdkURL?: string;
+  chainConfig?: ChainConfig
 };
 
 export type SdkInitParams = Omit<OpenLoginOptions & SdkSpecificInitParams, "no3PC" | "uxMode" | "replaceUrlOnRedirect" | "originData">;
@@ -54,6 +55,8 @@ export interface IWeb3Auth {
   login: (params: SdkLoginParams) => Promise<void>;
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
+  enableMFA: () => Promise<void>;
+  launchWalletServices: (params: SdkLoginParams, chainConfig: ChainConfig, path?: string) => Promise<void>;
 }
 
 export type SessionResponse = {
@@ -65,7 +68,13 @@ export type WalletLoginParams = {
   sessionId?: string;
 }
 
+export enum ChainNamespace {
+  EIP155 = "eip155",
+  SOLANA = "solana"
+}
+
 export type ChainConfig = {
+  chainNamespace?: ChainNamespace
   decimals: number,
   blockExplorerUrl?: String,
   chainId: String,

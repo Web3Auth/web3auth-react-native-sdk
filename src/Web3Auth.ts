@@ -1,13 +1,21 @@
+import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
 import {
-  BUILD_ENV,
   BaseLoginParams,
+  BUILD_ENV,
+  jsonToBase64,
   MFA_LEVELS,
   OPENLOGIN_ACTIONS,
   OPENLOGIN_NETWORK,
   OpenloginSessionConfig,
-  jsonToBase64,
 } from "@toruslabs/openlogin-utils";
+import log from "loglevel";
+
+import { InitializationError, LoginError } from "./errors";
+import KeyStore from "./session/KeyStore";
+import { EncryptedStorage } from "./types/IEncryptedStorage";
+import { SecureStore } from "./types/IExpoSecureStore";
 import {
+  ChainConfig,
   CUSTOM_LOGIN_PROVIDER_TYPE,
   IWeb3Auth,
   LOGIN_PROVIDER_TYPE,
@@ -18,15 +26,10 @@ import {
   State,
   WalletLoginParams,
 } from "./types/interface";
-import { InitializationError, LoginError } from "./errors";
+import { IWebBrowser } from "./types/IWebBrowser";
 import { constructURL, extractHashValues } from "./utils";
 
-import { EncryptedStorage } from "./types/IEncryptedStorage";
-import { IWebBrowser } from "./types/IWebBrowser";
-import KeyStore from "./session/KeyStore";
-import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
-import { SecureStore } from "./types/IExpoSecureStore";
-import log from "loglevel";
+// import WebViewComponent from "./WebViewComponent";
 
 class Web3Auth implements IWeb3Auth {
   public ready = false;
@@ -222,11 +225,13 @@ class Web3Auth implements IWeb3Auth {
     this._syncState({});
   }
 
-  async launchWalletServices(loginParams: SdkLoginParams, path: string | null = "wallet"): Promise<void> {
+  async launchWalletServices(loginParams: SdkLoginParams, chainConfig: ChainConfig, path: string | null = "wallet"): Promise<void> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!this.sessionManager.sessionId) {
       throw new Error("user should be logged in.");
     }
+
+    this.initParams.chainConfig = chainConfig;
 
     const dataObject: OpenloginSessionConfig = {
       actionType: OPENLOGIN_ACTIONS.LOGIN,
@@ -238,8 +243,6 @@ class Web3Auth implements IWeb3Auth {
     };
 
     const url = `${this.walletSdkUrl}/${path}`;
-    log.debug("url => ", url);
-    log.debug(`[Web3Auth] config passed: ${JSON.stringify(dataObject)}`);
     const loginId = await this.getLoginId(dataObject);
 
     const { sessionId } = this.sessionManager;
