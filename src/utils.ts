@@ -1,7 +1,6 @@
-import { base64toJSON } from "@toruslabs/openlogin-utils";
-import { URL } from "react-native-url-polyfill";
-
-import { SessionResponse } from "./index";
+import { safeatob } from "@toruslabs/openlogin-utils";
+import log from "loglevel";
+import { URL, URLSearchParams } from "react-native-url-polyfill";
 
 export function constructURL(params: { baseURL: string; query?: Record<string, unknown>; hash?: Record<string, unknown> }): string {
   const { baseURL, query, hash } = params;
@@ -19,38 +18,53 @@ export function constructURL(params: { baseURL: string; query?: Record<string, u
   return url.toString();
 }
 
-export function extractHashValues(url: string): { sessionId: string | null; sessionNamespace: string | null; error: string | null } {
-  // Split the URL at the '#' symbol to get the fragment
-  const fragments = url.split("#");
+export type HashQueryParamResult = {
+  sessionId?: string;
+  sessionNamespace?: string;
+  error?: string;
+  state?: string;
+};
 
-  // Check if there is a fragment in the URL
-  if (fragments.length === 2) {
-    // Extract the fragment part
-    const fragment = fragments[1];
+export function getHashQueryParams(url: string): HashQueryParamResult {
+  const result: HashQueryParamResult = {};
+  const urlObj = new URL(url);
 
-    // Split the fragment at '&' to separate key-value pairs
-    const keyValuePairs = fragment.split("&");
-
-    // Create an object to store the key-value pairs
-    const params: Record<string, string> = {};
-
-    // Iterate through the key-value pairs and store them in the object
-    keyValuePairs.forEach((pair) => {
-      const [key, value] = pair.split("=");
-      params[key] = value;
-    });
-
-    // Get the values of sessionId and sessionNamespace
-    const sessionNamespace = params.sessionNamespace || null;
-    const error = params.error || null;
-
-    const b64Params = params.b64Params || null;
-    const sessionResponse: SessionResponse = base64toJSON(b64Params);
-    const sessionId = sessionResponse.sessionId || null;
-
-    return { sessionId, sessionNamespace, error };
+  const queryUrlParams = new URLSearchParams(urlObj.search.slice(1));
+  queryUrlParams.forEach((value: string, key: string) => {
+    if (key !== "b64Params") {
+      result[key as keyof HashQueryParamResult] = value;
+    }
+  });
+  const queryResult = queryUrlParams.get("b64Params");
+  if (queryResult) {
+    try {
+      const queryParams = JSON.parse(safeatob(queryResult));
+      Object.keys(queryParams).forEach((key: string) => {
+        result[key as keyof HashQueryParamResult] = queryParams[key];
+      });
+    } catch (error) {
+      log.error(error);
+    }
   }
 
-  // Return default values if there is no fragment in the URL
-  return { sessionId: null, sessionNamespace: null, error: null };
+  const hashUrlParams = new URLSearchParams(urlObj.hash.substring(1));
+  hashUrlParams.forEach((value: string, key: string) => {
+    if (key !== "b64Params") {
+      result[key as keyof HashQueryParamResult] = value;
+    }
+  });
+
+  const hashResult = hashUrlParams.get("b64Params");
+  if (hashResult) {
+    try {
+      const hashParams = JSON.parse(safeatob(hashResult));
+      Object.keys(hashParams).forEach((key: string) => {
+        result[key as keyof HashQueryParamResult] = hashParams[key];
+      });
+    } catch (error) {
+      log.error(error);
+    }
+  }
+
+  return result;
 }

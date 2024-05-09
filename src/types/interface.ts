@@ -16,12 +16,11 @@ type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
   walletSdkURL?: string;
-  chainConfig?: ChainConfig
 };
 
-export type SdkInitParams = Omit<OpenLoginOptions & SdkSpecificInitParams, "no3PC" | "uxMode" | "replaceUrlOnRedirect" | "originData">;
+export type SdkInitParams = Omit<OpenLoginOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey">;
 
-export type SdkLoginParams = Omit<LoginParams, "fastLogin" | "skipTKey" | "getWalletKey"> & Required<Pick<LoginParams, "loginProvider">>;
+export type SdkLoginParams = Omit<LoginParams, "getWalletKey">;
 
 // export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;
 
@@ -55,34 +54,31 @@ export interface IWeb3Auth {
   login: (params: SdkLoginParams) => Promise<void>;
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
-  enableMFA: () => Promise<void>;
-  launchWalletServices: (params: SdkLoginParams, chainConfig: ChainConfig, path?: string) => Promise<void>;
+  enableMFA: () => Promise<boolean>;
+  launchWalletServices: (chainConfig: ChainConfig, path?: string) => Promise<void>;
 }
-
-export type SessionResponse = {
-  sessionId?: string;
-};
 
 export type WalletLoginParams = {
   loginId?: string;
   sessionId?: string;
-}
+  isReactNative: boolean;
+};
 
 export enum ChainNamespace {
   EIP155 = "eip155",
-  SOLANA = "solana"
+  SOLANA = "solana",
 }
 
 export type ChainConfig = {
-  chainNamespace?: ChainNamespace
-  decimals: number,
-  blockExplorerUrl?: String,
-  chainId: String,
-  displayName?: String,
-  logo?: String,
-  rpcTarget: String,
-  ticker: String,
-  tickerName?: String
-}
+  chainNamespace?: ChainNamespace;
+  decimals: number;
+  blockExplorerUrl?: String;
+  chainId: String;
+  displayName?: String;
+  logo?: String;
+  rpcTarget: String;
+  ticker: String;
+  tickerName?: String;
+};
 
 export { BUILD_ENV, OPENLOGIN_NETWORK, LANGUAGES, LOGIN_PROVIDER, SUPPORTED_KEY_CURVES, MFA_FACTOR, MFA_LEVELS, THEME_MODES };

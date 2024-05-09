@@ -19,6 +19,7 @@ export abstract class Web3authRNError extends Error implements IWeb3authRNError 
 
     this.code = code;
     this.message = message || "";
+    Object.defineProperty(this, "name", { value: "OpenloginError" });
   }
 
   toJSON(): IWeb3authRNError {
@@ -33,7 +34,6 @@ export abstract class Web3authRNError extends Error implements IWeb3authRNError 
     return JSON.stringify(this.toJSON());
   }
 }
-
 export class InitializationError extends Web3authRNError {
   protected static messages: ErrorCodes = {
     5000: "Custom",
@@ -44,6 +44,9 @@ export class InitializationError extends Web3authRNError {
   public constructor(code: number, message?: string) {
     // takes care of stack and proto
     super(code, message);
+
+    // Set name explicitly as minification can mangle class names
+    Object.defineProperty(this, "name", { value: "InitializationError" });
   }
 
   public static fromCode(code: number, extraMessage = ""): Web3authRNError {
@@ -70,11 +73,17 @@ export class LoginError extends Web3authRNError {
     5112: "User not logged in.",
     5113: "login popup has been closed by the user",
     5114: "Login failed",
+    5115: "Popup was blocked. Please call this function as soon as user clicks button or use redirect mode",
+    5116: "MFA already enabled",
+    5117: "MFA not yet enabled. Please call `enableMFA` first",
   };
 
   public constructor(code: number, message?: string) {
     // takes care of stack and proto
     super(code, message);
+
+    // Set name explicitly as minification can mangle class names
+    Object.defineProperty(this, "name", { value: "LoginError" });
   }
 
   public static fromCode(code: number, extraMessage = ""): Web3authRNError {
@@ -95,5 +104,17 @@ export class LoginError extends Web3authRNError {
 
   public static loginFailed(extraMessage = ""): Web3authRNError {
     return LoginError.fromCode(5114, extraMessage);
+  }
+
+  public static popupBlocked(extraMessage = ""): Web3authRNError {
+    return LoginError.fromCode(5115, extraMessage);
+  }
+
+  public static mfaAlreadyEnabled(extraMessage = ""): Web3authRNError {
+    return LoginError.fromCode(5116, extraMessage);
+  }
+
+  public static mfaNotEnabled(extraMessage = ""): Web3authRNError {
+    return LoginError.fromCode(5117, extraMessage);
   }
 }

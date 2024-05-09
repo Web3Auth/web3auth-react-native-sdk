@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@ethersproject/shims": "^5.7.0",
-    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-4.0.0.tgz",
+    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-5.1.0.tgz",
     "ethers": "5.7",
     "expo": "~48.0.18",
     "expo-constants": "^14.2.1",
