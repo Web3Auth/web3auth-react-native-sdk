@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "web3uathExample.app"
-               BlueprintName = "web3uathExample"
-               ReferencedContainer = "container:web3uathExample.xcodeproj">
+               BuildableName = "web3authrnexample.app"
+               BlueprintName = "web3authrnexample"
+               ReferencedContainer = "container:web3authrnexample.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "web3uathExampleTests.xctest"
-               BlueprintName = "web3uathExampleTests"
-               ReferencedContainer = "container:web3uathExample.xcodeproj">
+               BuildableName = "web3authrnexampleTests.xctest"
+               BlueprintName = "web3authrnexampleTests"
+               ReferencedContainer = "container:web3authrnexample.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "web3uathExample.app"
-            BlueprintName = "web3uathExample"
-            ReferencedContainer = "container:web3uathExample.xcodeproj">
+            BuildableName = "web3authrnexample.app"
+            BlueprintName = "web3authrnexample"
+            ReferencedContainer = "container:web3authrnexample.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "web3uathExample.app"
-            BlueprintName = "web3uathExample"
-            ReferencedContainer = "container:web3uathExample.xcodeproj">
+            BuildableName = "web3authrnexample.app"
+            BlueprintName = "web3authrnexample"
+            ReferencedContainer = "container:web3authrnexample.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
