@@ -118,3 +118,21 @@ export class LoginError extends Web3authRNError {
     return LoginError.fromCode(5117, extraMessage);
   }
 }
+
+export class RequestError extends Web3authRNError {
+  protected static messages: ErrorCodes = {
+    5000: "Custom",
+  };
+
+  public constructor(code: number, message?: string) {
+    // takes care of stack and proto
+    super(code, message);
+
+    // Set name explicitly as minification can mangle class names
+    Object.defineProperty(this, "name", { value: "LoginError" });
+  }
+
+  public static fromCode(code: number, extraMessage = ""): Web3authRNError {
+    return new RequestError(code, `${RequestError.messages[code]}, ${extraMessage}`);
+  }
+}

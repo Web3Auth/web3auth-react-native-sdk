@@ -23,6 +23,9 @@ export type HashQueryParamResult = {
   sessionNamespace?: string;
   error?: string;
   state?: string;
+  // Used only for request method
+  success?: string;
+  result?: string;
 };
 
 export function getHashQueryParams(url: string): HashQueryParamResult {

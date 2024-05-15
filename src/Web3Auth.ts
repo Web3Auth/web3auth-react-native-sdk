@@ -12,7 +12,7 @@ import {
 } from "@toruslabs/openlogin-utils";
 import log from "loglevel";
 
-import { InitializationError, LoginError } from "./errors";
+import { InitializationError, LoginError, RequestError } from "./errors";
 import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
@@ -284,7 +284,7 @@ class Web3Auth implements IWeb3Auth {
     const configParams: WalletLoginParams = {
       loginId,
       sessionId,
-      isReactNative: true,
+      platform: "react-native",
     };
 
     const loginUrl = constructURL({
@@ -293,6 +293,52 @@ class Web3Auth implements IWeb3Auth {
     });
 
     this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
+  }
+
+  async request(chainConfig: ChainConfig, method: string, params: unknown[], path: string | null = "wallet/request"): Promise<string> {
+    if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
+    if (!this.sessionManager.sessionId) {
+      throw LoginError.userNotLoggedIn();
+    }
+
+    const dataObject: Omit<OpenloginSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
+      actionType: OPENLOGIN_ACTIONS.LOGIN,
+      options: { ...this.options, chainConfig },
+      params: {},
+    };
+
+    const url = `${this.walletSdkUrl}/${path}`;
+    const loginId = OpenloginSessionManager.generateRandomSessionKey();
+    await this.createLoginSession(loginId, dataObject);
+
+    const { sessionId } = this.sessionManager;
+    const configParams: WalletLoginParams = {
+      loginId,
+      sessionId,
+      request: {
+        method,
+        params,
+      },
+      platform: "react-native",
+    };
+
+    const loginUrl = constructURL({
+      baseURL: url,
+      hash: { b64Params: jsonToBase64(configParams) },
+    });
+
+    const result = await this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
+
+    if (result.type !== "success" || !result.url) {
+      log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
+      throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
+    }
+
+    const { success, result: requestResult, error } = getHashQueryParams(result.url);
+    if (error || success === "false") {
+      throw RequestError.fromCode(5000, error);
+    }
+    return requestResult;
   }
 
   async enableMFA(): Promise<boolean> {

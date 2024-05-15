@@ -61,7 +61,11 @@ export interface IWeb3Auth {
 export type WalletLoginParams = {
   loginId?: string;
   sessionId?: string;
-  isReactNative: boolean;
+  request?: {
+    method: string;
+    params: unknown[];
+  };
+  platform: string;
 };
 
 export enum ChainNamespace {
