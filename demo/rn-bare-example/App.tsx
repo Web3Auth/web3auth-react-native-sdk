@@ -43,11 +43,8 @@ export default function App() {
       await web3auth.login({
         loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
         redirectUrl: resolvedRedirectUrl,
-        mfaLevel: 'default',
-        curve: 'secp256k1',
         extraLoginOptions: {
           login_hint: email,
-          connection: 'email',
         },
       });
       setConsole(`Logged in ${web3auth.privKey}`);
@@ -88,33 +85,21 @@ export default function App() {
     uiConsole('MFA enabled');
   };
 
-  const launchWallerSerices = async () => {
+  const launchWalletSerices = async () => {
     if (!web3auth) {
       setConsole('Web3auth not initialized');
       return;
     }
 
     setConsole('Launch Wallet Services');
-    await web3auth.launchWalletServices(
-      {
-        loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
-        redirectUrl: resolvedRedirectUrl,
-        mfaLevel: 'default',
-        curve: 'secp256k1',
-        extraLoginOptions: {
-          login_hint: email,
-          connection: 'email',
-        },
-      },
-      {
-        chainNamespace: ChainNamespace.EIP155,
-        decimals: 18,
-        chainId: '0x1',
-        rpcTarget:
-          'https://mainnet.infura.io/v3/daeee53504be4cd3a997d4f2718d33e0',
-        ticker: 'ETH',
-      },
-    );
+    await web3auth.launchWalletServices({
+      chainNamespace: ChainNamespace.EIP155,
+      decimals: 18,
+      chainId: '0x1',
+      rpcTarget:
+        'https://mainnet.infura.io/v3/daeee53504be4cd3a997d4f2718d33e0',
+      ticker: 'ETH',
+    });
   };
 
   useEffect(() => {
@@ -191,7 +176,7 @@ export default function App() {
       <Button title="Enable MFA" onPress={() => enableMFA()} />
       <Button
         title="launch Wallet Services"
-        onPress={() => launchWallerSerices()}
+        onPress={() => launchWalletSerices()}
       />
       <Button title="Get Chain ID" onPress={() => getChainId()} />
       <Button title="Get Accounts" onPress={() => getAccounts()} />
