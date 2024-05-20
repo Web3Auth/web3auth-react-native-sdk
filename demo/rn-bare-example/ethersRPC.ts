@@ -1,7 +1,7 @@
 import '@ethersproject/shims';
-import {ethers} from 'ethers';
+import { ethers } from 'ethers';
 
-const providerUrl = 'https://rpc.ankr.com/eth'; // Or your desired provider url
+const providerUrl = 'https://rpc.ankr.com/eth_sepolia'; // Or your desired provider url
 
 const getChainId = async () => {
   try {
