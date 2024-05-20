@@ -326,12 +326,8 @@ class Web3Auth implements IWeb3Auth {
       baseURL: url,
       hash: { b64Params: jsonToBase64(configParams) },
     });
-    // eslint-disable-next-line no-console
-    console.log(loginUrl);
 
     const result = await this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
-    // eslint-disable-next-line no-console
-    console.log(result, "result");
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
       throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
