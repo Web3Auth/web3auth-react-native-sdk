@@ -295,7 +295,7 @@ class Web3Auth implements IWeb3Auth {
     this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
   }
 
-  async request(chainConfig: ChainConfig, method: string, params: unknown[], path: string | null = "wallet/request"): Promise<string> {
+  async request(chainConfig: ChainConfig, method: string, params: unknown[], path: string = "wallet/request"): Promise<string> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!this.sessionManager.sessionId) {
       throw LoginError.userNotLoggedIn();

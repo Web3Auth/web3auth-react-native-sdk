@@ -56,6 +56,7 @@ export interface IWeb3Auth {
   userInfo: () => State["userInfo"];
   enableMFA: () => Promise<boolean>;
   launchWalletServices: (chainConfig: ChainConfig, path?: string) => Promise<void>;
+  request(chainConfig: ChainConfig, method: string, params: unknown[], path?: string): Promise<string>;
 }
 
 export type WalletLoginParams = {
