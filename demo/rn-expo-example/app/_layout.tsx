@@ -135,6 +135,103 @@ export default function App() {
     uiConsole(message);
   };
 
+  const requestSignature = async () => {
+    if (!web3auth) {
+      setConsole("Web3auth not initialized");
+      return;
+    }
+    if (!key) {
+      setConsole("User not logged in");
+      return;
+    }
+
+    const address = await RPC.getAccounts(key);
+
+    // const params = [
+    //   {
+    //     challenge: 'Hello World',
+    //     address,
+    //   },
+    //   null,
+    // ];
+    const params = ["Hello World", address];
+    // const params = [{ }];
+    // params.push('Hello World');
+    // params.push(address);
+
+    // const params = [
+    //   address,
+    //   {
+    //     types: {
+    //       EIP712Domain: [
+    //         {
+    //           name: 'name',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'version',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'chainId',
+    //           type: 'uint256',
+    //         },
+    //         {
+    //           name: 'verifyingContract',
+    //           type: 'address',
+    //         },
+    //       ],
+    //       Person: [
+    //         {
+    //           name: 'name',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'wallet',
+    //           type: 'address',
+    //         },
+    //       ],
+    //       Mail: [
+    //         {
+    //           name: 'from',
+    //           type: 'Person',
+    //         },
+    //         {
+    //           name: 'to',
+    //           type: 'Person',
+    //         },
+    //         {
+    //           name: 'contents',
+    //           type: 'string',
+    //         },
+    //       ],
+    //     },
+    //     primaryType: 'Mail',
+    //     domain: {
+    //       name: 'Ether Mail',
+    //       version: '1',
+    //       chainId: chainConfig.chainId,
+    //       verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+    //     },
+    //     message: {
+    //       from: {
+    //         name: 'Cow',
+    //         wallet: address,
+    //       },
+    //       to: {
+    //         name: 'Bob',
+    //         wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+    //       },
+    //       contents: 'Hello, Bob!',
+    //     },
+    //   },
+    // ];
+
+    setConsole("Request Signature");
+    const res = await web3auth.request(chainConfig, "personal_sign", params);
+    uiConsole(res);
+  };
+
   const uiConsole = (...args) => {
     setConsole(`${JSON.stringify(args || {}, null, 2)}\n\n\n\n${console}`);
   };
@@ -144,6 +241,7 @@ export default function App() {
       <Button title="Get User Info" onPress={() => uiConsole(userInfo)} />
       <Button title="Enable MFA" onPress={() => enableMFA()} />
       <Button title="launch Wallet Services" onPress={() => launchWalletSerices()} />
+      <Button title="Request Signature" onPress={() => requestSignature()} />
       <Button title="Get Chain ID" onPress={getChainId} />
       <Button title="Get Accounts" onPress={getAccounts} />
       <Button title="Get Balance" onPress={getBalance} />
