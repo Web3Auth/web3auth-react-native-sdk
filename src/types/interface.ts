@@ -60,8 +60,8 @@ export interface IWeb3Auth {
 }
 
 export type WalletLoginParams = {
-  loginId?: string;
-  sessionId?: string;
+  loginId: string;
+  sessionId: string;
   request?: {
     method: string;
     params: unknown[];
@@ -75,14 +75,14 @@ export enum ChainNamespace {
 }
 
 export type ChainConfig = {
-  chainNamespace?: ChainNamespace;
-  decimals: number;
+  chainNamespace: ChainNamespace;
+  decimals?: number;
   blockExplorerUrl?: String;
   chainId: String;
   displayName?: String;
   logo?: String;
   rpcTarget: String;
-  ticker: String;
+  ticker?: String;
   tickerName?: String;
 };
 
