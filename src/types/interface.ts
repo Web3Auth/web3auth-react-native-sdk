@@ -19,7 +19,7 @@ type SdkSpecificInitParams = {
 };
 
 export type SdkInitParams = Omit<OpenLoginOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey"> &
-  Pick<OpenLoginOptions, "redirectUrl">;
+  Required<Pick<OpenLoginOptions, "redirectUrl">>;
 
 export type SdkLoginParams = Omit<LoginParams, "getWalletKey">;
 

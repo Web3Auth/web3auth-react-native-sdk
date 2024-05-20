@@ -127,85 +127,81 @@ export default function App() {
     //   },
     //   null,
     // ];
-    // const params = ['Hello World', address];
+    const params = ['Hello World', address];
     // const params = [{ }];
     // params.push('Hello World');
     // params.push(address);
 
-    const params = [
-      address,
-      {
-        types: {
-          EIP712Domain: [
-            {
-              name: 'name',
-              type: 'string',
-            },
-            {
-              name: 'version',
-              type: 'string',
-            },
-            {
-              name: 'chainId',
-              type: 'uint256',
-            },
-            {
-              name: 'verifyingContract',
-              type: 'address',
-            },
-          ],
-          Person: [
-            {
-              name: 'name',
-              type: 'string',
-            },
-            {
-              name: 'wallet',
-              type: 'address',
-            },
-          ],
-          Mail: [
-            {
-              name: 'from',
-              type: 'Person',
-            },
-            {
-              name: 'to',
-              type: 'Person',
-            },
-            {
-              name: 'contents',
-              type: 'string',
-            },
-          ],
-        },
-        primaryType: 'Mail',
-        domain: {
-          name: 'Ether Mail',
-          version: '1',
-          chainId: 1,
-          verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
-        },
-        message: {
-          from: {
-            name: 'Cow',
-            wallet: address,
-          },
-          to: {
-            name: 'Bob',
-            wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-          },
-          contents: 'Hello, Bob!',
-        },
-      },
-    ];
+    // const params = [
+    //   address,
+    //   {
+    //     types: {
+    //       EIP712Domain: [
+    //         {
+    //           name: 'name',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'version',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'chainId',
+    //           type: 'uint256',
+    //         },
+    //         {
+    //           name: 'verifyingContract',
+    //           type: 'address',
+    //         },
+    //       ],
+    //       Person: [
+    //         {
+    //           name: 'name',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'wallet',
+    //           type: 'address',
+    //         },
+    //       ],
+    //       Mail: [
+    //         {
+    //           name: 'from',
+    //           type: 'Person',
+    //         },
+    //         {
+    //           name: 'to',
+    //           type: 'Person',
+    //         },
+    //         {
+    //           name: 'contents',
+    //           type: 'string',
+    //         },
+    //       ],
+    //     },
+    //     primaryType: 'Mail',
+    //     domain: {
+    //       name: 'Ether Mail',
+    //       version: '1',
+    //       chainId: chainConfig.chainId,
+    //       verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+    //     },
+    //     message: {
+    //       from: {
+    //         name: 'Cow',
+    //         wallet: address,
+    //       },
+    //       to: {
+    //         name: 'Bob',
+    //         wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+    //       },
+    //       contents: 'Hello, Bob!',
+    //     },
+    //   },
+    // ];
 
     setConsole('Request Signature');
-    const res = await web3auth.request(
-      chainConfig,
-      'eth_signTypedData_v4',
-      params,
-    );
+    const res = await web3auth.request(chainConfig, 'personal_sign', params);
     uiConsole(res);
   };
 
