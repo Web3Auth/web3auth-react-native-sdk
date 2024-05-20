@@ -292,7 +292,7 @@ class Web3Auth implements IWeb3Auth {
       hash: { b64Params: jsonToBase64(configParams) },
     });
 
-    this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
+    this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
   }
 
   async request(chainConfig: ChainConfig, method: string, params: unknown[], path: string = "wallet/request"): Promise<string> {
@@ -326,16 +326,19 @@ class Web3Auth implements IWeb3Auth {
       baseURL: url,
       hash: { b64Params: jsonToBase64(configParams) },
     });
+    // eslint-disable-next-line no-console
+    console.log(loginUrl);
 
-    const result = await this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
-
+    const result = await this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
+    // eslint-disable-next-line no-console
+    console.log(result, "result");
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
       throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
     }
 
     const { success, result: requestResult, error } = getHashQueryParams(result.url);
-    if (error || success === "false") {
+    if (error || success === "false" || !success) {
       throw RequestError.fromCode(5000, error);
     }
     return requestResult;

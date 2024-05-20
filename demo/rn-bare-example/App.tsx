@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import React, {useEffect, useState} from 'react';
+import {useEffect, useState} from 'react';
 import Web3Auth, {
   IWeb3Auth,
   LOGIN_PROVIDER,
@@ -44,7 +44,7 @@ export default function App() {
   const [key, setKey] = useState<string | undefined>('');
   const [console, setConsole] = useState<string>('');
   const [web3auth, setWeb3Auth] = useState<IWeb3Auth | null>(null);
-  const [email, setEmail] = React.useState('yash@tor.us');
+  const [email, setEmail] = useState('yash@tor.us');
 
   const login = async () => {
     try {
@@ -56,7 +56,6 @@ export default function App() {
       setConsole('Logging in');
       await web3auth.login({
         loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
-        redirectUrl: resolvedRedirectUrl,
         extraLoginOptions: {
           login_hint: email,
         },
@@ -129,80 +128,85 @@ export default function App() {
     //   null,
     // ];
     // const params = ['Hello World', address];
-    const params = [];
-    params.push('Hello World');
-    params.push(address);
+    // const params = [{ }];
+    // params.push('Hello World');
+    // params.push(address);
 
-    // const params = [
-    //   '0x0000000000000000000000000000000000000000',
-    //   {
-    //     types: {
-    //       EIP712Domain: [
-    //         {
-    //           name: 'name',
-    //           type: 'string',
-    //         },
-    //         {
-    //           name: 'version',
-    //           type: 'string',
-    //         },
-    //         {
-    //           name: 'chainId',
-    //           type: 'uint256',
-    //         },
-    //         {
-    //           name: 'verifyingContract',
-    //           type: 'address',
-    //         },
-    //       ],
-    //       Person: [
-    //         {
-    //           name: 'name',
-    //           type: 'string',
-    //         },
-    //         {
-    //           name: 'wallet',
-    //           type: 'address',
-    //         },
-    //       ],
-    //       Mail: [
-    //         {
-    //           name: 'from',
-    //           type: 'Person',
-    //         },
-    //         {
-    //           name: 'to',
-    //           type: 'Person',
-    //         },
-    //         {
-    //           name: 'contents',
-    //           type: 'string',
-    //         },
-    //       ],
-    //     },
-    //     primaryType: 'Mail',
-    //     domain: {
-    //       name: 'Ether Mail',
-    //       version: '1',
-    //       chainId: 1,
-    //       verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
-    //     },
-    //     message: {
-    //       from: {
-    //         name: 'Cow',
-    //         wallet: address,
-    //       },
-    //       to: {
-    //         name: 'Bob',
-    //         wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-    //       },
-    //       contents: 'Hello, Bob!',
-    //     },
-    //   },
-    // ];
+    const params = [
+      address,
+      {
+        types: {
+          EIP712Domain: [
+            {
+              name: 'name',
+              type: 'string',
+            },
+            {
+              name: 'version',
+              type: 'string',
+            },
+            {
+              name: 'chainId',
+              type: 'uint256',
+            },
+            {
+              name: 'verifyingContract',
+              type: 'address',
+            },
+          ],
+          Person: [
+            {
+              name: 'name',
+              type: 'string',
+            },
+            {
+              name: 'wallet',
+              type: 'address',
+            },
+          ],
+          Mail: [
+            {
+              name: 'from',
+              type: 'Person',
+            },
+            {
+              name: 'to',
+              type: 'Person',
+            },
+            {
+              name: 'contents',
+              type: 'string',
+            },
+          ],
+        },
+        primaryType: 'Mail',
+        domain: {
+          name: 'Ether Mail',
+          version: '1',
+          chainId: 1,
+          verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+        },
+        message: {
+          from: {
+            name: 'Cow',
+            wallet: address,
+          },
+          to: {
+            name: 'Bob',
+            wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+          },
+          contents: 'Hello, Bob!',
+        },
+      },
+    ];
 
     setConsole('Request Signature');
-    await web3auth.request(chainConfig, 'personal_sign', params);
+    const res = await web3auth.request(
+      chainConfig,
+      'eth_signTypedData_v4',
+      params,
+    );
+    uiConsole(res);
   };
 
   useEffect(() => {
@@ -214,6 +218,7 @@ export default function App() {
         loginConfig: {},
         enableLogging: true,
         buildEnv: 'testing',
+        redirectUrl: resolvedRedirectUrl,
       });
       setWeb3Auth(auth);
       await auth.init();

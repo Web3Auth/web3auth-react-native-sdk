@@ -18,7 +18,8 @@ type SdkSpecificInitParams = {
   walletSdkURL?: string;
 };
 
-export type SdkInitParams = Omit<OpenLoginOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey">;
+export type SdkInitParams = Omit<OpenLoginOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey"> &
+  Pick<OpenLoginOptions, "redirectUrl">;
 
 export type SdkLoginParams = Omit<LoginParams, "getWalletKey">;
 
