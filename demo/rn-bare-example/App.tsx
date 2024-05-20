@@ -25,6 +25,20 @@ const resolvedRedirectUrl = `${scheme}://openlogin`;
 const clientId =
   'BHr_dKcxC0ecKn_2dZQmQeNdjPgWykMkcodEHkVvPMo71qzOV6SgtoN8KCvFdLN7bf34JOm89vWQMLFmSfIo84A';
 
+const chainConfig = {
+  chainNamespace: ChainNamespace.EIP155,
+  chainId: '0xaa36a7',
+  rpcTarget: 'https://rpc.ankr.com/eth_sepolia',
+  // Avoid using public rpcTarget in production.
+  // Use services like Infura, Quicknode etc
+  displayName: 'Ethereum Sepolia Testnet',
+  blockExplorerUrl: 'https://sepolia.etherscan.io',
+  ticker: 'ETH',
+  tickerName: 'Ethereum',
+  decimals: 18,
+  logo: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+};
+
 export default function App() {
   const [userInfo, setUserInfo] = useState<OpenloginUserInfo | undefined>();
   const [key, setKey] = useState<string | undefined>('');
@@ -92,14 +106,103 @@ export default function App() {
     }
 
     setConsole('Launch Wallet Services');
-    await web3auth.launchWalletServices({
-      chainNamespace: ChainNamespace.EIP155,
-      decimals: 18,
-      chainId: '0x1',
-      rpcTarget:
-        'https://mainnet.infura.io/v3/daeee53504be4cd3a997d4f2718d33e0',
-      ticker: 'ETH',
-    });
+    await web3auth.launchWalletServices(chainConfig);
+  };
+
+  const requestSignature = async () => {
+    if (!web3auth) {
+      setConsole('Web3auth not initialized');
+      return;
+    }
+    if (!key) {
+      setConsole('User not logged in');
+      return;
+    }
+
+    const address = await RPC.getAccounts(key);
+
+    // const params = [
+    //   {
+    //     challenge: 'Hello World',
+    //     address,
+    //   },
+    //   null,
+    // ];
+    // const params = ['Hello World', address];
+    const params = [];
+    params.push('Hello World');
+    params.push(address);
+
+    // const params = [
+    //   '0x0000000000000000000000000000000000000000',
+    //   {
+    //     types: {
+    //       EIP712Domain: [
+    //         {
+    //           name: 'name',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'version',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'chainId',
+    //           type: 'uint256',
+    //         },
+    //         {
+    //           name: 'verifyingContract',
+    //           type: 'address',
+    //         },
+    //       ],
+    //       Person: [
+    //         {
+    //           name: 'name',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'wallet',
+    //           type: 'address',
+    //         },
+    //       ],
+    //       Mail: [
+    //         {
+    //           name: 'from',
+    //           type: 'Person',
+    //         },
+    //         {
+    //           name: 'to',
+    //           type: 'Person',
+    //         },
+    //         {
+    //           name: 'contents',
+    //           type: 'string',
+    //         },
+    //       ],
+    //     },
+    //     primaryType: 'Mail',
+    //     domain: {
+    //       name: 'Ether Mail',
+    //       version: '1',
+    //       chainId: 1,
+    //       verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+    //     },
+    //     message: {
+    //       from: {
+    //         name: 'Cow',
+    //         wallet: address,
+    //       },
+    //       to: {
+    //         name: 'Bob',
+    //         wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+    //       },
+    //       contents: 'Hello, Bob!',
+    //     },
+    //   },
+    // ];
+
+    setConsole('Request Signature');
+    await web3auth.request(chainConfig, 'personal_sign', params);
   };
 
   useEffect(() => {
@@ -177,6 +280,10 @@ export default function App() {
       <Button
         title="launch Wallet Services"
         onPress={() => launchWalletSerices()}
+      />
+      <Button
+        title="Request Signature from Wallet Services"
+        onPress={() => requestSignature()}
       />
       <Button title="Get Chain ID" onPress={() => getChainId()} />
       <Button title="Get Accounts" onPress={() => getAccounts()} />
