@@ -9,14 +9,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import {useEffect, useState} from 'react';
 import Web3Auth, {
   IWeb3Auth,
   LOGIN_PROVIDER,
   OpenloginUserInfo,
 } from '@web3auth/react-native-sdk';
 
-import { ChainNamespace } from '@web3auth/react-native-sdk';
+import {ChainNamespace} from '@web3auth/react-native-sdk';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import RPC from './ethersRPC'; // for using ethers.js
 
@@ -25,12 +25,26 @@ const resolvedRedirectUrl = `${scheme}://openlogin`;
 const clientId =
   'BHr_dKcxC0ecKn_2dZQmQeNdjPgWykMkcodEHkVvPMo71qzOV6SgtoN8KCvFdLN7bf34JOm89vWQMLFmSfIo84A';
 
+const chainConfig = {
+  chainNamespace: ChainNamespace.EIP155,
+  chainId: '0xaa36a7',
+  rpcTarget: 'https://rpc.ankr.com/eth_sepolia',
+  // Avoid using public rpcTarget in production.
+  // Use services like Infura, Quicknode etc
+  displayName: 'Ethereum Sepolia Testnet',
+  blockExplorerUrl: 'https://sepolia.etherscan.io',
+  ticker: 'ETH',
+  tickerName: 'Ethereum',
+  decimals: 18,
+  logo: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+};
+
 export default function App() {
   const [userInfo, setUserInfo] = useState<OpenloginUserInfo | undefined>();
   const [key, setKey] = useState<string | undefined>('');
   const [console, setConsole] = useState<string>('');
   const [web3auth, setWeb3Auth] = useState<IWeb3Auth | null>(null);
-  const [email, setEmail] = React.useState('testtkey@gmail.com');
+  const [email, setEmail] = useState('yash@tor.us');
 
   const login = async () => {
     try {
@@ -42,12 +56,8 @@ export default function App() {
       setConsole('Logging in');
       await web3auth.login({
         loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
-        redirectUrl: resolvedRedirectUrl,
-        mfaLevel: 'default',
-        curve: 'secp256k1',
         extraLoginOptions: {
           login_hint: email,
-          connection: 'email',
         },
       });
       setConsole(`Logged in ${web3auth.privKey}`);
@@ -57,7 +67,6 @@ export default function App() {
         uiConsole('Logged In');
       }
     } catch (e: unknown) {
-      console.log(e, (e as Error).stack);
       setConsole((e as Error).message);
     }
   };
@@ -86,33 +95,115 @@ export default function App() {
 
     setConsole('Enable MFA');
     await web3auth.enableMFA();
-    uiConsole('MFA enabled')
-  }
+    uiConsole('MFA enabled');
+  };
 
-  const launchWallerSerices = async () => {
+  const launchWalletSerices = async () => {
     if (!web3auth) {
       setConsole('Web3auth not initialized');
       return;
     }
 
     setConsole('Launch Wallet Services');
-    await web3auth.launchWalletServices({
-      loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
-      redirectUrl: resolvedRedirectUrl,
-      mfaLevel: 'default',
-      curve: 'secp256k1',
-      extraLoginOptions: {
-        login_hint: email,
-        connection: 'email',
-      },
-    }, {
-      chainNamespace: ChainNamespace.EIP155,
-      decimals: 18,
-      chainId: "0x1",
-      rpcTarget: "https://mainnet.infura.io/v3/daeee53504be4cd3a997d4f2718d33e0",
-      ticker: "ETH",
-    });
-  }
+    await web3auth.launchWalletServices(chainConfig);
+  };
+
+  const requestSignature = async () => {
+    if (!web3auth) {
+      setConsole('Web3auth not initialized');
+      return;
+    }
+    if (!key) {
+      setConsole('User not logged in');
+      return;
+    }
+
+    const address = await RPC.getAccounts(key);
+
+    // const params = [
+    //   {
+    //     challenge: 'Hello World',
+    //     address,
+    //   },
+    //   null,
+    // ];
+    const params = ['Hello World', address];
+    // const params = [{ }];
+    // params.push('Hello World');
+    // params.push(address);
+
+    // const params = [
+    //   address,
+    //   {
+    //     types: {
+    //       EIP712Domain: [
+    //         {
+    //           name: 'name',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'version',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'chainId',
+    //           type: 'uint256',
+    //         },
+    //         {
+    //           name: 'verifyingContract',
+    //           type: 'address',
+    //         },
+    //       ],
+    //       Person: [
+    //         {
+    //           name: 'name',
+    //           type: 'string',
+    //         },
+    //         {
+    //           name: 'wallet',
+    //           type: 'address',
+    //         },
+    //       ],
+    //       Mail: [
+    //         {
+    //           name: 'from',
+    //           type: 'Person',
+    //         },
+    //         {
+    //           name: 'to',
+    //           type: 'Person',
+    //         },
+    //         {
+    //           name: 'contents',
+    //           type: 'string',
+    //         },
+    //       ],
+    //     },
+    //     primaryType: 'Mail',
+    //     domain: {
+    //       name: 'Ether Mail',
+    //       version: '1',
+    //       chainId: chainConfig.chainId,
+    //       verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+    //     },
+    //     message: {
+    //       from: {
+    //         name: 'Cow',
+    //         wallet: address,
+    //       },
+    //       to: {
+    //         name: 'Bob',
+    //         wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+    //       },
+    //       contents: 'Hello, Bob!',
+    //     },
+    //   },
+    // ];
+
+    setConsole('Request Signature');
+    const res = await web3auth.request(chainConfig, 'personal_sign', params);
+    uiConsole(res);
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -123,6 +214,7 @@ export default function App() {
         loginConfig: {},
         enableLogging: true,
         buildEnv: 'testing',
+        redirectUrl: resolvedRedirectUrl,
       });
       setWeb3Auth(auth);
       await auth.init();
@@ -186,7 +278,14 @@ export default function App() {
     <View style={styles.buttonArea}>
       <Button title="Get User Info" onPress={() => uiConsole(userInfo)} />
       <Button title="Enable MFA" onPress={() => enableMFA()} />
-      <Button title="launch Wallet Services" onPress={() => launchWallerSerices()} />
+      <Button
+        title="launch Wallet Services"
+        onPress={() => launchWalletSerices()}
+      />
+      <Button
+        title="Request Signature from Wallet Services"
+        onPress={() => requestSignature()}
+      />
       <Button title="Get Chain ID" onPress={() => getChainId()} />
       <Button title="Get Accounts" onPress={() => getAccounts()} />
       <Button title="Get Balance" onPress={() => getBalance()} />
@@ -204,7 +303,7 @@ export default function App() {
         onChangeText={text => setEmail(text)}
         value={email}
         // eslint-disable-next-line react-native/no-inline-styles
-        style={{ padding: 10 }}
+        style={{padding: 10}}
       />
       <Button title="Login with Web3Auth" onPress={login} />
     </View>
