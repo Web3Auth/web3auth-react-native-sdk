@@ -210,7 +210,6 @@ class Web3Auth implements IWeb3Auth {
     };
 
     this.options.redirectUrl = loginParams.redirectUrl;
-    log.debug(`[Web3Auth] dataObject: ${JSON.stringify(dataObject)}`);
     const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
