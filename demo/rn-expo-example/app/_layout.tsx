@@ -1,10 +1,11 @@
-import Web3Auth, { LOGIN_PROVIDER, ChainNamespace } from "@web3auth/react-native-sdk";
-import Constants, { AppOwnership } from "expo-constants";
 import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
-import React, { useState, useEffect } from "react";
-import { Button, Dimensions, ScrollView, StyleSheet, Text, View, TextInput } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+
+import { Button, Dimensions, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import Constants, { AppOwnership } from "expo-constants";
+import React, { useEffect, useState } from "react";
+import Web3Auth, { ChainNamespace, LOGIN_PROVIDER } from "@web3auth/react-native-sdk";
 
 import RPC from "../ethersRPC"; // for using ethers.js
 
@@ -20,7 +21,7 @@ export default function App() {
   const [userInfo, setUserInfo] = useState("");
   const [console, setConsole] = useState("");
   const [web3auth, setWeb3Auth] = useState(null);
-  const [email, setEmail] = React.useState("yash@tor.us");
+  const [email, setEmail] = React.useState("hello@tor.us");
 
   useEffect(() => {
     const init = async () => {

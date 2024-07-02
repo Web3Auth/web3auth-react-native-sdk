@@ -9,21 +9,21 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import {useEffect, useState} from 'react';
 import Web3Auth, {
   IWeb3Auth,
   LOGIN_PROVIDER,
   OpenloginUserInfo,
 } from '@web3auth/react-native-sdk';
+import { useEffect, useState } from 'react';
 
-import {ChainNamespace} from '@web3auth/react-native-sdk';
+import { ChainNamespace } from '@web3auth/react-native-sdk';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import RPC from './ethersRPC'; // for using ethers.js
 
 const scheme = 'web3authrnbareexample'; // Or your desired app redirection scheme
 const resolvedRedirectUrl = `${scheme}://openlogin`;
 const clientId =
-  'BHr_dKcxC0ecKn_2dZQmQeNdjPgWykMkcodEHkVvPMo71qzOV6SgtoN8KCvFdLN7bf34JOm89vWQMLFmSfIo84A';
+  'BFuUqebV5I8Pz5F7a5A2ihW7YVmbv_OHXnHYDv6OltAD5NGr6e-ViNvde3U4BHdn6HvwfkgobhVu4VwC-OSJkik';
 
 const chainConfig = {
   chainNamespace: ChainNamespace.EIP155,
@@ -44,7 +44,7 @@ export default function App() {
   const [key, setKey] = useState<string | undefined>('');
   const [console, setConsole] = useState<string>('');
   const [web3auth, setWeb3Auth] = useState<IWeb3Auth | null>(null);
-  const [email, setEmail] = useState('yash@tor.us');
+  const [email, setEmail] = useState('hello@tor.us');
 
   const login = async () => {
     try {
@@ -209,7 +209,7 @@ export default function App() {
     const init = async () => {
       const auth = new Web3Auth(WebBrowser, EncryptedStorage, {
         clientId,
-        network: 'testnet', // or other networks
+        network: 'sapphire_devnet', // or other networks
         useCoreKitKey: false,
         loginConfig: {},
         enableLogging: true,
@@ -303,7 +303,7 @@ export default function App() {
         onChangeText={text => setEmail(text)}
         value={email}
         // eslint-disable-next-line react-native/no-inline-styles
-        style={{padding: 10}}
+        style={{ padding: 10 }}
       />
       <Button title="Login with Web3Auth" onPress={login} />
     </View>
