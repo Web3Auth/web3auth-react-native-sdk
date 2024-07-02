@@ -10,15 +10,26 @@ import {
   TORUS_LEGACY_NETWORK,
   TORUS_LEGACY_NETWORK_TYPE,
 } from "@toruslabs/openlogin-utils";
+import clonedeep from "lodash.clonedeep";
+import merge from "lodash.merge";
 import log from "loglevel";
 
 import { InitializationError, LoginError, RequestError } from "./errors";
 import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
-import { ChainConfig, IWeb3Auth, OpenloginSessionData, SdkInitParams, SdkLoginParams, State, WalletLoginParams } from "./types/interface";
+import {
+  ChainConfig,
+  IWeb3Auth,
+  OpenloginSessionData,
+  ProjectConfigResponse,
+  SdkInitParams,
+  SdkLoginParams,
+  State,
+  WalletLoginParams,
+} from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
-import { constructURL, getHashQueryParams } from "./utils";
+import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
 
 // import WebViewComponent from "./WebViewComponent";
 
@@ -139,6 +150,19 @@ class Web3Auth implements IWeb3Auth {
       sessionTime: this.options.sessionTime,
       sessionNamespace: this.options.sessionNamespace,
     });
+
+    log.debug("init called");
+    let projectConfig: ProjectConfigResponse;
+    try {
+      projectConfig = await fetchProjectConfig(this.options.clientId, this.options.network);
+    } catch (e) {
+      throw new Error(`Error getting project config options, reason: ${e || "unknown"}`);
+    }
+    const { whitelabel, whitelist } = projectConfig;
+    this.options.whiteLabel = merge(clonedeep(whitelabel), this.options.whiteLabel);
+    this.options.originData = merge(clonedeep(whitelist.signed_urls), this.options.originData);
+    log.debug(`[Web3Auth] _config: ${JSON.stringify(this.options)}`);
+
     const sessionId = await this.keyStore.get("sessionId");
     if (sessionId) {
       this.sessionManager.sessionId = sessionId;
@@ -187,7 +211,7 @@ class Web3Auth implements IWeb3Auth {
     };
 
     this.options.redirectUrl = loginParams.redirectUrl;
-
+    log.debug(`[Web3Auth] dataObject: ${JSON.stringify(dataObject)}`);
     const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {

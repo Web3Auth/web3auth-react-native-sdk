@@ -2,6 +2,7 @@ import {
   type LoginParams,
   type OpenLoginOptions,
   type OpenloginSessionData,
+  type WhiteLabelData,
   BUILD_ENV,
   LANGUAGES,
   LOGIN_PROVIDER,
@@ -86,5 +87,18 @@ export type ChainConfig = {
   ticker?: String;
   tickerName?: String;
 };
+
+export interface WhitelistResponse {
+  urls: string[];
+  signed_urls: Record<string, string>;
+}
+
+export interface ProjectConfigResponse {
+  whitelabel?: WhiteLabelData;
+  sms_otp_enabled: boolean;
+  wallet_connect_enabled: boolean;
+  wallet_connect_project_id?: string;
+  whitelist?: WhitelistResponse;
+}
 
 export { BUILD_ENV, OPENLOGIN_NETWORK, LANGUAGES, LOGIN_PROVIDER, SUPPORTED_KEY_CURVES, MFA_FACTOR, MFA_LEVELS, THEME_MODES };
