@@ -1,10 +1,10 @@
-import { SIGNER_MAP } from "@toruslabs/constants";
-import { get } from "@toruslabs/http-helpers";
 import { OPENLOGIN_NETWORK, OPENLOGIN_NETWORK_TYPE, safeatob } from "@toruslabs/openlogin-utils";
-import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
 
 import { ProjectConfigResponse } from "./index";
+import { SIGNER_MAP } from "@toruslabs/constants";
+import { get } from "@toruslabs/http-helpers";
+import log from "loglevel";
 
 export function constructURL(params: { baseURL: string; query?: Record<string, unknown>; hash?: Record<string, unknown> }): string {
   const { baseURL, query, hash } = params;
@@ -86,9 +86,9 @@ export const fetchProjectConfig = async (clientId: string, web3AuthNetwork: OPEN
     url.searchParams.append("project_id", clientId);
     url.searchParams.append("network", web3AuthNetwork);
     url.searchParams.append("whitelist", "true");
-    log.debug("Fetching project configuration from URL:", url.href);
+    //log.debug("Fetching project configuration from URL:", url.href);
     const res = await get<ProjectConfigResponse>(url.href);
-    log.debug(`[Web3Auth] config response: ${JSON.stringify(res)}`);
+    //log.debug(`[Web3Auth] config response: ${JSON.stringify(res)}`);
     return res;
   } catch (e) {
     throw new Error(`Failed to fetch project config: ${(e as Error).message}`);

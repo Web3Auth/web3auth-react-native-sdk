@@ -1,23 +1,14 @@
-import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
 import {
-  BaseLoginParams,
   BUILD_ENV,
-  jsonToBase64,
+  BaseLoginParams,
   MFA_LEVELS,
   OPENLOGIN_ACTIONS,
   OPENLOGIN_NETWORK,
   OpenloginSessionConfig,
   TORUS_LEGACY_NETWORK,
   TORUS_LEGACY_NETWORK_TYPE,
+  jsonToBase64,
 } from "@toruslabs/openlogin-utils";
-import clonedeep from "lodash.clonedeep";
-import merge from "lodash.merge";
-import log from "loglevel";
-
-import { InitializationError, LoginError, RequestError } from "./errors";
-import KeyStore from "./session/KeyStore";
-import { EncryptedStorage } from "./types/IEncryptedStorage";
-import { SecureStore } from "./types/IExpoSecureStore";
 import {
   ChainConfig,
   IWeb3Auth,
@@ -28,8 +19,17 @@ import {
   State,
   WalletLoginParams,
 } from "./types/interface";
-import { IWebBrowser } from "./types/IWebBrowser";
+import { InitializationError, LoginError, RequestError } from "./errors";
 import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
+
+import { EncryptedStorage } from "./types/IEncryptedStorage";
+import { IWebBrowser } from "./types/IWebBrowser";
+import KeyStore from "./session/KeyStore";
+import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
+import { SecureStore } from "./types/IExpoSecureStore";
+import clonedeep from "lodash.clonedeep";
+import log from "loglevel";
+import merge from "lodash.merge";
 
 // import WebViewComponent from "./WebViewComponent";
 
@@ -151,7 +151,6 @@ class Web3Auth implements IWeb3Auth {
       sessionNamespace: this.options.sessionNamespace,
     });
 
-    log.debug("init called");
     let projectConfig: ProjectConfigResponse;
     try {
       projectConfig = await fetchProjectConfig(this.options.clientId, this.options.network);
@@ -161,7 +160,7 @@ class Web3Auth implements IWeb3Auth {
     const { whitelabel, whitelist } = projectConfig;
     this.options.whiteLabel = merge(clonedeep(whitelabel), this.options.whiteLabel);
     this.options.originData = merge(clonedeep(whitelist.signed_urls), this.options.originData);
-    log.debug(`[Web3Auth] _config: ${JSON.stringify(this.options)}`);
+    //log.debug(`[Web3Auth] _config: ${JSON.stringify(this.options)}`);
 
     const sessionId = await this.keyStore.get("sessionId");
     if (sessionId) {
