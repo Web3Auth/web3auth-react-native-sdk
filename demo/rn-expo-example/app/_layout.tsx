@@ -21,7 +21,7 @@ export default function App() {
   const [userInfo, setUserInfo] = useState("");
   const [console, setConsole] = useState("");
   const [web3auth, setWeb3Auth] = useState(null);
-  const [email, setEmail] = React.useState("androdbaby@gmail.com");
+  const [email, setEmail] = React.useState("hello@tor.us");
 
   useEffect(() => {
     const init = async () => {
