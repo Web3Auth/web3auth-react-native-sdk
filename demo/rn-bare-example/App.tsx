@@ -44,7 +44,7 @@ export default function App() {
   const [key, setKey] = useState<string | undefined>('');
   const [console, setConsole] = useState<string>('');
   const [web3auth, setWeb3Auth] = useState<IWeb3Auth | null>(null);
-  const [email, setEmail] = useState('grvgoel21@gmail.com');
+  const [email, setEmail] = useState('hello@tor.us');
 
   const login = async () => {
     try {
