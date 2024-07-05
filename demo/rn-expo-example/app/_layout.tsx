@@ -4,37 +4,54 @@ import * as WebBrowser from "expo-web-browser";
 
 import { Button, Dimensions, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Constants, { AppOwnership } from "expo-constants";
-import React, { useEffect, useState } from "react";
-import Web3Auth, { ChainNamespace, LOGIN_PROVIDER } from "@web3auth/react-native-sdk";
+import { useEffect, useState } from "react";
+import Web3Auth, { ChainNamespace, LOGIN_PROVIDER, OpenloginUserInfo } from "@web3auth/react-native-sdk";
 
 import RPC from "../ethersRPC"; // for using ethers.js
 
+const chainConfig = {
+  chainNamespace: ChainNamespace.EIP155,
+  chainId: "0xaa36a7",
+  rpcTarget: "https://rpc.ankr.com/eth_sepolia",
+  // Avoid using public rpcTarget in production.
+  // Use services like Infura, Quicknode etc
+  displayName: "Ethereum Sepolia Testnet",
+  blockExplorerUrl: "https://sepolia.etherscan.io",
+  ticker: "ETH",
+  tickerName: "Ethereum",
+  decimals: 18,
+  logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
+};
+
 const resolvedRedirectUrl =
-  Constants.appOwnership == AppOwnership.Expo || Constants.appOwnership == AppOwnership.Guest
+  Constants.appOwnership == AppOwnership.Expo
     ? Linking.createURL("web3auth", {})
     : Linking.createURL("web3auth", { scheme: "com.anonymous.rnexpoexample" });
 
-const clientId = "BILxiaDYbvlcwNdeJsyXEUDieKdYPIHfSdvEabzidwYZ3zaGsEN6noiM5u8f-5wuIksJcOn-Ga1LWNqen1eUZbw";
+const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw4tsluTITPqA8zMsfxIKMjiqNQ";
 
 export default function App() {
   const [key, setKey] = useState("");
-  const [userInfo, setUserInfo] = useState("");
+  const [userInfo, setUserInfo] = useState({});
   const [console, setConsole] = useState("");
-  const [web3auth, setWeb3Auth] = useState(null);
-  const [email, setEmail] = React.useState("hello@tor.us");
+  const [web3auth, setWeb3Auth] = useState<Web3Auth | null>(null);
+  const [email, setEmail] = useState("hello@tor.us");
 
   useEffect(() => {
     const init = async () => {
       try {
         const auth = new Web3Auth(WebBrowser, SecureStore, {
           clientId,
-          network: "cyan", // or other networks
+          network: "sapphire_mainnet", // or other networks
+          redirectUrl: resolvedRedirectUrl,
+          enableLogging: true,
+          buildEnv: "testing",
         });
         setWeb3Auth(auth);
         await auth.init();
         if (auth?.privKey) {
           uiConsole("Re logged in");
-          setUserInfo(auth.userInfo());
+          setUserInfo(auth.userInfo() as OpenloginUserInfo);
           setKey(auth.privKey);
         }
       } catch (e) {
@@ -47,7 +64,7 @@ export default function App() {
   const login = async () => {
     try {
       setConsole("Logging in");
-      await web3auth.login({
+      await web3auth?.login({
         loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
         redirectUrl: resolvedRedirectUrl,
         extraLoginOptions: {
@@ -55,8 +72,8 @@ export default function App() {
         },
       });
 
-      if (web3auth.privKey) {
-        setUserInfo(web3auth.userInfo());
+      if (web3auth?.privKey) {
+        setUserInfo(web3auth?.userInfo() as OpenloginUserInfo);
         setKey(web3auth.privKey);
         uiConsole("Logged In");
       }
@@ -84,13 +101,7 @@ export default function App() {
     }
 
     setConsole("Launch Wallet Services");
-    await web3auth.launchWalletServices({
-      chainNamespace: ChainNamespace.EIP155,
-      decimals: 18,
-      chainId: "0x1",
-      rpcTarget: "https://mainnet.infura.io/v3/daeee53504be4cd3a997d4f2718d33e0",
-      ticker: "ETH",
-    });
+    await web3auth.launchWalletServices(chainConfig);
   };
 
   const logout = async () => {
@@ -103,7 +114,7 @@ export default function App() {
     await web3auth.logout();
 
     if (!web3auth.privKey) {
-      setUserInfo(undefined);
+      setUserInfo({});
       setKey("");
       uiConsole("Logged out");
     }
@@ -233,7 +244,7 @@ export default function App() {
     uiConsole(res);
   };
 
-  const uiConsole = (...args) => {
+  const uiConsole = (...args: unknown[]) => {
     setConsole(`${JSON.stringify(args || {}, null, 2)}\n\n\n\n${console}`);
   };
 
