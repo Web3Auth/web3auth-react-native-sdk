@@ -14,17 +14,17 @@ const getChainId = async () => {
   }
 };
 
-const getAccounts = async (key) => {
+const getAccounts = async (key: string) => {
   try {
     const wallet = new ethers.Wallet(key);
-    const address = await wallet.address;
+    const address = wallet.address;
     return address;
   } catch (error) {
     return error;
   }
 };
 
-const getBalance = async (key) => {
+const getBalance = async (key: string) => {
   try {
     const ethersProvider = ethers.getDefaultProvider(providerUrl);
     const wallet = new ethers.Wallet(key, ethersProvider);
@@ -36,7 +36,7 @@ const getBalance = async (key) => {
   }
 };
 
-const sendTransaction = async (key) => {
+const sendTransaction = async (key: string) => {
   try {
     const ethersProvider = ethers.getDefaultProvider(providerUrl);
     const wallet = new ethers.Wallet(key, ethersProvider);
@@ -60,7 +60,7 @@ const sendTransaction = async (key) => {
   }
 };
 
-const signMessage = async (key) => {
+const signMessage = async (key: string) => {
   try {
     const ethersProvider = ethers.getDefaultProvider(providerUrl);
     const wallet = new ethers.Wallet(key, ethersProvider);
