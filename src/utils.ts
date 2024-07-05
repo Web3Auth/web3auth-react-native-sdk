@@ -1,10 +1,10 @@
+import { SIGNER_MAP } from "@toruslabs/constants";
+import { get } from "@toruslabs/http-helpers";
 import { OPENLOGIN_NETWORK, OPENLOGIN_NETWORK_TYPE, safeatob } from "@toruslabs/openlogin-utils";
+import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
 
 import { ProjectConfigResponse } from "./index";
-import { SIGNER_MAP } from "@toruslabs/constants";
-import { get } from "@toruslabs/http-helpers";
-import log from "loglevel";
 
 export function constructURL(params: { baseURL: string; query?: Record<string, unknown>; hash?: Record<string, unknown> }): string {
   const { baseURL, query, hash } = params;

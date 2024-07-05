@@ -1,14 +1,23 @@
 import {
-  BUILD_ENV,
   BaseLoginParams,
+  BUILD_ENV,
+  jsonToBase64,
   MFA_LEVELS,
   OPENLOGIN_ACTIONS,
   OPENLOGIN_NETWORK,
   OpenloginSessionConfig,
   TORUS_LEGACY_NETWORK,
   TORUS_LEGACY_NETWORK_TYPE,
-  jsonToBase64,
 } from "@toruslabs/openlogin-utils";
+import { OpenloginSessionManager } from "@toruslabs/session-manager";
+import clonedeep from "lodash.clonedeep";
+import merge from "lodash.merge";
+import log from "loglevel";
+
+import { InitializationError, LoginError, RequestError } from "./errors";
+import KeyStore from "./session/KeyStore";
+import { EncryptedStorage } from "./types/IEncryptedStorage";
+import { SecureStore } from "./types/IExpoSecureStore";
 import {
   ChainConfig,
   IWeb3Auth,
@@ -19,17 +28,8 @@ import {
   State,
   WalletLoginParams,
 } from "./types/interface";
-import { InitializationError, LoginError, RequestError } from "./errors";
-import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
-
-import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { IWebBrowser } from "./types/IWebBrowser";
-import KeyStore from "./session/KeyStore";
-import { OpenloginSessionManager } from "@toruslabs/openlogin-session-manager";
-import { SecureStore } from "./types/IExpoSecureStore";
-import clonedeep from "lodash.clonedeep";
-import log from "loglevel";
-import merge from "lodash.merge";
+import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
 
 // import WebViewComponent from "./WebViewComponent";
 
@@ -209,7 +209,7 @@ class Web3Auth implements IWeb3Auth {
       },
     };
 
-    this.options.redirectUrl = loginParams.redirectUrl;
+    if (loginParams.redirectUrl) this.options.redirectUrl = loginParams.redirectUrl;
     const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
