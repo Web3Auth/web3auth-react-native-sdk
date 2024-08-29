@@ -19,7 +19,7 @@ export abstract class Web3authRNError extends Error implements IWeb3authRNError 
 
     this.code = code;
     this.message = message || "";
-    Object.defineProperty(this, "name", { value: "OpenloginError" });
+    this.name = "Web3authRNError";
   }
 
   toJSON(): IWeb3authRNError {
@@ -46,7 +46,7 @@ export class InitializationError extends Web3authRNError {
     super(code, message);
 
     // Set name explicitly as minification can mangle class names
-    Object.defineProperty(this, "name", { value: "InitializationError" });
+    this.name = "InitializationError";
   }
 
   public static fromCode(code: number, extraMessage = ""): Web3authRNError {
@@ -83,7 +83,7 @@ export class LoginError extends Web3authRNError {
     super(code, message);
 
     // Set name explicitly as minification can mangle class names
-    Object.defineProperty(this, "name", { value: "LoginError" });
+    this.name = "LoginError";
   }
 
   public static fromCode(code: number, extraMessage = ""): Web3authRNError {
@@ -129,7 +129,7 @@ export class RequestError extends Web3authRNError {
     super(code, message);
 
     // Set name explicitly as minification can mangle class names
-    Object.defineProperty(this, "name", { value: "LoginError" });
+    this.name = "RequestError";
   }
 
   public static fromCode(code: number, extraMessage = ""): Web3authRNError {
