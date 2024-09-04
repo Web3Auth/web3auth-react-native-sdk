@@ -15,7 +15,7 @@
     "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-7.0.0.tgz",
     "ethers": "^5.7.2",
     "react": "18.2.0",
-    "react-native": "^0.74.3",
+    "react-native": "^0.74.5",
     "react-native-encrypted-storage": "^4.0.3"
   },
   "devDependencies": {
