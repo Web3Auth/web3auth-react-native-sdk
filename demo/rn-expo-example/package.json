@@ -17,7 +17,7 @@
   "dependencies": {
     "@ethersproject/shims": "^5.7.0",
     "@expo/vector-icons": "^14.0.2",
-    "@react-navigation/native": "6.0.2",
+    "@react-navigation/native": "6.1.18",
     "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-6.0.0.tgz",
     "crypto-browserify": "^3.12.0",
     "empty-module": "^0.0.2",
