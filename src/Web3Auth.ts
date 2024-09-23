@@ -1,15 +1,14 @@
+import { SessionManager } from "@toruslabs/session-manager";
 import {
+  AUTH_ACTIONS,
+  AuthSessionConfig,
   BaseLoginParams,
   BUILD_ENV,
   jsonToBase64,
   MFA_LEVELS,
-  OPENLOGIN_ACTIONS,
-  OPENLOGIN_NETWORK,
-  OpenloginSessionConfig,
-  TORUS_LEGACY_NETWORK,
-  TORUS_LEGACY_NETWORK_TYPE,
-} from "@toruslabs/openlogin-utils";
-import { OpenloginSessionManager } from "@toruslabs/session-manager";
+  WEB3AUTH_NETWORK,
+  WEB3AUTH_NETWORK_TYPE,
+} from "@web3auth/auth";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import log from "loglevel";
@@ -19,9 +18,9 @@ import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
 import {
+  AuthSessionData,
   ChainConfig,
   IWeb3Auth,
-  OpenloginSessionData,
   ProjectConfigResponse,
   SdkInitParams,
   SdkLoginParams,
@@ -44,13 +43,13 @@ class Web3Auth implements IWeb3Auth {
 
   private state: State;
 
-  private sessionManager: OpenloginSessionManager<OpenloginSessionData>;
+  private sessionManager: SessionManager<AuthSessionData>;
 
   private addVersionInUrls = true;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
-    if (!options.network) options.network = OPENLOGIN_NETWORK.SAPPHIRE_MAINNET;
+    if (!options.network) options.network = WEB3AUTH_NETWORK.SAPPHIRE_MAINNET;
     if (!options.buildEnv) options.buildEnv = BUILD_ENV.PRODUCTION;
     if (options.buildEnv === BUILD_ENV.DEVELOPMENT || options.buildEnv === BUILD_ENV.TESTING || options.sdkUrl) this.addVersionInUrls = false;
     if (!options.sdkUrl && !options.useMpc) {
@@ -70,7 +69,7 @@ class Web3Auth implements IWeb3Auth {
     }
 
     if (options.useMpc && !options.sdkUrl) {
-      if (Object.values(TORUS_LEGACY_NETWORK).includes(options.network as TORUS_LEGACY_NETWORK_TYPE))
+      if (Object.values(WEB3AUTH_NETWORK).includes(options.network as WEB3AUTH_NETWORK_TYPE))
         throw InitializationError.invalidParams("MPC is not supported on legacy networks, please use sapphire_devnet or sapphire_mainnet.");
       if (options.buildEnv === BUILD_ENV.DEVELOPMENT) {
         options.sdkUrl = "http://localhost:3000";
@@ -136,16 +135,16 @@ class Web3Auth implements IWeb3Auth {
   private get baseUrl(): string {
     // testing and develop don't have versioning
     if (!this.addVersionInUrls) return `${this.options.sdkUrl}`;
-    return `${this.options.sdkUrl}/v8`;
+    return `${this.options.sdkUrl}/v9`;
   }
 
   private get walletSdkUrl(): string {
     if (!this.addVersionInUrls) return `${this.options.walletSdkURL}`;
-    return `${this.options.walletSdkURL}/v2`;
+    return `${this.options.walletSdkURL}/v3`;
   }
 
   async init(): Promise<void> {
-    this.sessionManager = new OpenloginSessionManager<OpenloginSessionData>({
+    this.sessionManager = new SessionManager<AuthSessionData>({
       sessionServerBaseUrl: this.options.storageServerUrl,
       sessionTime: this.options.sessionTime,
       sessionNamespace: this.options.sessionNamespace,
@@ -200,8 +199,8 @@ class Web3Auth implements IWeb3Auth {
       }
     }
 
-    const dataObject: OpenloginSessionConfig = {
-      actionType: OPENLOGIN_ACTIONS.LOGIN,
+    const dataObject: AuthSessionConfig = {
+      actionType: AUTH_ACTIONS.LOGIN,
       options: this.options,
       params: {
         ...loginParams,
@@ -210,7 +209,7 @@ class Web3Auth implements IWeb3Auth {
     };
 
     if (loginParams.redirectUrl) this.options.redirectUrl = loginParams.redirectUrl;
-    const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
+    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
@@ -292,14 +291,14 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.userNotLoggedIn();
     }
 
-    const dataObject: Omit<OpenloginSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
-      actionType: OPENLOGIN_ACTIONS.LOGIN,
+    const dataObject: Omit<AuthSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
+      actionType: AUTH_ACTIONS.LOGIN,
       options: { ...this.options, chainConfig },
       params: {},
     };
 
     const url = `${this.walletSdkUrl}/${path}`;
-    const loginId = OpenloginSessionManager.generateRandomSessionKey();
+    const loginId = SessionManager.generateRandomSessionKey();
     await this.createLoginSession(loginId, dataObject);
 
     const { sessionId } = this.sessionManager;
@@ -323,14 +322,14 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.userNotLoggedIn();
     }
 
-    const dataObject: Omit<OpenloginSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
-      actionType: OPENLOGIN_ACTIONS.LOGIN,
+    const dataObject: Omit<AuthSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
+      actionType: AUTH_ACTIONS.LOGIN,
       options: { ...this.options, chainConfig },
       params: {},
     };
 
     const url = `${this.walletSdkUrl}/${path}`;
-    const loginId = OpenloginSessionManager.generateRandomSessionKey();
+    const loginId = SessionManager.generateRandomSessionKey();
     await this.createLoginSession(loginId, dataObject);
 
     const { sessionId } = this.sessionManager;
@@ -379,8 +378,8 @@ class Web3Auth implements IWeb3Auth {
       redirectUrl: this.options.redirectUrl,
     };
 
-    const dataObject: OpenloginSessionConfig = {
-      actionType: OPENLOGIN_ACTIONS.ENABLE_MFA,
+    const dataObject: AuthSessionConfig = {
+      actionType: AUTH_ACTIONS.ENABLE_MFA,
       options: this.options,
       params: {
         ...loginParams,
@@ -390,7 +389,7 @@ class Web3Auth implements IWeb3Auth {
       sessionId: this.sessionManager.sessionId,
     };
 
-    const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
+    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] enableMFA flow failed with error type ${result.type}`);
@@ -430,10 +429,10 @@ class Web3Auth implements IWeb3Auth {
     this.state = { ...newState };
   }
 
-  private async createLoginSession(loginId: string, data: OpenloginSessionConfig, timeout = 600): Promise<string> {
+  private async createLoginSession(loginId: string, data: AuthSessionConfig, timeout = 600): Promise<string> {
     if (!this.sessionManager) throw InitializationError.notInitialized();
 
-    const loginSessionMgr = new OpenloginSessionManager<OpenloginSessionConfig>({
+    const loginSessionMgr = new SessionManager<AuthSessionConfig>({
       sessionServerBaseUrl: this.options.storageServerUrl,
       sessionNamespace: this.options.sessionNamespace,
       sessionTime: timeout, // each login key must be used with 10 mins (might be used at the end of popup redirect)
@@ -445,9 +444,9 @@ class Web3Auth implements IWeb3Auth {
     return loginId;
   }
 
-  private async openloginHandler(url: string, dataObject: OpenloginSessionConfig) {
+  private async authHandler(url: string, dataObject: AuthSessionConfig) {
     log.debug(`[Web3Auth] config passed: ${JSON.stringify(dataObject)}`);
-    const loginId = OpenloginSessionManager.generateRandomSessionKey();
+    const loginId = SessionManager.generateRandomSessionKey();
     await this.createLoginSession(loginId, dataObject);
 
     const configParams: BaseLoginParams = {
@@ -464,7 +463,7 @@ class Web3Auth implements IWeb3Auth {
     return this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
   }
 
-  private async authorizeSession(): Promise<OpenloginSessionData> {
+  private async authorizeSession(): Promise<AuthSessionData> {
     try {
       const data = await this.sessionManager.authorizeSession();
       return data;
