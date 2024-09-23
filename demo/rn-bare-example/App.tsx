@@ -1,17 +1,25 @@
+import React, { useEffect, useState } from "react";
+import { StyleSheet, Text, View, Button, ScrollView, Dimensions, TextInput } from "react-native";
+import "@ethersproject/shims";
+import { ethers } from "ethers";
+
+// IMP START - Quick Start
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
-
-import { Button, Dimensions, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import Web3Auth, { IWeb3Auth, LOGIN_PROVIDER, OpenloginUserInfo } from "@web3auth/react-native-sdk";
-import { useEffect, useState } from "react";
-
-import { ChainNamespace } from "@web3auth/react-native-sdk";
 import EncryptedStorage from "react-native-encrypted-storage";
-import RPC from "./ethersRPC"; // for using ethers.js
+import Web3Auth, { LOGIN_PROVIDER, WEB3AUTH_NETWORK, ChainNamespace } from "@web3auth/react-native-sdk";
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
+// IMP END - Quick Start
 
-const scheme = "web3authrnbareexample"; // Or your desired app redirection scheme
-const resolvedRedirectUrl = `${scheme}://openlogin`;
-const clientId = "BFuUqebV5I8Pz5F7a5A2ihW7YVmbv_OHXnHYDv6OltAD5NGr6e-ViNvde3U4BHdn6HvwfkgobhVu4VwC-OSJkik";
+const scheme = "web3authrnexample"; // Or your desired app redirection scheme
+// IMP START - Whitelist bundle ID
+const redirectUrl = `${scheme}://auth`;
+// IMP END - Whitelist bundle ID
 
+// IMP START - Dashboard Registration
+const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw4tsluTITPqA8zMsfxIKMjiqNQ"; // get from https://dashboard.web3auth.io
+// IMP END - Dashboard Registration
+
+// IMP START - SDK Initialization
 const chainConfig = {
   chainNamespace: ChainNamespace.EIP155,
   chainId: "0xaa36a7",
@@ -26,280 +34,201 @@ const chainConfig = {
   logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
 };
 
+const ethereumPrivateKeyProvider = new EthereumPrivateKeyProvider({
+  config: {
+    chainConfig,
+  },
+});
+
+const web3auth = new Web3Auth(WebBrowser, EncryptedStorage, {
+  clientId,
+  // IMP START - Whitelist bundle ID
+  redirectUrl,
+  // IMP END - Whitelist bundle ID
+  network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
+});
+// IMP END - SDK Initialization
+
 export default function App() {
-  const [userInfo, setUserInfo] = useState<OpenloginUserInfo | null>(null);
-  const [key, setKey] = useState<string | undefined>("");
-  const [localConsole, setLocalConsole] = useState<string>("");
-  const [web3auth, setWeb3Auth] = useState<IWeb3Auth | null>(null);
-  const [email, setEmail] = useState("hello@tor.us");
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [provider, setProvider] = useState<any>(null);
+  const [console, setConsole] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+
+  useEffect(() => {
+    const init = async () => {
+      // IMP START - SDK Initialization
+      await web3auth.init();
+
+      if (web3auth.privKey) {
+        await ethereumPrivateKeyProvider.setupProvider(web3auth.privKey);
+        // IMP END - SDK Initialization
+        setProvider(ethereumPrivateKeyProvider);
+        setLoggedIn(true);
+      }
+    };
+    init();
+  }, []);
 
   const login = async () => {
     try {
-      if (!web3auth) {
-        setLocalConsole("Web3auth not initialized");
+      if (!web3auth.ready) {
+        setConsole("Web3auth not initialized");
+        return;
+      }
+      if (!email) {
+        setConsole("Enter email first");
         return;
       }
 
-      setLocalConsole("Logging in");
+      setConsole("Logging in");
+      // IMP START - Login
       await web3auth.login({
         loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
         extraLoginOptions: {
           login_hint: email,
         },
       });
-      setLocalConsole(`Logged in ${web3auth.privKey}`);
+      uiConsole(web3auth.userInfo);
+
       if (web3auth.privKey) {
-        const userInfo = web3auth.userInfo();
-        if (userInfo) setUserInfo(userInfo);
-        setKey(web3auth.privKey);
+        await ethereumPrivateKeyProvider.setupProvider(web3auth.privKey);
+        // IMP END - Login
+        setProvider(ethereumPrivateKeyProvider);
         uiConsole("Logged In");
+        setLoggedIn(true);
       }
-    } catch (e: unknown) {
-      console.error(e);
-      setLocalConsole((e as Error).message);
+    } catch (e: any) {
+      setConsole(e.message);
     }
   };
 
   const logout = async () => {
-    if (!web3auth) {
-      setLocalConsole("Web3auth not initialized");
+    if (!web3auth.ready) {
+      setConsole("Web3auth not initialized");
       return;
     }
 
-    setLocalConsole("Logging out");
+    setConsole("Logging out");
+    // IMP START - Logout
     await web3auth.logout();
+    // IMP END - Logout
 
     if (!web3auth.privKey) {
-      setUserInfo(null);
-      setKey("");
+      setProvider(null);
       uiConsole("Logged out");
+      setLoggedIn(false);
     }
   };
 
-  const enableMFA = async () => {
-    if (!web3auth) {
-      setLocalConsole("Web3auth not initialized");
+  // IMP START - Blockchain Calls
+  const getAccounts = async () => {
+    if (!provider) {
+      uiConsole("provider not set");
       return;
     }
+    setConsole("Getting account");
+    // For ethers v5
+    // const ethersProvider = new ethers.providers.Web3Provider(this.provider);
+    const ethersProvider = new ethers.BrowserProvider(provider!);
 
-    setLocalConsole("Enable MFA");
-    await web3auth.enableMFA();
-    uiConsole("MFA enabled");
+    // For ethers v5
+    // const signer = ethersProvider.getSigner();
+    const signer = await ethersProvider.getSigner();
+
+    // Get user's Ethereum public address
+    const address = signer.getAddress();
+    uiConsole(address);
   };
 
-  const launchWalletSerices = async () => {
+  const getBalance = async () => {
+    if (!provider) {
+      uiConsole("provider not set");
+      return;
+    }
+    setConsole("Fetching balance");
+    // For ethers v5
+    // const ethersProvider = new ethers.providers.Web3Provider(this.provider);
+    const ethersProvider = new ethers.BrowserProvider(provider!);
+
+    // For ethers v5
+    // const signer = ethersProvider.getSigner();
+    const signer = await ethersProvider.getSigner();
+
+    // Get user's Ethereum public address
+    const address = signer.getAddress();
+
+    // Get user's balance in ether
+    // For ethers v5
+    // const balance = ethers.utils.formatEther(
+    // await ethersProvider.getBalance(address) // Balance is in wei
+    // );
+    const balance = ethers.formatEther(
+      await ethersProvider.getBalance(address) // Balance is in wei
+    );
+    uiConsole(balance);
+  };
+
+  const signMessage = async () => {
+    if (!provider) {
+      uiConsole("provider not set");
+      return;
+    }
+    setConsole("Signing message");
+    // For ethers v5
+    // const ethersProvider = new ethers.providers.Web3Provider(this.provider);
+    const ethersProvider = new ethers.BrowserProvider(provider!);
+
+    // For ethers v5
+    // const signer = ethersProvider.getSigner();
+    const signer = await ethersProvider.getSigner();
+    const originalMessage = "YOUR_MESSAGE";
+
+    // Sign the message
+    const signedMessage = await signer.signMessage(originalMessage);
+    uiConsole(signedMessage);
+  };
+  // IMP END - Blockchain Calls
+
+  const launchWalletServices = async () => {
     if (!web3auth) {
-      setLocalConsole("Web3auth not initialized");
+      setConsole("Web3auth not initialized");
       return;
     }
 
-    setLocalConsole("Launch Wallet Services");
+    setConsole("Launch Wallet Services");
     await web3auth.launchWalletServices(chainConfig);
   };
 
-  const requestSignature = async () => {
-    if (!web3auth) {
-      setLocalConsole("Web3auth not initialized");
-      return;
-    }
-    if (!key) {
-      setLocalConsole("User not logged in");
-      return;
-    }
-
-    const address = await RPC.getAccounts(key);
-
-    // const params = [
-    //   {
-    //     challenge: 'Hello World',
-    //     address,
-    //   },
-    //   null,
-    // ];
-    const params = ["Hello World", address];
-    // const params = [{ }];
-    // params.push('Hello World');
-    // params.push(address);
-
-    // const params = [
-    //   address,
-    //   {
-    //     types: {
-    //       EIP712Domain: [
-    //         {
-    //           name: 'name',
-    //           type: 'string',
-    //         },
-    //         {
-    //           name: 'version',
-    //           type: 'string',
-    //         },
-    //         {
-    //           name: 'chainId',
-    //           type: 'uint256',
-    //         },
-    //         {
-    //           name: 'verifyingContract',
-    //           type: 'address',
-    //         },
-    //       ],
-    //       Person: [
-    //         {
-    //           name: 'name',
-    //           type: 'string',
-    //         },
-    //         {
-    //           name: 'wallet',
-    //           type: 'address',
-    //         },
-    //       ],
-    //       Mail: [
-    //         {
-    //           name: 'from',
-    //           type: 'Person',
-    //         },
-    //         {
-    //           name: 'to',
-    //           type: 'Person',
-    //         },
-    //         {
-    //           name: 'contents',
-    //           type: 'string',
-    //         },
-    //       ],
-    //     },
-    //     primaryType: 'Mail',
-    //     domain: {
-    //       name: 'Ether Mail',
-    //       version: '1',
-    //       chainId: chainConfig.chainId,
-    //       verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
-    //     },
-    //     message: {
-    //       from: {
-    //         name: 'Cow',
-    //         wallet: address,
-    //       },
-    //       to: {
-    //         name: 'Bob',
-    //         wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-    //       },
-    //       contents: 'Hello, Bob!',
-    //     },
-    //   },
-    // ];
-
-    setLocalConsole("Request Signature");
-    const res = await web3auth.request(chainConfig, "personal_sign", params);
-    uiConsole(res);
-  };
-
-  useEffect(() => {
-    const init = async () => {
-      const auth = new Web3Auth(WebBrowser, EncryptedStorage, {
-        clientId,
-        network: "sapphire_devnet", // or other networks
-        useCoreKitKey: false,
-        loginConfig: {},
-        enableLogging: true,
-        buildEnv: "testing",
-        redirectUrl: resolvedRedirectUrl,
-      });
-      setWeb3Auth(auth);
-      await auth.init();
-      if (auth?.privKey) {
-        uiConsole("Re logged in");
-        const userInfo = auth.userInfo();
-        if (userInfo) setUserInfo(userInfo);
-        setKey(auth.privKey);
-      }
-    };
-    init();
-  }, []);
-
-  const getChainId = async () => {
-    setLocalConsole("Getting chain id");
-    const networkDetails = await RPC.getChainId();
-    uiConsole(networkDetails);
-  };
-
-  const getAccounts = async () => {
-    if (!key) {
-      setLocalConsole("User not logged in");
-      return;
-    }
-    setLocalConsole("Getting account");
-    const address = await RPC.getAccounts(key);
-    uiConsole(address);
-  };
-  const getBalance = async () => {
-    if (!key) {
-      setLocalConsole("User not logged in");
-      return;
-    }
-    setLocalConsole("Fetching balance");
-    const balance = await RPC.getBalance(key);
-    uiConsole(balance);
-  };
-  const sendTransaction = async () => {
-    if (!key) {
-      setLocalConsole("User not logged in");
-      return;
-    }
-    setLocalConsole("Sending transaction");
-    const tx = await RPC.sendTransaction(key);
-    uiConsole(tx);
-  };
-  const signMessage = async () => {
-    if (!key) {
-      setLocalConsole("User not logged in");
-      return;
-    }
-    setLocalConsole("Signing message");
-    const message = await RPC.signMessage(key);
-    uiConsole(message);
-  };
-
   const uiConsole = (...args: unknown[]) => {
-    setLocalConsole(JSON.stringify(args || {}, null, 2) + "\n\n\n\n" + localConsole);
+    setConsole(JSON.stringify(args || {}, null, 2) + "\n\n\n\n" + console);
   };
 
   const loggedInView = (
     <View style={styles.buttonArea}>
-      <Button title="Get User Info" onPress={() => uiConsole(userInfo)} />
-      <Button title="Enable MFA" onPress={() => enableMFA()} />
-      <Button title="launch Wallet Services" onPress={() => launchWalletSerices()} />
-      <Button title="Request Signature from Wallet Services" onPress={() => requestSignature()} />
-      <Button title="Get Chain ID" onPress={() => getChainId()} />
+      <Button title="Get User Info" onPress={() => uiConsole(web3auth.userInfo())} />
       <Button title="Get Accounts" onPress={() => getAccounts()} />
       <Button title="Get Balance" onPress={() => getBalance()} />
-      <Button title="Send Transaction" onPress={() => sendTransaction()} />
       <Button title="Sign Message" onPress={() => signMessage()} />
-      <Button title="Get Private Key" onPress={() => uiConsole(key)} />
+      <Button title="Show Wallet UI" onPress={() => launchWalletServices()} />
       <Button title="Log Out" onPress={logout} />
     </View>
   );
 
   const unloggedInView = (
-    <View style={styles.buttonArea}>
-      <TextInput
-        editable
-        onChangeText={(text) => setEmail(text)}
-        value={email}
-        // eslint-disable-next-line react-native/no-inline-styles
-        style={{ padding: 10 }}
-      />
+    <View style={styles.buttonAreaLogin}>
+      <TextInput style={styles.inputEmail} placeholder="Enter email" onChangeText={setEmail} />
       <Button title="Login with Web3Auth" onPress={login} />
     </View>
   );
 
   return (
     <View style={styles.container}>
-      {key ? loggedInView : unloggedInView}
+      {loggedIn ? loggedInView : unloggedInView}
       <View style={styles.consoleArea}>
         <Text style={styles.consoleText}>Console:</Text>
         <ScrollView style={styles.console}>
-          <Text>{localConsole}</Text>
+          <Text>{console}</Text>
         </ScrollView>
       </View>
     </View>
@@ -336,5 +265,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-around",
     paddingBottom: 30,
+  },
+  buttonAreaLogin: {
+    flex: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 30,
+  },
+  inputEmail: {
+    height: 40,
+    width: 300,
+    borderColor: "gray",
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 20,
   },
 });
