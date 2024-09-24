@@ -12,6 +12,7 @@ import {
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import log from "loglevel";
+import URI from "urijs";
 
 import { InitializationError, LoginError, RequestError } from "./errors";
 import KeyStore from "./session/KeyStore";
@@ -465,7 +466,11 @@ class Web3Auth implements IWeb3Auth {
 
   private async authorizeSession(): Promise<AuthSessionData> {
     try {
-      const data = await this.sessionManager.authorizeSession();
+      const data = await this.sessionManager.authorizeSession({
+        headers: {
+          Origin: new URI(this.options.redirectUrl).origin(),
+        },
+      });
       return data;
     } catch (error: unknown) {
       return {};

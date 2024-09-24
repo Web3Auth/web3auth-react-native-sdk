@@ -38,13 +38,14 @@
   "dependencies": {
     "@toruslabs/constants": "^14.0.0",
     "@toruslabs/http-helpers": "^7.0.0",
-    "@toruslabs/session-manager": "^3.0.0",
+    "@toruslabs/session-manager": "^3.1.0",
     "@web3auth/auth": "^9.4.0",
     "buffer": "^6.0.3",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
     "loglevel": "^1.9.2",
-    "react-native-url-polyfill": "^2.0.0"
+    "react-native-url-polyfill": "^2.0.0",
+    "urijs": "^1.19.11"
   },
   "peerDependencies": {
     "@babel/runtime": "^7.x",
@@ -59,6 +60,7 @@
     "@types/lodash.merge": "^4.6.9",
     "@types/node": "^20",
     "@types/react-native": "^0.72.8",
+    "@types/urijs": "^1.19.25",
     "eslint": "^8.53.0",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
