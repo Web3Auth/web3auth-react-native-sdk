@@ -13,7 +13,7 @@ install! 'cocoapods',
 
 prepare_react_native_project!
 
-target 'rnexpoexample' do
+target 'web3authexpoexample' do
   use_expo_modules!
   config = use_native_modules!
 
@@ -25,7 +25,9 @@ target 'rnexpoexample' do
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/..",
-    :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
+    # Temporarily disable privacy file aggregation by default, until React
+    # Native 0.74.2 is released with fixes.
+    :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] == 'true',
   )
 
   post_install do |installer|
