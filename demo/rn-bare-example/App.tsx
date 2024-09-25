@@ -122,10 +122,10 @@ export default function App() {
   };
 
   // IMP START - Blockchain Calls
-  const getAccounts = async () => {
+  const getAccounts = async (): Promise<string> => {
     if (!provider) {
       uiConsole("provider not set");
-      return;
+      return "";
     }
     setConsole("Getting account");
     // For ethers v5
@@ -139,6 +139,7 @@ export default function App() {
     // Get user's Ethereum public address
     const address = signer.getAddress();
     uiConsole(address);
+    return address;
   };
 
   const getBalance = async () => {
@@ -204,6 +205,22 @@ export default function App() {
     setConsole(JSON.stringify(args || {}, null, 2) + "\n\n\n\n" + console);
   };
 
+  const requestSignature = async () => {
+    if (!web3auth) {
+      setConsole("Web3auth not initialized");
+      return;
+    }
+    try {
+      const address: string = await getAccounts();
+
+      const params = ["Hello World", address];
+      const res = await web3auth.request(chainConfig, "personal_sign", params);
+      uiConsole(res);
+    } catch (error) {
+      uiConsole("Error in requestSignature:", error);
+    }
+  };
+
   const loggedInView = (
     <View style={styles.buttonArea}>
       <Button title="Get User Info" onPress={() => uiConsole(web3auth.userInfo())} />
@@ -211,6 +228,7 @@ export default function App() {
       <Button title="Get Balance" onPress={() => getBalance()} />
       <Button title="Sign Message" onPress={() => signMessage()} />
       <Button title="Show Wallet UI" onPress={() => launchWalletServices()} />
+      <Button title="Request Signature UI" onPress={() => requestSignature()} />
       <Button title="Log Out" onPress={logout} />
     </View>
   );
