@@ -46,6 +46,7 @@ const web3auth = new Web3Auth(WebBrowser, EncryptedStorage, {
   redirectUrl,
   // IMP END - Whitelist bundle ID
   network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
+  privateKeyProvider: ethereumPrivateKeyProvider,
 });
 // IMP END - SDK Initialization
 
@@ -60,10 +61,9 @@ export default function App() {
       // IMP START - SDK Initialization
       await web3auth.init();
 
-      if (web3auth.privKey) {
-        await ethereumPrivateKeyProvider.setupProvider(web3auth.privKey);
+      if (web3auth.connected) {
         // IMP END - SDK Initialization
-        setProvider(ethereumPrivateKeyProvider);
+        setProvider(web3auth.provider);
         setLoggedIn(true);
       }
     };
@@ -91,10 +91,9 @@ export default function App() {
       });
       uiConsole(web3auth.userInfo);
 
-      if (web3auth.privKey) {
-        await ethereumPrivateKeyProvider.setupProvider(web3auth.privKey);
+      if (web3auth.connected) {
         // IMP END - Login
-        setProvider(ethereumPrivateKeyProvider);
+        setProvider(web3auth.provider);
         uiConsole("Logged In");
         setLoggedIn(true);
       }
@@ -114,7 +113,7 @@ export default function App() {
     await web3auth.logout();
     // IMP END - Logout
 
-    if (!web3auth.privKey) {
+    if (!web3auth.connected) {
       setProvider(null);
       uiConsole("Logged out");
       setLoggedIn(false);

@@ -61,6 +61,7 @@
     "@types/node": "^20",
     "@types/react-native": "^0.72.8",
     "@types/urijs": "^1.19.25",
+    "@web3auth/base": "^9.0.2",
     "eslint": "^8.53.0",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",

@@ -9,11 +9,13 @@ import {
   WEB3AUTH_NETWORK,
   WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
+import { type IBaseProvider, type IProvider } from "@web3auth/base";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import log from "loglevel";
 import URI from "urijs";
 
+import { CHAIN_NAMESPACES } from "./constants";
 import { InitializationError, LoginError, RequestError } from "./errors";
 import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
@@ -48,8 +50,13 @@ class Web3Auth implements IWeb3Auth {
 
   private addVersionInUrls = true;
 
+  private privateKeyProvider: IBaseProvider<string>;
+
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
+    if (!options.privateKeyProvider) {
+      throw InitializationError.invalidParams("Please provide privateKeyProvider");
+    }
     if (!options.network) options.network = WEB3AUTH_NETWORK.SAPPHIRE_MAINNET;
     if (!options.buildEnv) options.buildEnv = BUILD_ENV.PRODUCTION;
     if (options.buildEnv === BUILD_ENV.DEVELOPMENT || options.buildEnv === BUILD_ENV.TESTING || options.sdkUrl) this.addVersionInUrls = false;
@@ -109,28 +116,19 @@ class Web3Auth implements IWeb3Auth {
     this.options = options;
     this.webBrowser = webBrowser;
     this.keyStore = new KeyStore(storage);
+    this.privateKeyProvider = options.privateKeyProvider;
     this.state = {};
   }
 
-  get privKey(): string {
-    if (this.options.useMpc) return this.state.factorKey || "";
-    if (this.options.useCoreKitKey) {
-      // only throw error if privKey is there, but coreKitKey is not available.
-      if (this.state.privKey && !this.state.coreKitKey)
-        throw InitializationError.invalidParams("useCoreKitKey flag is enabled but coreKitKey is not available.");
-      return this.state.coreKitKey || "";
-    }
-    return this.state.privKey || "";
+  get connected(): boolean {
+    return Boolean(this.sessionManager?.sessionId);
   }
 
-  get ed25519Key(): string {
-    if (this.options.useCoreKitKey) {
-      // only throw error if ed25519PrivKey is there, but coreKitEd25519PrivKey is not available.
-      if (this.state.ed25519PrivKey && !this.state.coreKitEd25519PrivKey)
-        throw LoginError.loginFailed("useCoreKitKey flag is enabled but coreKitEd25519PrivKey is not available.");
-      return this.state.coreKitEd25519PrivKey || "";
+  get provider(): IProvider | null {
+    if (this.privateKeyProvider) {
+      return this.privateKeyProvider;
     }
-    return this.state.ed25519PrivKey || "";
+    return null;
   }
 
   private get baseUrl(): string {
@@ -144,7 +142,18 @@ class Web3Auth implements IWeb3Auth {
     return `${this.options.walletSdkURL}/v3`;
   }
 
+  set provider(_: IProvider | null) {
+    throw new Error("Not implemented");
+  }
+
   async init(): Promise<void> {
+    if (
+      !this.privateKeyProvider.currentChainConfig ||
+      !this.privateKeyProvider.currentChainConfig.chainNamespace ||
+      !this.privateKeyProvider.currentChainConfig.chainId
+    ) {
+      throw InitializationError.invalidParams("provider should have chainConfig and should be initialized with chainId and chainNamespace");
+    }
     this.sessionManager = new SessionManager<AuthSessionData>({
       sessionServerBaseUrl: this.options.storageServerUrl,
       sessionTime: this.options.sessionTime,
@@ -157,24 +166,24 @@ class Web3Auth implements IWeb3Auth {
     } catch (e) {
       throw new Error(`Error getting project config options, reason: ${e || "unknown"}`);
     }
-    const { whitelabel, whitelist } = projectConfig;
+    const { whitelabel, whitelist, key_export_enabled } = projectConfig;
     this.options.whiteLabel = merge(clonedeep(whitelabel), this.options.whiteLabel);
     this.options.originData = merge(clonedeep(whitelist.signed_urls), this.options.originData);
     //log.debug(`[Web3Auth] _config: ${JSON.stringify(this.options)}`);
+
+    if (typeof key_export_enabled === "boolean") {
+      this.privateKeyProvider.setKeyExportFlag(key_export_enabled);
+    }
 
     const sessionId = await this.keyStore.get("sessionId");
     if (sessionId) {
       this.sessionManager.sessionId = sessionId;
       const data = await this.authorizeSession();
       if (Object.keys(data).length > 0) {
-        this.updateState({
-          privKey: data.privKey,
-          coreKitKey: data.coreKitKey,
-          coreKitEd25519PrivKey: data.coreKitEd25519PrivKey,
-          ed25519PrivKey: data.ed25519PrivKey,
-          sessionId: data.sessionId,
-          userInfo: data.userInfo,
-        });
+        this.updateState(data);
+        const finalPrivKey = this.getFinalPrivKey();
+        if (!finalPrivKey) return;
+        await this.privateKeyProvider.setupProvider(finalPrivKey);
       } else {
         await this.keyStore.remove("sessionId");
         this.updateState({});
@@ -183,7 +192,7 @@ class Web3Auth implements IWeb3Auth {
     this.ready = true;
   }
 
-  async login(loginParams: SdkLoginParams): Promise<void> {
+  async login(loginParams: SdkLoginParams): Promise<IProvider | null> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!loginParams.redirectUrl && !this.options.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
     if (!loginParams.loginProvider) throw InitializationError.invalidParams("loginProvider is required");
@@ -230,12 +239,22 @@ class Web3Auth implements IWeb3Auth {
 
     const sessionData = await this.authorizeSession();
 
+    if (!sessionData || Object.keys(sessionData).length === 0) {
+      throw LoginError.loginFailed("Session data is missing");
+    }
+
     if (sessionData.userInfo?.dappShare.length > 0) {
       const verifier = sessionData.userInfo?.aggregateVerifier || sessionData.userInfo?.verifier;
       await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
     }
 
     this.updateState(sessionData);
+
+    const finalPrivKey = this.getFinalPrivKey();
+    if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
+    await this.privateKeyProvider.setupProvider(finalPrivKey);
+
+    return this.provider;
   }
 
   async logout(): Promise<void> {
@@ -420,7 +439,7 @@ class Web3Auth implements IWeb3Auth {
   }
 
   public userInfo(): State["userInfo"] {
-    if (this.privKey) {
+    if (this.connected) {
       return this.state.userInfo;
     }
     throw LoginError.userNotLoggedIn();
@@ -475,6 +494,41 @@ class Web3Auth implements IWeb3Auth {
     } catch (error: unknown) {
       return {};
     }
+  }
+
+  private getFinalPrivKey() {
+    if (this.options.privateKeyProvider.currentChainConfig.chainNamespace === CHAIN_NAMESPACES.SOLANA) return this.getFinalEd25519PrivKey();
+    return this.getFinalCommonPrivKey();
+  }
+
+  private getFinalCommonPrivKey() {
+    let finalPrivKey = this.state.privKey;
+    // coreKitKey is available only for custom verifiers by default
+    if (this.options.useCoreKitKey) {
+      // this is to check if the user has already logged in but coreKitKey is not available.
+      // when useCoreKitKey is set to true.
+      // This is to ensure that when there is no user session active, we don't throw an exception.
+      if (this.state.privKey && !this.state.coreKitKey) {
+        throw LoginError.coreKitKeyNotFound();
+      }
+      finalPrivKey = this.state.coreKitKey;
+    }
+    return finalPrivKey;
+  }
+
+  private getFinalEd25519PrivKey() {
+    let finalPrivKey = this.state.ed25519PrivKey;
+    // coreKitKey is available only for custom verifiers by default
+    if (this.options.useCoreKitKey) {
+      // this is to check if the user has already logged in but coreKitKey is not available.
+      // when useCoreKitKey is set to true.
+      // This is to ensure that when there is no user session active, we don't throw an exception.
+      if (this.state.ed25519PrivKey && !this.state.coreKitEd25519PrivKey) {
+        throw LoginError.coreKitKeyNotFound();
+      }
+      finalPrivKey = this.state.coreKitEd25519PrivKey;
+    }
+    return finalPrivKey;
   }
 }
 

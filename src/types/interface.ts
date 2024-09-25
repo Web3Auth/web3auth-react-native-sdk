@@ -12,11 +12,16 @@ import {
   WEB3AUTH_NETWORK,
   THEME_MODES,
 } from "@web3auth/auth";
+import type { IBaseProvider, IProvider } from "@web3auth/base"
 
 type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
   walletSdkURL?: string;
+  /**
+   * Private key provider for your chain namespace
+   */
+  privateKeyProvider: IBaseProvider<string>;
 };
 
 export type SdkInitParams = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey"> &
@@ -50,10 +55,10 @@ export type {
 export type State = AuthSessionData;
 
 export interface IWeb3Auth {
-  privKey: string | undefined;
-  ed25519Key: string | undefined;
+  provider: IProvider | null;
+  connected: boolean;
   init: () => Promise<void>;
-  login: (params: SdkLoginParams) => Promise<void>;
+  login: (params: SdkLoginParams) => Promise<IProvider | null>;
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
   enableMFA: () => Promise<boolean>;
@@ -99,6 +104,7 @@ export interface ProjectConfigResponse {
   wallet_connect_enabled: boolean;
   wallet_connect_project_id?: string;
   whitelist?: WhitelistResponse;
+  key_export_enabled?: boolean;
 }
 
 export { BUILD_ENV, WEB3AUTH_NETWORK, LANGUAGES, LOGIN_PROVIDER, SUPPORTED_KEY_CURVES, MFA_FACTOR, MFA_LEVELS, THEME_MODES };
