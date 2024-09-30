@@ -261,9 +261,10 @@ class Web3Auth implements IWeb3Auth {
     if (!this.sessionManager.sessionId) {
       throw LoginError.userNotLoggedIn();
     }
+    const currentUserInfo = this.userInfo();
+
     await this.sessionManager.invalidateSession();
     await this.keyStore.remove("sessionId");
-    const currentUserInfo = this.userInfo();
 
     if (currentUserInfo.verifier && currentUserInfo.dappShare.length > 0) {
       await this.keyStore.remove(currentUserInfo.verifier);
