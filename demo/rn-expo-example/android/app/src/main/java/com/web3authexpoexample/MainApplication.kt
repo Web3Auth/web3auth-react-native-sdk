@@ -1,4 +1,4 @@
-package com.anonymous.rnexpoexample
+package com.web3authexpoexample
 
 import android.app.Application
 import android.content.res.Configuration

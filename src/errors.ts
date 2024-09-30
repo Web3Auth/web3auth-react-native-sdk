@@ -76,6 +76,7 @@ export class LoginError extends Web3authRNError {
     5115: "Popup was blocked. Please call this function as soon as user clicks button or use redirect mode",
     5116: "MFA already enabled",
     5117: "MFA not yet enabled. Please call `enableMFA` first",
+    5118: "useCoreKitKey flag is enabled but coreKitKey is not available",
   };
 
   public constructor(code: number, message?: string) {
@@ -116,6 +117,10 @@ export class LoginError extends Web3authRNError {
 
   public static mfaNotEnabled(extraMessage = ""): Web3authRNError {
     return LoginError.fromCode(5117, extraMessage);
+  }
+
+  public static coreKitKeyNotFound(extraMessage = ""): Web3authRNError {
+    return LoginError.fromCode(5118, extraMessage);
   }
 }
 

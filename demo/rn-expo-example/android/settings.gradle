@@ -1,4 +1,4 @@
-rootProject.name = 'rnexpoexample'
+rootProject.name = 'web3authexpoexample'
 
 dependencyResolutionManagement {
   versionCatalogs {

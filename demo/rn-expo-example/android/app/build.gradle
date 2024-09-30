@@ -83,9 +83,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.rnexpoexample'
+    namespace 'com.web3authexpoexample'
     defaultConfig {
-        applicationId 'com.anonymous.rnexpoexample'
+        applicationId 'com.web3authexpoexample'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

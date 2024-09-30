@@ -1,4 +1,4 @@
-package com.anonymous.rnexpoexample
+package com.web3authexpoexample
 
 import android.os.Build
 import android.os.Bundle

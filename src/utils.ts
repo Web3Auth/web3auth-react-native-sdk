@@ -1,6 +1,6 @@
 import { SIGNER_MAP } from "@toruslabs/constants";
 import { get } from "@toruslabs/http-helpers";
-import { OPENLOGIN_NETWORK, OPENLOGIN_NETWORK_TYPE, safeatob } from "@toruslabs/openlogin-utils";
+import { safeatob, WEB3AUTH_NETWORK, WEB3AUTH_NETWORK_TYPE } from "@web3auth/auth";
 import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
 
@@ -76,11 +76,11 @@ export function getHashQueryParams(url: string): HashQueryParamResult {
   return result;
 }
 
-export const signerHost = (web3AuthNetwork?: OPENLOGIN_NETWORK_TYPE): string => {
-  return SIGNER_MAP[web3AuthNetwork ?? OPENLOGIN_NETWORK.SAPPHIRE_MAINNET];
+export const signerHost = (web3AuthNetwork?: WEB3AUTH_NETWORK_TYPE): string => {
+  return SIGNER_MAP[web3AuthNetwork ?? WEB3AUTH_NETWORK.SAPPHIRE_MAINNET];
 };
 
-export const fetchProjectConfig = async (clientId: string, web3AuthNetwork: OPENLOGIN_NETWORK_TYPE): Promise<ProjectConfigResponse> => {
+export const fetchProjectConfig = async (clientId: string, web3AuthNetwork: WEB3AUTH_NETWORK_TYPE): Promise<ProjectConfigResponse> => {
   try {
     const url = new URL(`${signerHost(web3AuthNetwork)}/api/configuration`);
     url.searchParams.append("project_id", clientId);
