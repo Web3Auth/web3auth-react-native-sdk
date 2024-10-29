@@ -466,7 +466,6 @@ class Web3Auth implements IWeb3Auth {
   }
 
   private async authHandler(url: string, dataObject: AuthSessionConfig) {
-    log.debug(`[Web3Auth] config passed: ${JSON.stringify(dataObject)}`);
     const loginId = SessionManager.generateRandomSessionKey();
     await this.createLoginSession(loginId, dataObject);
 
