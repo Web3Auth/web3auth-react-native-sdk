@@ -1,6 +1,6 @@
 {
   "name": "@web3auth/react-native-sdk",
-  "version": "7.0.1",
+  "version": "8.0.0",
   "description": "Web3Auth SDK that supports Bare (Standalone) and Expo React Native apps.",
   "sideEffects": false,
   "main": "dist/lib.cjs/index.js",
