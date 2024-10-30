@@ -1,27 +1,29 @@
+import { SessionManager } from "@toruslabs/session-manager";
 import {
+  AUTH_ACTIONS,
+  AuthSessionConfig,
   BaseLoginParams,
   BUILD_ENV,
   jsonToBase64,
   MFA_LEVELS,
-  OPENLOGIN_ACTIONS,
-  OPENLOGIN_NETWORK,
-  OpenloginSessionConfig,
-  TORUS_LEGACY_NETWORK,
-  TORUS_LEGACY_NETWORK_TYPE,
-} from "@toruslabs/openlogin-utils";
-import { OpenloginSessionManager } from "@toruslabs/session-manager";
+  WEB3AUTH_NETWORK,
+  WEB3AUTH_NETWORK_TYPE,
+} from "@web3auth/auth";
+import { type IBaseProvider, type IProvider } from "@web3auth/base";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import log from "loglevel";
+import URI from "urijs";
 
+import { CHAIN_NAMESPACES } from "./constants";
 import { InitializationError, LoginError, RequestError } from "./errors";
 import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
 import {
+  AuthSessionData,
   ChainConfig,
   IWeb3Auth,
-  OpenloginSessionData,
   ProjectConfigResponse,
   SdkInitParams,
   SdkLoginParams,
@@ -44,13 +46,18 @@ class Web3Auth implements IWeb3Auth {
 
   private state: State;
 
-  private sessionManager: OpenloginSessionManager<OpenloginSessionData>;
+  private sessionManager: SessionManager<AuthSessionData>;
 
   private addVersionInUrls = true;
 
+  private privateKeyProvider: IBaseProvider<string>;
+
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
-    if (!options.network) options.network = OPENLOGIN_NETWORK.SAPPHIRE_MAINNET;
+    if (!options.privateKeyProvider) {
+      throw InitializationError.invalidParams("Please provide privateKeyProvider");
+    }
+    if (!options.network) options.network = WEB3AUTH_NETWORK.SAPPHIRE_MAINNET;
     if (!options.buildEnv) options.buildEnv = BUILD_ENV.PRODUCTION;
     if (options.buildEnv === BUILD_ENV.DEVELOPMENT || options.buildEnv === BUILD_ENV.TESTING || options.sdkUrl) this.addVersionInUrls = false;
     if (!options.sdkUrl && !options.useMpc) {
@@ -70,7 +77,7 @@ class Web3Auth implements IWeb3Auth {
     }
 
     if (options.useMpc && !options.sdkUrl) {
-      if (Object.values(TORUS_LEGACY_NETWORK).includes(options.network as TORUS_LEGACY_NETWORK_TYPE))
+      if (Object.values(WEB3AUTH_NETWORK).includes(options.network as WEB3AUTH_NETWORK_TYPE))
         throw InitializationError.invalidParams("MPC is not supported on legacy networks, please use sapphire_devnet or sapphire_mainnet.");
       if (options.buildEnv === BUILD_ENV.DEVELOPMENT) {
         options.sdkUrl = "http://localhost:3000";
@@ -109,43 +116,45 @@ class Web3Auth implements IWeb3Auth {
     this.options = options;
     this.webBrowser = webBrowser;
     this.keyStore = new KeyStore(storage);
+    this.privateKeyProvider = options.privateKeyProvider;
     this.state = {};
   }
 
-  get privKey(): string {
-    if (this.options.useMpc) return this.state.factorKey || "";
-    if (this.options.useCoreKitKey) {
-      // only throw error if privKey is there, but coreKitKey is not available.
-      if (this.state.privKey && !this.state.coreKitKey)
-        throw InitializationError.invalidParams("useCoreKitKey flag is enabled but coreKitKey is not available.");
-      return this.state.coreKitKey || "";
-    }
-    return this.state.privKey || "";
+  get connected(): boolean {
+    return Boolean(this.sessionManager?.sessionId);
   }
 
-  get ed25519Key(): string {
-    if (this.options.useCoreKitKey) {
-      // only throw error if ed25519PrivKey is there, but coreKitEd25519PrivKey is not available.
-      if (this.state.ed25519PrivKey && !this.state.coreKitEd25519PrivKey)
-        throw LoginError.loginFailed("useCoreKitKey flag is enabled but coreKitEd25519PrivKey is not available.");
-      return this.state.coreKitEd25519PrivKey || "";
+  get provider(): IProvider | null {
+    if (this.privateKeyProvider) {
+      return this.privateKeyProvider;
     }
-    return this.state.ed25519PrivKey || "";
+    return null;
   }
 
   private get baseUrl(): string {
     // testing and develop don't have versioning
     if (!this.addVersionInUrls) return `${this.options.sdkUrl}`;
-    return `${this.options.sdkUrl}/v8`;
+    return `${this.options.sdkUrl}/v9`;
   }
 
   private get walletSdkUrl(): string {
     if (!this.addVersionInUrls) return `${this.options.walletSdkURL}`;
-    return `${this.options.walletSdkURL}/v2`;
+    return `${this.options.walletSdkURL}/v3`;
+  }
+
+  set provider(_: IProvider | null) {
+    throw new Error("Not implemented");
   }
 
   async init(): Promise<void> {
-    this.sessionManager = new OpenloginSessionManager<OpenloginSessionData>({
+    if (
+      !this.privateKeyProvider.currentChainConfig ||
+      !this.privateKeyProvider.currentChainConfig.chainNamespace ||
+      !this.privateKeyProvider.currentChainConfig.chainId
+    ) {
+      throw InitializationError.invalidParams("provider should have chainConfig and should be initialized with chainId and chainNamespace");
+    }
+    this.sessionManager = new SessionManager<AuthSessionData>({
       sessionServerBaseUrl: this.options.storageServerUrl,
       sessionTime: this.options.sessionTime,
       sessionNamespace: this.options.sessionNamespace,
@@ -157,24 +166,24 @@ class Web3Auth implements IWeb3Auth {
     } catch (e) {
       throw new Error(`Error getting project config options, reason: ${e || "unknown"}`);
     }
-    const { whitelabel, whitelist } = projectConfig;
+    const { whitelabel, whitelist, key_export_enabled } = projectConfig;
     this.options.whiteLabel = merge(clonedeep(whitelabel), this.options.whiteLabel);
     this.options.originData = merge(clonedeep(whitelist.signed_urls), this.options.originData);
     //log.debug(`[Web3Auth] _config: ${JSON.stringify(this.options)}`);
+
+    if (typeof key_export_enabled === "boolean") {
+      this.privateKeyProvider.setKeyExportFlag(key_export_enabled);
+    }
 
     const sessionId = await this.keyStore.get("sessionId");
     if (sessionId) {
       this.sessionManager.sessionId = sessionId;
       const data = await this.authorizeSession();
       if (Object.keys(data).length > 0) {
-        this.updateState({
-          privKey: data.privKey,
-          coreKitKey: data.coreKitKey,
-          coreKitEd25519PrivKey: data.coreKitEd25519PrivKey,
-          ed25519PrivKey: data.ed25519PrivKey,
-          sessionId: data.sessionId,
-          userInfo: data.userInfo,
-        });
+        this.updateState(data);
+        const finalPrivKey = this.getFinalPrivKey();
+        if (!finalPrivKey) return;
+        await this.privateKeyProvider.setupProvider(finalPrivKey);
       } else {
         await this.keyStore.remove("sessionId");
         this.updateState({});
@@ -183,7 +192,7 @@ class Web3Auth implements IWeb3Auth {
     this.ready = true;
   }
 
-  async login(loginParams: SdkLoginParams): Promise<void> {
+  async login(loginParams: SdkLoginParams): Promise<IProvider | null> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!loginParams.redirectUrl && !this.options.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
     if (!loginParams.loginProvider) throw InitializationError.invalidParams("loginProvider is required");
@@ -200,8 +209,8 @@ class Web3Auth implements IWeb3Auth {
       }
     }
 
-    const dataObject: OpenloginSessionConfig = {
-      actionType: OPENLOGIN_ACTIONS.LOGIN,
+    const dataObject: AuthSessionConfig = {
+      actionType: AUTH_ACTIONS.LOGIN,
       options: this.options,
       params: {
         ...loginParams,
@@ -210,7 +219,7 @@ class Web3Auth implements IWeb3Auth {
     };
 
     if (loginParams.redirectUrl) this.options.redirectUrl = loginParams.redirectUrl;
-    const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
+    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
@@ -230,21 +239,32 @@ class Web3Auth implements IWeb3Auth {
 
     const sessionData = await this.authorizeSession();
 
+    if (!sessionData || Object.keys(sessionData).length === 0) {
+      throw LoginError.loginFailed("Session data is missing");
+    }
+
     if (sessionData.userInfo?.dappShare.length > 0) {
       const verifier = sessionData.userInfo?.aggregateVerifier || sessionData.userInfo?.verifier;
       await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
     }
 
     this.updateState(sessionData);
+
+    const finalPrivKey = this.getFinalPrivKey();
+    if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
+    await this.privateKeyProvider.setupProvider(finalPrivKey);
+
+    return this.provider;
   }
 
   async logout(): Promise<void> {
     if (!this.sessionManager.sessionId) {
       throw LoginError.userNotLoggedIn();
     }
+    const currentUserInfo = this.userInfo();
+
     await this.sessionManager.invalidateSession();
     await this.keyStore.remove("sessionId");
-    const currentUserInfo = this.userInfo();
 
     if (currentUserInfo.verifier && currentUserInfo.dappShare.length > 0) {
       await this.keyStore.remove(currentUserInfo.verifier);
@@ -292,14 +312,14 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.userNotLoggedIn();
     }
 
-    const dataObject: Omit<OpenloginSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
-      actionType: OPENLOGIN_ACTIONS.LOGIN,
+    const dataObject: Omit<AuthSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
+      actionType: AUTH_ACTIONS.LOGIN,
       options: { ...this.options, chainConfig },
       params: {},
     };
 
     const url = `${this.walletSdkUrl}/${path}`;
-    const loginId = OpenloginSessionManager.generateRandomSessionKey();
+    const loginId = SessionManager.generateRandomSessionKey();
     await this.createLoginSession(loginId, dataObject);
 
     const { sessionId } = this.sessionManager;
@@ -323,14 +343,14 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.userNotLoggedIn();
     }
 
-    const dataObject: Omit<OpenloginSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
-      actionType: OPENLOGIN_ACTIONS.LOGIN,
+    const dataObject: Omit<AuthSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
+      actionType: AUTH_ACTIONS.LOGIN,
       options: { ...this.options, chainConfig },
       params: {},
     };
 
     const url = `${this.walletSdkUrl}/${path}`;
-    const loginId = OpenloginSessionManager.generateRandomSessionKey();
+    const loginId = SessionManager.generateRandomSessionKey();
     await this.createLoginSession(loginId, dataObject);
 
     const { sessionId } = this.sessionManager;
@@ -379,8 +399,8 @@ class Web3Auth implements IWeb3Auth {
       redirectUrl: this.options.redirectUrl,
     };
 
-    const dataObject: OpenloginSessionConfig = {
-      actionType: OPENLOGIN_ACTIONS.ENABLE_MFA,
+    const dataObject: AuthSessionConfig = {
+      actionType: AUTH_ACTIONS.ENABLE_MFA,
       options: this.options,
       params: {
         ...loginParams,
@@ -390,7 +410,7 @@ class Web3Auth implements IWeb3Auth {
       sessionId: this.sessionManager.sessionId,
     };
 
-    const result = await this.openloginHandler(`${this.baseUrl}/start`, dataObject);
+    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
       log.error(`[Web3Auth] enableMFA flow failed with error type ${result.type}`);
@@ -420,7 +440,7 @@ class Web3Auth implements IWeb3Auth {
   }
 
   public userInfo(): State["userInfo"] {
-    if (this.privKey) {
+    if (this.connected) {
       return this.state.userInfo;
     }
     throw LoginError.userNotLoggedIn();
@@ -430,10 +450,10 @@ class Web3Auth implements IWeb3Auth {
     this.state = { ...newState };
   }
 
-  private async createLoginSession(loginId: string, data: OpenloginSessionConfig, timeout = 600): Promise<string> {
+  private async createLoginSession(loginId: string, data: AuthSessionConfig, timeout = 600): Promise<string> {
     if (!this.sessionManager) throw InitializationError.notInitialized();
 
-    const loginSessionMgr = new OpenloginSessionManager<OpenloginSessionConfig>({
+    const loginSessionMgr = new SessionManager<AuthSessionConfig>({
       sessionServerBaseUrl: this.options.storageServerUrl,
       sessionNamespace: this.options.sessionNamespace,
       sessionTime: timeout, // each login key must be used with 10 mins (might be used at the end of popup redirect)
@@ -445,9 +465,8 @@ class Web3Auth implements IWeb3Auth {
     return loginId;
   }
 
-  private async openloginHandler(url: string, dataObject: OpenloginSessionConfig) {
-    log.debug(`[Web3Auth] config passed: ${JSON.stringify(dataObject)}`);
-    const loginId = OpenloginSessionManager.generateRandomSessionKey();
+  private async authHandler(url: string, dataObject: AuthSessionConfig) {
+    const loginId = SessionManager.generateRandomSessionKey();
     await this.createLoginSession(loginId, dataObject);
 
     const configParams: BaseLoginParams = {
@@ -464,13 +483,52 @@ class Web3Auth implements IWeb3Auth {
     return this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
   }
 
-  private async authorizeSession(): Promise<OpenloginSessionData> {
+  private async authorizeSession(): Promise<AuthSessionData> {
     try {
-      const data = await this.sessionManager.authorizeSession();
+      const data = await this.sessionManager.authorizeSession({
+        headers: {
+          Origin: new URI(this.options.redirectUrl).origin(),
+        },
+      });
       return data;
     } catch (error: unknown) {
       return {};
     }
+  }
+
+  private getFinalPrivKey() {
+    if (this.options.privateKeyProvider.currentChainConfig.chainNamespace === CHAIN_NAMESPACES.SOLANA) return this.getFinalEd25519PrivKey();
+    return this.getFinalCommonPrivKey();
+  }
+
+  private getFinalCommonPrivKey() {
+    let finalPrivKey = this.state.privKey;
+    // coreKitKey is available only for custom verifiers by default
+    if (this.options.useCoreKitKey) {
+      // this is to check if the user has already logged in but coreKitKey is not available.
+      // when useCoreKitKey is set to true.
+      // This is to ensure that when there is no user session active, we don't throw an exception.
+      if (this.state.privKey && !this.state.coreKitKey) {
+        throw LoginError.coreKitKeyNotFound();
+      }
+      finalPrivKey = this.state.coreKitKey;
+    }
+    return finalPrivKey;
+  }
+
+  private getFinalEd25519PrivKey() {
+    let finalPrivKey = this.state.ed25519PrivKey;
+    // coreKitKey is available only for custom verifiers by default
+    if (this.options.useCoreKitKey) {
+      // this is to check if the user has already logged in but coreKitKey is not available.
+      // when useCoreKitKey is set to true.
+      // This is to ensure that when there is no user session active, we don't throw an exception.
+      if (this.state.ed25519PrivKey && !this.state.coreKitEd25519PrivKey) {
+        throw LoginError.coreKitKeyNotFound();
+      }
+      finalPrivKey = this.state.coreKitEd25519PrivKey;
+    }
+    return finalPrivKey;
   }
 }
 

@@ -2,6 +2,7 @@
   "name": "@web3auth/react-native-sdk",
   "version": "7.0.1",
   "description": "Web3Auth SDK that supports Bare (Standalone) and Expo React Native apps.",
+  "sideEffects": false,
   "main": "dist/lib.cjs/index.js",
   "module": "dist/lib.esm/index.js",
   "source": "src/index.ts",
@@ -22,7 +23,7 @@
     "url": "git+https://github.com/web3auth/web3auth-react-native-sdk.git"
   },
   "author": "Web3Auth",
-  "license": "MIT",
+  "license": "ISC",
   "bugs": {
     "url": "https://github.com/web3auth/web3auth-react-native-sdk/issues"
   },
@@ -31,40 +32,43 @@
     "expo",
     "react-native",
     "torus",
-    "openlogin",
+    "web3",
     "web3auth"
   ],
   "dependencies": {
     "@toruslabs/constants": "^14.0.0",
     "@toruslabs/http-helpers": "^7.0.0",
-    "@toruslabs/session-manager": "^1.0.0",
-    "@toruslabs/openlogin-utils": "^8.2.1",
+    "@toruslabs/session-manager": "^3.1.0",
+    "@web3auth/auth": "^9.4.0",
     "buffer": "^6.0.3",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
-    "loglevel": "^1.9.1",
-    "react-native-url-polyfill": "^2.0.0"
+    "loglevel": "^1.9.2",
+    "react-native-url-polyfill": "^2.0.0",
+    "urijs": "^1.19.11"
   },
   "peerDependencies": {
     "@babel/runtime": "^7.x",
     "react-native": "*"
   },
   "devDependencies": {
-    "@babel/runtime": "^7.24.7",
-    "@toruslabs/config": "^2.1.0",
-    "@toruslabs/eslint-config-typescript": "3.3.1",
-    "@toruslabs/torus-scripts": "^6.0.1",
+    "@babel/runtime": "^7.25.6",
+    "@toruslabs/config": "^2.2.0",
+    "@toruslabs/eslint-config-typescript": "3.3.3",
+    "@toruslabs/torus-scripts": "^6.1.2",
     "@types/lodash.clonedeep": "^4.5.9",
     "@types/lodash.merge": "^4.6.9",
     "@types/node": "^20",
     "@types/react-native": "^0.72.8",
+    "@types/urijs": "^1.19.25",
+    "@web3auth/base": "^9.0.2",
     "eslint": "^8.53.0",
-    "husky": "^9.0.11",
-    "lint-staged": "^15.2.7",
-    "prettier": "^3.3.2",
-    "react-native": "~0.74.3",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
+    "react-native": "~0.75.3",
     "rimraf": "^5.0.7",
-    "typescript": "^5.5.3"
+    "typescript": "^5.6.2"
   },
   "engines": {
     "node": ">=18.x",

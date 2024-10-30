@@ -1,18 +1,23 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Button, ScrollView, Dimensions, TextInput } from "react-native";
+import React, { useState, useEffect } from "react";
+import { Button, Dimensions, ScrollView, StyleSheet, Text, View, TextInput } from "react-native";
+import Constants, { AppOwnership } from "expo-constants";
+import * as Linking from "expo-linking";
 import "@ethersproject/shims";
-import { ethers } from "ethers";
-
+import "./globals";
 // IMP START - Quick Start
-import * as WebBrowser from "@toruslabs/react-native-web-browser";
-import EncryptedStorage from "react-native-encrypted-storage";
-import Web3Auth, { LOGIN_PROVIDER, WEB3AUTH_NETWORK, ChainNamespace } from "@web3auth/react-native-sdk";
+import * as WebBrowser from "expo-web-browser";
+import * as SecureStore from "expo-secure-store";
+import Web3Auth, { WEB3AUTH_NETWORK, LOGIN_PROVIDER, ChainNamespace } from "@web3auth/react-native-sdk";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 // IMP END - Quick Start
+import { ethers } from "ethers";
 
-const scheme = "web3authrnexample"; // Or your desired app redirection scheme
 // IMP START - Whitelist bundle ID
-const redirectUrl = `${scheme}://auth`;
+const redirectUrl =
+  //@ts-ignore
+  Constants.appOwnership == AppOwnership.Expo || Constants.appOwnership == AppOwnership.Guest
+    ? Linking.createURL("web3auth", {})
+    : Linking.createURL("web3auth", { scheme: "web3authexpoexample" });
 // IMP END - Whitelist bundle ID
 
 // IMP START - Dashboard Registration
@@ -40,13 +45,13 @@ const privateKeyProvider = new EthereumPrivateKeyProvider({
   },
 });
 
-const web3auth = new Web3Auth(WebBrowser, EncryptedStorage, {
+const web3auth = new Web3Auth(WebBrowser, SecureStore, {
   clientId,
+  privateKeyProvider,
   // IMP START - Whitelist bundle ID
   redirectUrl,
   // IMP END - Whitelist bundle ID
   network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
-  privateKeyProvider,
 });
 // IMP END - SDK Initialization
 
@@ -60,9 +65,9 @@ export default function App() {
     const init = async () => {
       // IMP START - SDK Initialization
       await web3auth.init();
+      // IMP END - SDK Initialization
 
       if (web3auth.connected) {
-        // IMP END - SDK Initialization
         setProvider(web3auth.provider);
         setLoggedIn(true);
       }
@@ -89,10 +94,9 @@ export default function App() {
           login_hint: email,
         },
       });
-      uiConsole(web3auth.userInfo);
+      // IMP END - Login
 
       if (web3auth.connected) {
-        // IMP END - Login
         setProvider(web3auth.provider);
         uiConsole("Logged In");
         setLoggedIn(true);
@@ -121,10 +125,10 @@ export default function App() {
   };
 
   // IMP START - Blockchain Calls
-  const getAccounts = async (): Promise<string> => {
+  const getAccounts = async () => {
     if (!provider) {
       uiConsole("provider not set");
-      return "";
+      return;
     }
     setConsole("Getting account");
     // For ethers v5
@@ -138,7 +142,6 @@ export default function App() {
     // Get user's Ethereum public address
     const address = signer.getAddress();
     uiConsole(address);
-    return address;
   };
 
   const getBalance = async () => {
@@ -204,22 +207,6 @@ export default function App() {
     setConsole(JSON.stringify(args || {}, null, 2) + "\n\n\n\n" + console);
   };
 
-  const requestSignature = async () => {
-    if (!web3auth) {
-      setConsole("Web3auth not initialized");
-      return;
-    }
-    try {
-      const address: string = await getAccounts();
-
-      const params = ["Hello World", address];
-      const res = await web3auth.request(chainConfig, "personal_sign", params);
-      uiConsole(res);
-    } catch (error) {
-      uiConsole("Error in requestSignature:", error);
-    }
-  };
-
   const loggedInView = (
     <View style={styles.buttonArea}>
       <Button title="Get User Info" onPress={() => uiConsole(web3auth.userInfo())} />
@@ -227,7 +214,6 @@ export default function App() {
       <Button title="Get Balance" onPress={() => getBalance()} />
       <Button title="Sign Message" onPress={() => signMessage()} />
       <Button title="Show Wallet UI" onPress={() => launchWalletServices()} />
-      <Button title="Request Signature UI" onPress={() => requestSignature()} />
       <Button title="Log Out" onPress={logout} />
     </View>
   );

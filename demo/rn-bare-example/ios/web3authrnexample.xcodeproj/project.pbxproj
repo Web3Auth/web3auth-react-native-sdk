@@ -12,7 +12,7 @@
 		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
-		2602DA35C3DF1A75306AA083 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 76EF867F44D01015AE679B42 /* PrivacyInfo.xcprivacy */; };
+		7633F1A0DFE70FC567118F4E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1EC0CE66E6342D3A60FF2C5 /* PrivacyInfo.xcprivacy */; };
 		7699B88040F8A987B510C191 /* libPods-web3authrnexample-web3authrnexampleTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 19F6CBCC0A4E27FBF8BF4A61 /* libPods-web3authrnexample-web3authrnexampleTests.a */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
@@ -43,9 +43,9 @@
 		5709B34CF0A7D63546082F79 /* Pods-web3authrnexample.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-web3authrnexample.release.xcconfig"; path = "Target Support Files/Pods-web3authrnexample/Pods-web3authrnexample.release.xcconfig"; sourceTree = "<group>"; };
 		5B7EB9410499542E8C5724F5 /* Pods-web3authrnexample-web3authrnexampleTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-web3authrnexample-web3authrnexampleTests.debug.xcconfig"; path = "Target Support Files/Pods-web3authrnexample-web3authrnexampleTests/Pods-web3authrnexample-web3authrnexampleTests.debug.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-web3authrnexample.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-web3authrnexample.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		76EF867F44D01015AE679B42 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = web3authrnexample/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = web3authrnexample/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		89C6BE57DB24E9ADA2F236DE /* Pods-web3authrnexample-web3authrnexampleTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-web3authrnexample-web3authrnexampleTests.release.xcconfig"; path = "Target Support Files/Pods-web3authrnexample-web3authrnexampleTests/Pods-web3authrnexample-web3authrnexampleTests.release.xcconfig"; sourceTree = "<group>"; };
+		A1EC0CE66E6342D3A60FF2C5 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = web3authrnexample/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -96,7 +96,7 @@
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB71A68108700A75B9A /* main.m */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
-				76EF867F44D01015AE679B42 /* PrivacyInfo.xcprivacy */,
+				A1EC0CE66E6342D3A60FF2C5 /* PrivacyInfo.xcprivacy */,
 			);
 			name = web3authrnexample;
 			sourceTree = "<group>";
@@ -248,7 +248,7 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
-				2602DA35C3DF1A75306AA083 /* PrivacyInfo.xcprivacy in Resources */,
+				7633F1A0DFE70FC567118F4E /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
