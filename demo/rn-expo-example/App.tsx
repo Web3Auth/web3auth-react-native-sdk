@@ -39,7 +39,7 @@ const chainConfig = {
   logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
 };
 
-const ethereumPrivateKeyProvider = new EthereumPrivateKeyProvider({
+const privateKeyProvider = new EthereumPrivateKeyProvider({
   config: {
     chainConfig,
   },
@@ -47,6 +47,7 @@ const ethereumPrivateKeyProvider = new EthereumPrivateKeyProvider({
 
 const web3auth = new Web3Auth(WebBrowser, SecureStore, {
   clientId,
+  privateKeyProvider,
   // IMP START - Whitelist bundle ID
   redirectUrl,
   // IMP END - Whitelist bundle ID
@@ -64,11 +65,10 @@ export default function App() {
     const init = async () => {
       // IMP START - SDK Initialization
       await web3auth.init();
+      // IMP END - SDK Initialization
 
-      if (web3auth.privKey) {
-        await ethereumPrivateKeyProvider.setupProvider(web3auth.privKey);
-        // IMP END - SDK Initialization
-        setProvider(ethereumPrivateKeyProvider);
+      if (web3auth.connected) {
+        setProvider(web3auth.provider);
         setLoggedIn(true);
       }
     };
@@ -94,11 +94,10 @@ export default function App() {
           login_hint: email,
         },
       });
+      // IMP END - Login
 
-      if (web3auth.privKey) {
-        await ethereumPrivateKeyProvider.setupProvider(web3auth.privKey);
-        // IMP END - Login
-        setProvider(ethereumPrivateKeyProvider);
+      if (web3auth.connected) {
+        setProvider(web3auth.provider);
         uiConsole("Logged In");
         setLoggedIn(true);
       }
@@ -118,7 +117,7 @@ export default function App() {
     await web3auth.logout();
     // IMP END - Logout
 
-    if (!web3auth.privKey) {
+    if (!web3auth.connected) {
       setProvider(null);
       uiConsole("Logged out");
       setLoggedIn(false);

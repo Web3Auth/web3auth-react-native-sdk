@@ -34,7 +34,7 @@ const chainConfig = {
   logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
 };
 
-const ethereumPrivateKeyProvider = new EthereumPrivateKeyProvider({
+const privateKeyProvider = new EthereumPrivateKeyProvider({
   config: {
     chainConfig,
   },
@@ -46,7 +46,7 @@ const web3auth = new Web3Auth(WebBrowser, EncryptedStorage, {
   redirectUrl,
   // IMP END - Whitelist bundle ID
   network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
-  privateKeyProvider: ethereumPrivateKeyProvider,
+  privateKeyProvider,
 });
 // IMP END - SDK Initialization
 
