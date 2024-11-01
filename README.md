@@ -4,7 +4,7 @@ Web3Auth is where passwordless auth meets non-custodial key infrastructure for W
 
 ## 📖 Documentation
 
-Checkout the official [Web3Auth Documentation](https://web3auth.io/docs) and [SDK Reference](https://web3auth.io/docs/sdk/react-native/) to get started!
+Checkout the official [Web3Auth Documentation](https://web3auth.io/docs) and [SDK Reference](https://web3auth.io/docs/sdk/pnp/react-native) to get started!
 
 ## 💡 Features
 - Plug and Play, OAuth based Web3 Authentication Service
