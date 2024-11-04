@@ -9,7 +9,7 @@ import {
   WEB3AUTH_NETWORK,
   WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
-import { type IBaseProvider, type IProvider } from "@web3auth/base";
+import { type IProvider } from "@web3auth/base";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import log from "loglevel";
@@ -50,7 +50,9 @@ class Web3Auth implements IWeb3Auth {
 
   private addVersionInUrls = true;
 
-  private privateKeyProvider: IBaseProvider<string>;
+  private privateKeyProvider: SdkInitParams["privateKeyProvider"];
+
+  private accountAbstractionProvider?: SdkInitParams["accountAbstractionProvider"];
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
@@ -117,6 +119,9 @@ class Web3Auth implements IWeb3Auth {
     this.webBrowser = webBrowser;
     this.keyStore = new KeyStore(storage);
     this.privateKeyProvider = options.privateKeyProvider;
+    if (options.accountAbstractionProvider) {
+      this.accountAbstractionProvider = options.accountAbstractionProvider;
+    }
     this.state = {};
   }
 
@@ -126,7 +131,7 @@ class Web3Auth implements IWeb3Auth {
 
   get provider(): IProvider | null {
     if (this.privateKeyProvider) {
-      return this.privateKeyProvider;
+      return this.accountAbstractionProvider ?? this.privateKeyProvider;
     }
     return null;
   }
@@ -184,6 +189,10 @@ class Web3Auth implements IWeb3Auth {
         const finalPrivKey = this.getFinalPrivKey();
         if (!finalPrivKey) return;
         await this.privateKeyProvider.setupProvider(finalPrivKey);
+        // setup aa provider after private key provider is setup
+        if (this.accountAbstractionProvider) {
+          await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
+        }
       } else {
         await this.keyStore.remove("sessionId");
         this.updateState({});
@@ -253,6 +262,10 @@ class Web3Auth implements IWeb3Auth {
     const finalPrivKey = this.getFinalPrivKey();
     if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
     await this.privateKeyProvider.setupProvider(finalPrivKey);
+    // setup aa provider after private key provider is setup
+    if (this.accountAbstractionProvider) {
+      await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
+    }
 
     return this.provider;
   }

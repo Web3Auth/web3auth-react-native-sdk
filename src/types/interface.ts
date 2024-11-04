@@ -12,7 +12,7 @@ import {
   WEB3AUTH_NETWORK,
   THEME_MODES,
 } from "@web3auth/auth";
-import type { IBaseProvider, IProvider } from "@web3auth/base"
+import type { IBaseProvider, IProvider } from "@web3auth/base";
 
 type SdkSpecificInitParams = {
   enableLogging?: boolean;
@@ -22,6 +22,10 @@ type SdkSpecificInitParams = {
    * Private key provider for your chain namespace
    */
   privateKeyProvider: IBaseProvider<string>;
+  /**
+   * Account abstraction provider for your chain namespace
+   */
+  accountAbstractionProvider?: IBaseProvider<IProvider>;
 };
 
 export type SdkInitParams = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey"> &
