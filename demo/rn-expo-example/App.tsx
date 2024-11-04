@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Button, Dimensions, ScrollView, StyleSheet, Text, View, TextInput } from "react-native";
+import { Button, Dimensions, ScrollView, StyleSheet, Text, View, TextInput, Switch } from "react-native";
 import Constants, { AppOwnership } from "expo-constants";
 import * as Linking from "expo-linking";
 import "@ethersproject/shims";
@@ -9,8 +9,17 @@ import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
 import Web3Auth, { WEB3AUTH_NETWORK, LOGIN_PROVIDER, ChainNamespace } from "@web3auth/react-native-sdk";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
+import { MMKVLoader, useMMKVStorage } from "react-native-mmkv-storage";
 // IMP END - Quick Start
 import { ethers } from "ethers";
+import {
+  AccountAbstractionProvider,
+  BiconomySmartAccount,
+  ISmartAccount,
+  KernelSmartAccount,
+  SafeSmartAccount,
+  TrustSmartAccount,
+} from "@web3auth/account-abstraction-provider";
 
 // IMP START - Whitelist bundle ID
 const redirectUrl =
@@ -45,24 +54,97 @@ const privateKeyProvider = new EthereumPrivateKeyProvider({
   },
 });
 
-const web3auth = new Web3Auth(WebBrowser, SecureStore, {
-  clientId,
-  privateKeyProvider,
-  // IMP START - Whitelist bundle ID
-  redirectUrl,
-  // IMP END - Whitelist bundle ID
-  network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
-});
+const PIMLICO_API_KEY = "YOUR_PIMLICO_API_KEY";
+
+export const getDefaultBundlerUrl = (chainId: string): string => {
+  return `https://api.pimlico.io/v2/${Number(chainId)}/rpc?apikey=${PIMLICO_API_KEY}`;
+};
+
+export type SmartAccountType = "safe" | "kernel" | "biconomy" | "trust";
+
+export type AccountAbstractionConfig = {
+  bundlerUrl?: string;
+  paymasterUrl?: string;
+  smartAccountType?: SmartAccountType;
+};
+
+const AAConfig: AccountAbstractionConfig = {
+  // bundlerUrl: "https://bundler.safe.global",
+  // paymasterUrl: "https://paymaster.safe.global",
+  smartAccountType: "safe",
+};
+
+const storage = new MMKVLoader().initialize();
 // IMP END - SDK Initialization
 
 export default function App() {
+  const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
   const [provider, setProvider] = useState<any>(null);
   const [console, setConsole] = useState<string>("");
   const [email, setEmail] = useState<string>("");
+  const [useAccountAbstraction, setUseAccountAbstraction] = useMMKVStorage<boolean>("useAccountAbstraction", storage, false);
+
+  const toggleAccountAbstraction = () => {
+    setUseAccountAbstraction((prevState) => !prevState);
+  };
 
   useEffect(() => {
     const init = async () => {
+      // setup aa provider
+      let aaProvider: AccountAbstractionProvider | undefined;
+      if (useAccountAbstraction) {
+        const { bundlerUrl, paymasterUrl, smartAccountType } = AAConfig;
+
+        let smartAccountInit: ISmartAccount;
+        switch (smartAccountType) {
+          case "biconomy":
+            smartAccountInit = new BiconomySmartAccount();
+            break;
+          case "kernel":
+            smartAccountInit = new KernelSmartAccount();
+            break;
+          case "trust":
+            smartAccountInit = new TrustSmartAccount();
+            break;
+          // case "light":
+          //   smartAccountInit = new LightSmartAccount();
+          //   break;
+          // case "simple":
+          //   smartAccountInit = new SimpleSmartAccount();
+          //   break;
+          case "safe":
+          default:
+            smartAccountInit = new SafeSmartAccount();
+            break;
+        }
+
+        aaProvider = new AccountAbstractionProvider({
+          config: {
+            chainConfig,
+            bundlerConfig: {
+              url: bundlerUrl ?? getDefaultBundlerUrl(chainConfig.chainId),
+            },
+            paymasterConfig: paymasterUrl
+              ? {
+                  url: paymasterUrl,
+                }
+              : undefined,
+            smartAccountInit,
+          },
+        });
+      }
+
+      const web3auth = new Web3Auth(WebBrowser, SecureStore, {
+        clientId,
+        privateKeyProvider,
+        accountAbstractionProvider: aaProvider,
+        // IMP START - Whitelist bundle ID
+        redirectUrl,
+        // IMP END - Whitelist bundle ID
+        network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
+      });
+      setWeb3auth(web3auth);
       // IMP START - SDK Initialization
       await web3auth.init();
       // IMP END - SDK Initialization
@@ -73,11 +155,11 @@ export default function App() {
       }
     };
     init();
-  }, []);
+  }, [useAccountAbstraction]);
 
   const login = async () => {
     try {
-      if (!web3auth.ready) {
+      if (!web3auth?.ready) {
         setConsole("Web3auth not initialized");
         return;
       }
@@ -107,7 +189,7 @@ export default function App() {
   };
 
   const logout = async () => {
-    if (!web3auth.ready) {
+    if (!web3auth?.ready) {
       setConsole("Web3auth not initialized");
       return;
     }
@@ -220,6 +302,18 @@ export default function App() {
 
   const unloggedInView = (
     <View style={styles.buttonAreaLogin}>
+      <View style={{ marginBottom: 20 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Text style={{ paddingRight: 6 }}>Use Account Abstraction:</Text>
+          <Switch onValueChange={toggleAccountAbstraction} value={useAccountAbstraction} />
+        </View>
+      </View>
       <TextInput style={styles.inputEmail} placeholder="Enter email" onChangeText={setEmail} />
       <Button title="Login with Web3Auth" onPress={login} />
     </View>

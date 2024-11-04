@@ -11,8 +11,9 @@
   "dependencies": {
     "@ethersproject/shims": "^5.7.0",
     "@expo/metro-runtime": "^3.2.1",
+    "@web3auth/account-abstraction-provider": "^9.3.1",
     "@web3auth/ethereum-provider": "^9.3.0",
-    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-7.0.1.tgz",
+    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-8.0.0.tgz",
     "ethers": "^6.13.4",
     "expo": "~51.0.10",
     "expo-constants": "^16.0.2",
@@ -23,6 +24,7 @@
     "expo-web-browser": "^13.0.3",
     "react": "18.2.0",
     "react-native": "0.74.1",
+    "react-native-mmkv-storage": "^0.11.2",
     "react-native-quick-crypto": "^0.7.5"
   },
   "devDependencies": {
