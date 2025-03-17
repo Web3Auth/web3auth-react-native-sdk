@@ -6,7 +6,7 @@
   "main": "dist/lib.cjs/index.js",
   "module": "dist/lib.esm/index.js",
   "source": "src/index.ts",
-  "types": "dist/types/index.d.ts",
+  "types": "dist/lib.cjs/types/index.d.ts",
   "files": [
     "dist"
   ],
