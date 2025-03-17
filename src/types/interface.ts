@@ -1,16 +1,16 @@
 import {
-  type LoginParams,
   type AuthOptions,
   type AuthSessionData,
-  type WhiteLabelData,
   BUILD_ENV,
   LANGUAGES,
   LOGIN_PROVIDER,
-  SUPPORTED_KEY_CURVES,
+  type LoginParams,
   MFA_FACTOR,
   MFA_LEVELS,
-  WEB3AUTH_NETWORK,
+  SUPPORTED_KEY_CURVES,
   THEME_MODES,
+  WEB3AUTH_NETWORK,
+  type WhiteLabelData,
 } from "@web3auth/auth";
 import type { IBaseProvider, IProvider } from "@web3auth/base";
 
@@ -36,24 +36,24 @@ export type SdkLoginParams = Omit<LoginParams, "getWalletKey">;
 // export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;
 
 export type {
-  LOGIN_PROVIDER_TYPE,
-  WEB3AUTH_NETWORK_TYPE,
-  SUPPORTED_KEY_CURVES_TYPE,
-  MfaLevelType,
-  LoginParams,
+  AuthSessionData,
   AuthUserInfo,
+  BUILD_ENV_TYPE,
   CUSTOM_LOGIN_PROVIDER_TYPE,
   ExtraLoginOptions,
-  WhiteLabelData,
-  TypeOfLogin,
-  BUILD_ENV_TYPE,
   LANGUAGE_TYPE,
+  LOGIN_PROVIDER_TYPE,
+  LoginParams,
   MFA_FACTOR_TYPE,
   MFA_SETTINGS,
+  MfaLevelType,
   MfaSettings,
   SocialMfaModParams,
+  SUPPORTED_KEY_CURVES_TYPE,
   THEME_MODE_TYPE,
-  AuthSessionData,
+  TypeOfLogin,
+  WEB3AUTH_NETWORK_TYPE,
+  WhiteLabelData,
 } from "@web3auth/auth";
 
 export type State = AuthSessionData;
@@ -88,13 +88,13 @@ export enum ChainNamespace {
 export type ChainConfig = {
   chainNamespace: ChainNamespace;
   decimals?: number;
-  blockExplorerUrl?: String;
-  chainId: String;
-  displayName?: String;
-  logo?: String;
-  rpcTarget: String;
-  ticker?: String;
-  tickerName?: String;
+  blockExplorerUrl?: string;
+  chainId: string;
+  displayName?: string;
+  logo?: string;
+  rpcTarget: string;
+  ticker?: string;
+  tickerName?: string;
 };
 
 export interface WhitelistResponse {
@@ -111,4 +111,4 @@ export interface ProjectConfigResponse {
   key_export_enabled?: boolean;
 }
 
-export { BUILD_ENV, WEB3AUTH_NETWORK, LANGUAGES, LOGIN_PROVIDER, SUPPORTED_KEY_CURVES, MFA_FACTOR, MFA_LEVELS, THEME_MODES };
+export { BUILD_ENV, LANGUAGES, LOGIN_PROVIDER, MFA_FACTOR, MFA_LEVELS, SUPPORTED_KEY_CURVES, THEME_MODES, WEB3AUTH_NETWORK };

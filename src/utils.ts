@@ -1,6 +1,6 @@
 import { SIGNER_MAP } from "@toruslabs/constants";
 import { get } from "@toruslabs/http-helpers";
-import { safeatob, WEB3AUTH_NETWORK, WEB3AUTH_NETWORK_TYPE } from "@web3auth/auth";
+import { safeatob, WEB3AUTH_NETWORK, type WEB3AUTH_NETWORK_TYPE } from "@web3auth/auth";
 import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
 

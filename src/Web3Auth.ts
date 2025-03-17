@@ -1,13 +1,13 @@
 import { SessionManager } from "@toruslabs/session-manager";
 import {
   AUTH_ACTIONS,
-  AuthSessionConfig,
-  BaseLoginParams,
+  type AuthSessionConfig,
+  type BaseLoginParams,
   BUILD_ENV,
   jsonToBase64,
   MFA_LEVELS,
   WEB3AUTH_NETWORK,
-  WEB3AUTH_NETWORK_TYPE,
+  type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
 import { type IProvider } from "@web3auth/base";
 import clonedeep from "lodash.clonedeep";
@@ -212,7 +212,6 @@ class Web3Auth implements IWeb3Auth {
       if (loginConfigItem) {
         const share = await this.keyStore.get(loginConfigItem.verifier);
         if (share) {
-          // eslint-disable-next-line require-atomic-updates
           loginParams.dappShare = share;
         }
       }
@@ -504,7 +503,7 @@ class Web3Auth implements IWeb3Auth {
         },
       });
       return data;
-    } catch (error: unknown) {
+    } catch {
       return {};
     }
   }
