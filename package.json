@@ -6,7 +6,7 @@
   "main": "dist/lib.cjs/index.js",
   "module": "dist/lib.esm/index.js",
   "source": "src/index.ts",
-  "types": "dist/types/index.d.ts",
+  "types": "dist/lib.cjs/types/index.d.ts",
   "files": [
     "dist"
   ],
@@ -36,10 +36,10 @@
     "web3auth"
   ],
   "dependencies": {
-    "@toruslabs/constants": "^14.0.0",
-    "@toruslabs/http-helpers": "^7.0.0",
-    "@toruslabs/session-manager": "^3.1.0",
-    "@web3auth/auth": "^9.4.1",
+    "@toruslabs/constants": "^15.0.0",
+    "@toruslabs/http-helpers": "^8.1.1",
+    "@toruslabs/session-manager": "^4.0.2",
+    "@web3auth/auth": "^9.6.4",
     "buffer": "^6.0.3",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
@@ -52,23 +52,23 @@
     "react-native": "*"
   },
   "devDependencies": {
-    "@babel/runtime": "^7.26.0",
-    "@toruslabs/config": "^2.2.0",
-    "@toruslabs/eslint-config-typescript": "3.3.4",
-    "@toruslabs/torus-scripts": "^6.1.5",
+    "@babel/runtime": "^7.26.10",
+    "@toruslabs/config": "^3.1.0",
+    "@toruslabs/eslint-config-typescript": "4.1.1",
+    "@toruslabs/torus-scripts": "^7.1.3",
     "@types/lodash.clonedeep": "^4.5.9",
     "@types/lodash.merge": "^4.6.9",
     "@types/node": "^22",
     "@types/react-native": "^0.72.8",
     "@types/urijs": "^1.19.25",
-    "@web3auth/base": "^9.3.0",
-    "eslint": "^8.53.0",
-    "husky": "^9.1.6",
-    "lint-staged": "^15.2.10",
-    "prettier": "^3.3.3",
+    "@web3auth/base": "^9.7.0",
+    "eslint": "^9.22.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0",
+    "prettier": "^3.5.3",
     "react-native": "~0.75.3",
     "rimraf": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.2"
   },
   "engines": {
     "node": ">=18.x",

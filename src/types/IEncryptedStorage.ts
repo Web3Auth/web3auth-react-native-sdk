@@ -53,4 +53,4 @@ export type EncryptedStorage = {
    * @param {Function} cb - The function to call when the operation completes.
    */
   clear(cb: StorageErrorCallback): void;
-}
+};
