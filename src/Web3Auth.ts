@@ -377,15 +377,33 @@ class Web3Auth implements IWeb3Auth {
     this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
   }
 
-  async request(chainConfig: ChainConfig, method: string, params: unknown[], path: string = "wallet/request"): Promise<string> {
+  async request(method: string, params: unknown[], path: string = "wallet/request"): Promise<string> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!this.sessionManager.sessionId) {
       throw LoginError.userNotLoggedIn();
     }
 
-    const dataObject: Omit<AuthSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
+    if (!this.projectConfig?.chains) {
+      throw InitializationError.invalidParams("Project config not found");
+    }
+
+    const dataObject: Omit<AuthSessionConfig, "options"> & {
+      options: SdkInitParams & {
+        chains: ChainConfig[];
+        chainId: string;
+        accountAbstractionConfig: SmartAccountConfig;
+        embeddedWalletAuth: AuthConnectionConfig;
+      };
+    } = {
       actionType: AUTH_ACTIONS.LOGIN,
-      options: { ...this.options, chainConfig },
+      options: {
+        ...this.options,
+        chains: this.projectConfig.chains,
+        defaultChainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
+        chainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
+        accountAbstractionConfig: this.projectConfig.smartAccounts ?? undefined,
+        embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
+      },
       params: {},
     };
 
