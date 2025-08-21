@@ -1,17 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { Button, Dimensions, ScrollView, StyleSheet, Text, View, TextInput, Switch } from "react-native";
-import Constants, { AppOwnership } from "expo-constants";
-import * as Linking from "expo-linking";
 import "@ethersproject/shims";
 import "./globals";
-// IMP START - Quick Start
-import * as WebBrowser from "expo-web-browser";
-import * as SecureStore from "expo-secure-store";
-import Web3Auth, { WEB3AUTH_NETWORK, LOGIN_PROVIDER, ChainNamespace } from "@web3auth/react-native-sdk";
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-import { MMKVLoader, useMMKVStorage } from "react-native-mmkv-storage";
-// IMP END - Quick Start
-import { ethers } from "ethers";
+
 import {
   AccountAbstractionProvider,
   BiconomySmartAccount,
@@ -20,6 +9,18 @@ import {
   SafeSmartAccount,
   TrustSmartAccount,
 } from "@web3auth/account-abstraction-provider";
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
+import Web3Auth, { AUTH_CONNECTION, ChainNamespace, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
+// IMP END - Quick Start
+import { ethers } from "ethers";
+import Constants, { AppOwnership } from "expo-constants";
+import * as Linking from "expo-linking";
+import * as SecureStore from "expo-secure-store";
+// IMP START - Quick Start
+import * as WebBrowser from "expo-web-browser";
+import React, { useEffect, useState } from "react";
+import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { MMKVLoader, useMMKVStorage } from "react-native-mmkv-storage";
 
 // IMP START - Whitelist bundle ID
 const redirectUrl =
@@ -37,7 +38,7 @@ const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw
 const chainConfig = {
   chainNamespace: ChainNamespace.EIP155,
   chainId: "0xaa36a7",
-  rpcTarget: "https://rpc.ankr.com/eth_sepolia",
+  rpcTarget: "https://1rpc.io/sepolia",
   // Avoid using public rpcTarget in production.
   // Use services like Infura, Quicknode etc
   displayName: "Ethereum Sepolia Testnet",
@@ -171,7 +172,7 @@ export default function App() {
       setConsole("Logging in");
       // IMP START - Login
       await web3auth.login({
-        loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
+        authConnection: AUTH_CONNECTION.EMAIL_PASSWORDLESS,
         extraLoginOptions: {
           login_hint: email,
         },
@@ -282,7 +283,7 @@ export default function App() {
     }
 
     setConsole("Launch Wallet Services");
-    await web3auth.launchWalletServices(chainConfig);
+    await web3auth.launchWalletServices();
   };
 
   const uiConsole = (...args: unknown[]) => {

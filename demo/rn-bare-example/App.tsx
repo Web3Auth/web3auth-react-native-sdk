@@ -1,14 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Button, ScrollView, Dimensions, TextInput, Switch } from "react-native";
 import "@ethersproject/shims";
-import { ethers } from "ethers";
 
 // IMP START - Quick Start
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
-import EncryptedStorage from "react-native-encrypted-storage";
-import Web3Auth, { LOGIN_PROVIDER, WEB3AUTH_NETWORK, ChainNamespace } from "@web3auth/react-native-sdk";
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-import { MMKVLoader, useMMKVStorage } from "react-native-mmkv-storage";
 import {
   AccountAbstractionProvider,
   BiconomySmartAccount,
@@ -17,6 +10,13 @@ import {
   SafeSmartAccount,
   TrustSmartAccount,
 } from "@web3auth/account-abstraction-provider";
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
+import Web3Auth, { AUTH_CONNECTION, ChainNamespace, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
+import { ethers } from "ethers";
+import React, { useEffect, useState } from "react";
+import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import EncryptedStorage from "react-native-encrypted-storage";
+import { MMKVLoader, useMMKVStorage } from "react-native-mmkv-storage";
 // IMP END - Quick Start
 
 const scheme = "web3authrnexample"; // Or your desired app redirection scheme
@@ -32,7 +32,7 @@ const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw
 const chainConfig = {
   chainNamespace: ChainNamespace.EIP155,
   chainId: "0xaa36a7",
-  rpcTarget: "https://rpc.ankr.com/eth_sepolia",
+  rpcTarget: "https://1rpc.io/sepolia",
   // Avoid using public rpcTarget in production.
   // Use services like Infura, Quicknode etc
   displayName: "Ethereum Sepolia Testnet",
@@ -167,7 +167,7 @@ export default function App() {
       setConsole("Logging in");
       // IMP START - Login
       await web3auth.login({
-        loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
+        authConnection: AUTH_CONNECTION.EMAIL_PASSWORDLESS,
         extraLoginOptions: {
           login_hint: email,
         },
@@ -280,7 +280,7 @@ export default function App() {
     }
 
     setConsole("Launch Wallet Services");
-    await web3auth.launchWalletServices(chainConfig);
+    await web3auth.launchWalletServices();
   };
 
   const uiConsole = (...args: unknown[]) => {
