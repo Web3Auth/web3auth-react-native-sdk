@@ -495,6 +495,42 @@ class Web3Auth implements IWeb3Auth {
     return Boolean(this.state.userInfo.isMfaEnabled);
   }
 
+  async manageMFA(): Promise<void> {
+    if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
+    if (!this.sessionManager.sessionId) {
+      throw LoginError.userNotLoggedIn();
+    }
+    if (this.state.userInfo.isMfaEnabled) {
+      throw LoginError.mfaAlreadyEnabled();
+    }
+    const loginParams: SdkLoginParams & { redirectUrl: string } = {
+      authConnection: this.state.userInfo?.authConnection,
+      mfaLevel: MFA_LEVELS.MANDATORY,
+      extraLoginOptions: {
+        login_hint: this.state.userInfo?.userId,
+      },
+      dappUrl: this.options.redirectUrl,
+      redirectUrl: this.options.dashboardUrl,
+    };
+
+    const dataObject: AuthSessionConfig = {
+      actionType: AUTH_ACTIONS.MANAGE_MFA,
+      options: this.options,
+      params: {
+        ...loginParams,
+        mfaLevel: "mandatory",
+      },
+      sessionId: this.sessionManager.sessionId,
+    };
+
+    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+
+    if (result.type !== "success" || !result.url) {
+      log.error(`[Web3Auth] manageMFA flow failed with error type ${result.type}`);
+      throw LoginError.loginFailed(`manageMFA flow failed with error type ${result.type}`);
+    }
+  }
+
   public userInfo(): State["userInfo"] {
     if (this.connected) {
       return this.state.userInfo;

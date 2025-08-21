@@ -70,6 +70,7 @@ export interface IWeb3Auth {
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
   enableMFA: () => Promise<boolean>;
+  manageMFA: () => Promise<void>;
   launchWalletServices: (path?: string) => Promise<void>;
   request(method: string, params: unknown[], path?: string): Promise<string>;
 }
