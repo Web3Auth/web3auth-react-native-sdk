@@ -1,12 +1,14 @@
 import {
+  AUTH_CONNECTION,
+  AuthConnectionConfig,
   type AuthOptions,
   type AuthSessionData,
   BUILD_ENV,
   LANGUAGES,
-  LOGIN_PROVIDER,
   type LoginParams,
   MFA_FACTOR,
   MFA_LEVELS,
+  MfaSettings,
   SUPPORTED_KEY_CURVES,
   THEME_MODES,
   WEB3AUTH_NETWORK,
@@ -29,20 +31,23 @@ type SdkSpecificInitParams = {
 };
 
 export type SdkInitParams = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey"> &
-  Required<Pick<AuthOptions, "redirectUrl">>;
+  Required<Pick<AuthOptions, "redirectUrl">> & {
+    defaultChainId?: string;
+    walletServicesConfig?: WalletServicesConfig;
+  };
 
 export type SdkLoginParams = Omit<LoginParams, "getWalletKey">;
 
 // export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;
 
 export type {
+  AUTH_CONNECTION_TYPE,
   AuthSessionData,
   AuthUserInfo,
   BUILD_ENV_TYPE,
-  CUSTOM_LOGIN_PROVIDER_TYPE,
+  CUSTOM_AUTH_CONNECTION_TYPE,
   ExtraLoginOptions,
   LANGUAGE_TYPE,
-  LOGIN_PROVIDER_TYPE,
   LoginParams,
   MFA_FACTOR_TYPE,
   MFA_SETTINGS,
@@ -51,7 +56,6 @@ export type {
   SocialMfaModParams,
   SUPPORTED_KEY_CURVES_TYPE,
   THEME_MODE_TYPE,
-  TypeOfLogin,
   WEB3AUTH_NETWORK_TYPE,
   WhiteLabelData,
 } from "@web3auth/auth";
@@ -66,7 +70,7 @@ export interface IWeb3Auth {
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
   enableMFA: () => Promise<boolean>;
-  launchWalletServices: (chainConfig: ChainConfig, path?: string) => Promise<void>;
+  launchWalletServices: (path?: string) => Promise<void>;
   request(chainConfig: ChainConfig, method: string, params: unknown[], path?: string): Promise<string>;
 }
 
@@ -97,6 +101,13 @@ export type ChainConfig = {
   tickerName?: string;
 };
 
+export type WalletServicesConfig = {
+  confirmationStrategy: ConfirmationStrategyType;
+  whiteLabel?: WhiteLabelData;
+};
+
+export type ConfirmationStrategyType = "popup" | "modal" | "auto-approve" | "default";
+
 export interface WhitelistResponse {
   urls: string[];
   signed_urls: Record<string, string>;
@@ -106,9 +117,57 @@ export interface ProjectConfigResponse {
   whitelabel?: WhiteLabelData;
   sms_otp_enabled: boolean;
   wallet_connect_enabled: boolean;
-  wallet_connect_project_id?: string;
+  walletConnectProjectId?: string;
   whitelist?: WhitelistResponse;
   key_export_enabled?: boolean;
+  userDataInIdToken?: boolean;
+  sessionTime?: number;
+  chains?: ChainConfig[];
+  smartAccounts?: SmartAccountConfig;
+  walletUiConfig?: WalletUiConfig;
+  embeddedWalletAuth?: AuthConnectionConfig;
+  teamId?: number;
+  mfaSettings?: MfaSettings;
 }
 
-export { BUILD_ENV, LANGUAGES, LOGIN_PROVIDER, MFA_FACTOR, MFA_LEVELS, SUPPORTED_KEY_CURVES, THEME_MODES, WEB3AUTH_NETWORK };
+export type SmartAccountType = "metamask" | "safe" | "kernel" | "biconomy" | "trust" | "light" | "simple" | "nexus";
+
+export type SmartAccountConfig = {
+  smartAccountType: SmartAccountType;
+  chains: SmartAccountChainConfig[];
+};
+
+export type SmartAccountChainConfig = {
+  chainId: string;
+  bundler: BundlerConfig;
+  paymaster?: PaymasterConfig;
+};
+
+export type BundlerConfig = {
+  url: string;
+};
+
+export type PaymasterConfig = {
+  url: string;
+};
+
+export type WalletUiConfig = {
+  enablePortfolioWidget?: boolean;
+  enableConfirmationModal?: boolean;
+  enableWalletConnect?: boolean;
+  enableTokenDisplay?: boolean;
+  enableNftDisplay?: boolean;
+  enableShowAllTokensButton?: boolean;
+  enableBuyButton?: boolean;
+  enableSendButton?: boolean;
+  enableSwapButton?: boolean;
+  enableReceiveButton?: boolean;
+  portfolioWidgetPosition?: ButtonPositionType;
+  defaultPortfolio?: DefaultPortfolioType;
+};
+
+export type ButtonPositionType = "bottom-left" | "bottom-right" | "top-left" | "top-right";
+
+export type DefaultPortfolioType = "token" | "nft";
+
+export { AUTH_CONNECTION, BUILD_ENV, LANGUAGES, MFA_FACTOR, MFA_LEVELS, SUPPORTED_KEY_CURVES, THEME_MODES, WEB3AUTH_NETWORK };

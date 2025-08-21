@@ -1,6 +1,7 @@
 import { SessionManager } from "@toruslabs/session-manager";
 import {
   AUTH_ACTIONS,
+  AuthConnectionConfig,
   type AuthSessionConfig,
   type BaseLoginParams,
   BUILD_ENV,
@@ -12,6 +13,7 @@ import {
 import { type IProvider } from "@web3auth/base";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
+import unionBy from "lodash.unionby";
 import log from "loglevel";
 import URI from "urijs";
 
@@ -27,6 +29,7 @@ import {
   ProjectConfigResponse,
   SdkInitParams,
   SdkLoginParams,
+  SmartAccountConfig,
   State,
   WalletLoginParams,
 } from "./types/interface";
@@ -53,6 +56,8 @@ class Web3Auth implements IWeb3Auth {
   private privateKeyProvider: SdkInitParams["privateKeyProvider"];
 
   private accountAbstractionProvider?: SdkInitParams["accountAbstractionProvider"];
+
+  private projectConfig?: ProjectConfigResponse;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
@@ -104,10 +109,9 @@ class Web3Auth implements IWeb3Auth {
       }
     }
     if (!options.whiteLabel) options.whiteLabel = {};
-    if (!options.loginConfig) options.loginConfig = {};
+    if (!options.authConnectionConfig) options.authConnectionConfig = [];
     if (!options.mfaSettings) options.mfaSettings = {};
     if (!options.storageServerUrl) options.storageServerUrl = "https://session.web3auth.io";
-    if (!options.webauthnTransports) options.webauthnTransports = ["internal"];
     if (!options.sessionTime) options.sessionTime = 86400;
     if (typeof options.enableLogging === "undefined") options.enableLogging = false;
     if (options.enableLogging) {
@@ -115,6 +119,8 @@ class Web3Auth implements IWeb3Auth {
     } else {
       log.setLevel("ERROR");
     }
+    if (!options.includeUserDataInToken) options.includeUserDataInToken = true;
+
     this.options = options;
     this.webBrowser = webBrowser;
     this.keyStore = new KeyStore(storage);
@@ -139,12 +145,12 @@ class Web3Auth implements IWeb3Auth {
   private get baseUrl(): string {
     // testing and develop don't have versioning
     if (!this.addVersionInUrls) return `${this.options.sdkUrl}`;
-    return `${this.options.sdkUrl}/v9`;
+    return `${this.options.sdkUrl}/v10`;
   }
 
   private get walletSdkUrl(): string {
     if (!this.addVersionInUrls) return `${this.options.walletSdkURL}`;
-    return `${this.options.walletSdkURL}/v3`;
+    return `${this.options.walletSdkURL}/v5`;
   }
 
   set provider(_: IProvider | null) {
@@ -165,15 +171,23 @@ class Web3Auth implements IWeb3Auth {
       sessionNamespace: this.options.sessionNamespace,
     });
 
-    let projectConfig: ProjectConfigResponse;
     try {
-      projectConfig = await fetchProjectConfig(this.options.clientId, this.options.network);
+      this.projectConfig = await fetchProjectConfig(this.options.clientId, this.options.network, this.options.buildEnv);
     } catch (e) {
       throw new Error(`Error getting project config options, reason: ${e || "unknown"}`);
     }
-    const { whitelabel, whitelist, key_export_enabled } = projectConfig;
+    const { whitelabel, whitelist, key_export_enabled } = this.projectConfig;
     this.options.whiteLabel = merge(clonedeep(whitelabel), this.options.whiteLabel);
+    if (whitelabel && this.options.walletServicesConfig) {
+      this.options.walletServicesConfig.whiteLabel = merge(clonedeep(whitelabel), this.options.walletServicesConfig.whiteLabel);
+    }
     this.options.originData = merge(clonedeep(whitelist.signed_urls), this.options.originData);
+    this.options.authConnectionConfig = unionBy(
+      this.projectConfig.embeddedWalletAuth ?? [],
+      this.options.authConnectionConfig ?? [],
+      "authConnectionId"
+    );
+    this.options.mfaSettings = merge(clonedeep(this.projectConfig.mfaSettings), this.options.mfaSettings);
     //log.debug(`[Web3Auth] _config: ${JSON.stringify(this.options)}`);
 
     if (typeof key_export_enabled === "boolean") {
@@ -203,14 +217,14 @@ class Web3Auth implements IWeb3Auth {
 
   async login(loginParams: SdkLoginParams): Promise<IProvider | null> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
-    if (!loginParams.redirectUrl && !this.options.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
-    if (!loginParams.loginProvider) throw InitializationError.invalidParams("loginProvider is required");
+    if (!this.options.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
+    if (!loginParams.authConnection) throw InitializationError.invalidParams("authConnection is required");
 
     // check for share
-    if (this.options.loginConfig) {
-      const loginConfigItem = Object.values(this.options.loginConfig)[0];
-      if (loginConfigItem) {
-        const share = await this.keyStore.get(loginConfigItem.verifier);
+    if (this.options.authConnectionConfig) {
+      const authConnectionConfigItem = this.options.authConnectionConfig[0];
+      if (authConnectionConfigItem) {
+        const share = await this.keyStore.get(authConnectionConfigItem.authConnectionId);
         if (share) {
           loginParams.dappShare = share;
         }
@@ -220,13 +234,9 @@ class Web3Auth implements IWeb3Auth {
     const dataObject: AuthSessionConfig = {
       actionType: AUTH_ACTIONS.LOGIN,
       options: this.options,
-      params: {
-        ...loginParams,
-        redirectUrl: loginParams.redirectUrl || this.options.redirectUrl,
-      },
+      params: loginParams,
     };
 
-    if (loginParams.redirectUrl) this.options.redirectUrl = loginParams.redirectUrl;
     const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
 
     if (result.type !== "success" || !result.url) {
@@ -252,7 +262,7 @@ class Web3Auth implements IWeb3Auth {
     }
 
     if (sessionData.userInfo?.dappShare.length > 0) {
-      const verifier = sessionData.userInfo?.aggregateVerifier || sessionData.userInfo?.verifier;
+      const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
       await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
     }
 
@@ -278,8 +288,8 @@ class Web3Auth implements IWeb3Auth {
     await this.sessionManager.invalidateSession();
     await this.keyStore.remove("sessionId");
 
-    if (currentUserInfo.verifier && currentUserInfo.dappShare.length > 0) {
-      await this.keyStore.remove(currentUserInfo.verifier);
+    if (currentUserInfo.authConnectionId && currentUserInfo.dappShare.length > 0) {
+      await this.keyStore.remove(currentUserInfo.authConnectionId);
     }
 
     this.updateState({
@@ -301,10 +311,10 @@ class Web3Auth implements IWeb3Auth {
         oAuthAccessToken: "",
         appState: "",
         email: "",
-        verifier: "",
-        verifierId: "",
-        aggregateVerifier: "",
-        typeOfLogin: "",
+        userId: "",
+        authConnection: "",
+        authConnectionId: "",
+        groupedAuthConnectionId: "",
         isMfaEnabled: false,
       },
       authToken: "",
@@ -318,15 +328,33 @@ class Web3Auth implements IWeb3Auth {
     });
   }
 
-  async launchWalletServices(chainConfig: ChainConfig, path: string | null = "wallet"): Promise<void> {
+  async launchWalletServices(path: string | null = "wallet"): Promise<void> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!this.sessionManager.sessionId) {
       throw LoginError.userNotLoggedIn();
     }
 
-    const dataObject: Omit<AuthSessionConfig, "options"> & { options: SdkInitParams & { chainConfig: ChainConfig } } = {
+    if (!this.projectConfig?.chains) {
+      throw InitializationError.invalidParams("Project config not found");
+    }
+
+    const dataObject: Omit<AuthSessionConfig, "options"> & {
+      options: SdkInitParams & {
+        chains: ChainConfig[];
+        chainId: string;
+        embeddedWalletAuth?: AuthConnectionConfig;
+        accountAbstractionConfig: SmartAccountConfig;
+      };
+    } = {
       actionType: AUTH_ACTIONS.LOGIN,
-      options: { ...this.options, chainConfig },
+      options: {
+        ...this.options,
+        chains: this.projectConfig.chains,
+        defaultChainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
+        chainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
+        embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
+        accountAbstractionConfig: this.projectConfig.smartAccounts ?? undefined,
+      },
       params: {},
     };
 
@@ -403,12 +431,11 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.mfaAlreadyEnabled();
     }
     const loginParams: SdkLoginParams = {
-      loginProvider: this.state.userInfo?.typeOfLogin,
+      authConnection: this.state.userInfo?.authConnection,
       mfaLevel: MFA_LEVELS.MANDATORY,
       extraLoginOptions: {
-        login_hint: this.state.userInfo?.verifierId,
+        login_hint: this.state.userInfo?.userId,
       },
-      redirectUrl: this.options.redirectUrl,
     };
 
     const dataObject: AuthSessionConfig = {
@@ -416,7 +443,6 @@ class Web3Auth implements IWeb3Auth {
       options: this.options,
       params: {
         ...loginParams,
-        redirectUrl: loginParams.redirectUrl || this.options.redirectUrl,
         mfaLevel: "mandatory",
       },
       sessionId: this.sessionManager.sessionId,
@@ -443,7 +469,7 @@ class Web3Auth implements IWeb3Auth {
     const sessionData = await this.authorizeSession();
 
     if (sessionData.userInfo?.dappShare.length > 0) {
-      const verifier = sessionData.userInfo?.aggregateVerifier || sessionData.userInfo?.verifier;
+      const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
       await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
     }
 
@@ -492,7 +518,7 @@ class Web3Auth implements IWeb3Auth {
       hash: { b64Params: jsonToBase64(configParams) },
     });
 
-    return this.webBrowser.openAuthSessionAsync(loginUrl, dataObject.params.redirectUrl);
+    return this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
   }
 
   private async authorizeSession(): Promise<AuthSessionData> {
