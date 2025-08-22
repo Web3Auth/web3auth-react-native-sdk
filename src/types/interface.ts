@@ -269,4 +269,15 @@ export type AggregateVerifierParams = {
   verifier_id: string;
 };
 
+export type SubVerifierInfo = {
+  verifier: string;
+  idToken: string;
+};
+
+export type AggregateVerifierParams = {
+  verify_params: { verifier_id: string; idtoken: string }[];
+  sub_verifier_ids: string[];
+  verifier_id: string;
+};
+
 export { AUTH_CONNECTION, BUILD_ENV, LANGUAGES, MFA_FACTOR, MFA_LEVELS, SUPPORTED_KEY_CURVES, THEME_MODES, WEB3AUTH_NETWORK };
