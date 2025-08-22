@@ -587,6 +587,30 @@ class Web3Auth implements IWeb3Auth {
       });
       throw e;
     }
+<<<<<<< HEAD
+=======
+
+    const { sessionId, sessionNamespace, error } = getHashQueryParams(result.url);
+    if (error || !sessionId) {
+      throw LoginError.loginFailed(error || "SessionId is missing");
+    }
+
+    if (sessionId) {
+      await this.keyStore.set("sessionId", sessionId);
+      this.sessionManager.sessionId = sessionId;
+      this.sessionManager.sessionNamespace = sessionNamespace || "";
+    }
+
+    const sessionData = await this.authorizeSession();
+
+    if (sessionData.userInfo?.dappShare.length > 0) {
+      const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
+      await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
+    }
+
+    this.updateState(sessionData);
+    return Boolean(this.state.userInfo.isMfaEnabled);
+>>>>>>> ed37faa (fix: correct keystore set order)
   }
 
   async manageMFA(): Promise<void> {
