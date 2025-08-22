@@ -1,6 +1,10 @@
 import { EncryptedStorage } from "../types/IEncryptedStorage";
 import { SecureStore } from "../types/IExpoSecureStore";
 
+export const KEYSTORE_KEYS = {
+  IS_SFA: "w3aIsSFA",
+};
+
 export default class KeyStore {
   storage: SecureStore | EncryptedStorage;
 

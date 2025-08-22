@@ -1,8 +1,12 @@
+import { NodeDetailManager } from "@toruslabs/fetch-node-details";
 import { SessionManager } from "@toruslabs/session-manager";
+import { keccak256, Torus, TorusKey, VerifierParams } from "@toruslabs/torus.js";
 import {
   AUTH_ACTIONS,
+  AUTH_CONNECTION,
   AuthConnectionConfig,
   type AuthSessionConfig,
+  AuthUserInfo,
   type BaseLoginParams,
   BUILD_ENV,
   jsonToBase64,
@@ -11,6 +15,7 @@ import {
   type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
 import { type IProvider } from "@web3auth/base";
+import { jwtDecode, JwtPayload } from "jwt-decode";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import unionBy from "lodash.unionby";
@@ -18,10 +23,11 @@ import URI from "urijs";
 
 import { Analytics, ANALYTICS_EVENTS, ANALYTICS_INTEGRATION_TYPE, ANALYTICS_SDK_NAME, CHAIN_NAMESPACES, log, sdkVersion } from "./base";
 import { InitializationError, LoginError, RequestError } from "./errors";
-import KeyStore from "./session/KeyStore";
+import KeyStore, { KEYSTORE_KEYS } from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
 import {
+  AggregateVerifierParams,
   AuthSessionData,
   type ChainsConfig,
   IWeb3Auth,
@@ -30,6 +36,7 @@ import {
   SdkLoginParams,
   type SmartAccountsConfig,
   State,
+  SubVerifierInfo,
   WalletLoginParams,
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
@@ -59,6 +66,10 @@ class Web3Auth implements IWeb3Auth {
   private projectConfig?: ProjectConfig;
 
   private analytics: Analytics;
+
+  private fetchNodeDetails: NodeDetailManager;
+
+  private torusUtils: Torus;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
@@ -130,6 +141,13 @@ class Web3Auth implements IWeb3Auth {
     this.analytics.setGlobalProperties({ integration_type: ANALYTICS_INTEGRATION_TYPE.NATIVE_SDK });
 
     this.privateKeyProvider = options.privateKeyProvider;
+    this.fetchNodeDetails = new NodeDetailManager({ network: this.options.network });
+    this.torusUtils = new Torus({
+      network: this.options.network,
+      clientId: this.options.clientId,
+      serverTimeOffset: 0,
+      enableOneKey: true,
+    });
     if (options.accountAbstractionProvider) {
       this.accountAbstractionProvider = options.accountAbstractionProvider;
     }
@@ -190,10 +208,13 @@ class Web3Auth implements IWeb3Auth {
     });
 
     try {
+      const isSFAValue = await this.keyStore.get(KEYSTORE_KEYS.IS_SFA);
+      const isSFA = isSFAValue === "true";
+
       this.sessionManager = new SessionManager<AuthSessionData>({
         sessionServerBaseUrl: this.options.storageServerUrl,
         sessionTime: this.options.sessionTime,
-        sessionNamespace: this.options.sessionNamespace,
+        sessionNamespace: isSFA ? "sfa" : undefined,
       });
 
       try {
@@ -229,6 +250,7 @@ class Web3Auth implements IWeb3Auth {
           }
         } else {
           await this.keyStore.remove("sessionId");
+          await this.keyStore.remove(KEYSTORE_KEYS.IS_SFA);
           this.updateState({});
         }
       }
@@ -261,89 +283,6 @@ class Web3Auth implements IWeb3Auth {
     }
   }
 
-  async login(loginParams: SdkLoginParams): Promise<IProvider | null> {
-    if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
-    if (!this.options.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
-    if (!loginParams.authConnection) throw InitializationError.invalidParams("authConnection is required");
-
-    const analyticsProperties = {
-      connector: "auth",
-      auth_connection: loginParams.authConnection,
-      auth_connection_id: loginParams.authConnectionId,
-      group_auth_connection_id: loginParams.groupedAuthConnectionId,
-      chain_id: this.options.defaultChainId,
-      dapp_url: loginParams.dappUrl,
-      chains: this.projectConfig.chains.map((chain) => chain.chainId),
-    };
-    this.analytics.track({
-      event: ANALYTICS_EVENTS.CONNECTION_STARTED,
-      properties: analyticsProperties,
-    });
-
-    // check for share
-    if (this.options.authConnectionConfig) {
-      const authConnectionConfigItem = this.options.authConnectionConfig[0];
-      if (authConnectionConfigItem) {
-        const share = await this.keyStore.get(authConnectionConfigItem.authConnectionId);
-        if (share) {
-          loginParams.dappShare = share;
-        }
-      }
-    }
-
-    const dataObject: AuthSessionConfig = {
-      actionType: AUTH_ACTIONS.LOGIN,
-      options: this.options,
-      params: loginParams,
-    };
-
-    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
-
-    if (result.type !== "success" || !result.url) {
-      log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
-      throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
-    }
-
-    const { sessionId, sessionNamespace, error } = getHashQueryParams(result.url);
-    if (error || !sessionId) {
-      throw LoginError.loginFailed(error || "SessionId is missing");
-    }
-
-    if (sessionId) {
-      await this.keyStore.set("sessionId", sessionId);
-      this.sessionManager.sessionId = sessionId;
-      this.sessionManager.sessionNamespace = sessionNamespace || "";
-    }
-
-    const sessionData = await this.authorizeSession();
-
-    if (!sessionData || Object.keys(sessionData).length === 0) {
-      throw LoginError.loginFailed("Session data is missing");
-    }
-
-    if (sessionData.userInfo?.dappShare.length > 0) {
-      const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
-      await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
-    }
-
-    this.updateState(sessionData);
-
-    const finalPrivKey = this.getFinalPrivKey();
-    if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
-    await this.privateKeyProvider.setupProvider(finalPrivKey);
-    // setup aa provider after private key provider is setup
-    if (this.accountAbstractionProvider) {
-      await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
-    }
-
-    this.analytics.track({
-      event: ANALYTICS_EVENTS.CONNECTION_COMPLETED,
-      properties: analyticsProperties,
-    });
-
-    return this.provider;
-  }
-
   async logout(): Promise<void> {
     if (!this.sessionManager.sessionId) {
       throw LoginError.userNotLoggedIn();
@@ -358,9 +297,11 @@ class Web3Auth implements IWeb3Auth {
 
       await this.sessionManager.invalidateSession();
       await this.keyStore.remove("sessionId");
+      await this.keyStore.remove(KEYSTORE_KEYS.IS_SFA);
 
       if (currentUserInfo.authConnectionId && currentUserInfo.dappShare.length > 0) {
-        await this.keyStore.remove(currentUserInfo.authConnectionId);
+        const verifier = currentUserInfo.groupedAuthConnectionId || currentUserInfo.authConnectionId;
+        await this.keyStore.remove(verifier);
       }
 
       this.updateState({
@@ -452,10 +393,14 @@ class Web3Auth implements IWeb3Auth {
       await this.createLoginSession(loginId, dataObject);
 
       const { sessionId } = this.sessionManager;
+      const isSFAValue = await this.keyStore.get(KEYSTORE_KEYS.IS_SFA);
+      const isSFA = isSFAValue === "true";
+
       const configParams: WalletLoginParams = {
         loginId,
         sessionId,
         platform: "react-native",
+        sessionNamespace: isSFA ? "sfa" : undefined,
       };
 
       const loginUrl = constructURL({
@@ -704,6 +649,49 @@ class Web3Auth implements IWeb3Auth {
     throw LoginError.userNotLoggedIn();
   }
 
+  public async connectTo(loginParams: SdkLoginParams): Promise<IProvider | null> {
+    const isSFA = !!loginParams.idToken;
+
+    // recreate session manager with sfa option
+    this.sessionManager = new SessionManager<AuthSessionData>({
+      sessionServerBaseUrl: this.options.storageServerUrl,
+      sessionTime: this.options.sessionTime,
+      sessionNamespace: isSFA ? "sfa" : undefined,
+    });
+
+    if (isSFA) {
+      await this.keyStore.set(KEYSTORE_KEYS.IS_SFA, "true");
+      if (loginParams.groupedAuthConnectionId) {
+        const aggregateLoginParams: SdkLoginParams = {
+          authConnection: AUTH_CONNECTION.CUSTOM,
+          authConnectionId: loginParams.groupedAuthConnectionId,
+          idToken: loginParams.idToken,
+        };
+        const subVerifierInfoArray: SubVerifierInfo[] = [
+          {
+            verifier: loginParams.authConnectionId,
+            idToken: loginParams.idToken,
+          },
+        ];
+        await this.connect(aggregateLoginParams, subVerifierInfoArray);
+      } else {
+        await this.connect(loginParams);
+      }
+    } else {
+      await this.login(loginParams);
+    }
+
+    const finalPrivKey = this.getFinalPrivKey();
+    if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
+    await this.privateKeyProvider.setupProvider(finalPrivKey);
+    // setup aa provider after private key provider is setup
+    if (this.accountAbstractionProvider) {
+      await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
+    }
+
+    return this.provider;
+  }
+
   public setAnalyticsProperties(properties: Record<string, unknown>) {
     this.analytics.setGlobalProperties(properties);
   }
@@ -752,6 +740,199 @@ class Web3Auth implements IWeb3Auth {
     };
   }
 
+  private async login(loginParams: SdkLoginParams): Promise<IProvider | null> {
+    if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
+    if (!this.options.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
+    if (!loginParams.authConnection) throw InitializationError.invalidParams("authConnection is required");
+
+    const analyticsProperties = {
+      connector: "auth",
+      auth_connection: loginParams.authConnection,
+      auth_connection_id: loginParams.authConnectionId,
+      group_auth_connection_id: loginParams.groupedAuthConnectionId,
+      chain_id: this.options.defaultChainId,
+      dapp_url: loginParams.dappUrl,
+      chains: this.projectConfig.chains.map((chain) => chain.chainId),
+    };
+    this.analytics.track({
+      event: ANALYTICS_EVENTS.CONNECTION_STARTED,
+      properties: analyticsProperties,
+    });
+
+    // check for share
+    if (this.options.authConnectionConfig) {
+      const authConnectionConfigItem = this.options.authConnectionConfig[0];
+      if (authConnectionConfigItem) {
+        const share = await this.keyStore.get(authConnectionConfigItem.authConnectionId);
+        if (share) {
+          loginParams.dappShare = share;
+        }
+      }
+    }
+
+    const dataObject: AuthSessionConfig = {
+      actionType: AUTH_ACTIONS.LOGIN,
+      options: this.options,
+      params: loginParams,
+    };
+
+    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+
+    if (result.type !== "success" || !result.url) {
+      log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
+      throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
+    }
+
+    const { sessionId, sessionNamespace, error } = getHashQueryParams(result.url);
+    if (error || !sessionId) {
+      throw LoginError.loginFailed(error || "SessionId is missing");
+    }
+
+    if (sessionId) {
+      await this.keyStore.set("sessionId", sessionId);
+      this.sessionManager.sessionId = sessionId;
+      this.sessionManager.sessionNamespace = sessionNamespace || "";
+    }
+
+    const sessionData = await this.authorizeSession();
+
+    if (!sessionData || Object.keys(sessionData).length === 0) {
+      throw LoginError.loginFailed("Session data is missing");
+    }
+
+    if (sessionData.userInfo?.dappShare.length > 0) {
+      const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
+      await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
+    }
+
+    this.updateState(sessionData);
+
+    const finalPrivKey = this.getFinalPrivKey();
+    if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
+    await this.privateKeyProvider.setupProvider(finalPrivKey);
+    // setup aa provider after private key provider is setup
+    if (this.accountAbstractionProvider) {
+      await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
+    }
+
+    this.analytics.track({
+      event: ANALYTICS_EVENTS.CONNECTION_COMPLETED,
+      properties: analyticsProperties,
+    });
+
+    return this.provider;
+  }
+
+  /**
+   * Handle user SFA login.
+   * @param loginParams - The login parameters.
+   * @param subVerifierInfoArray - The sub-verifier information array.
+   * @returns The connected user information.
+   */
+  private async connect(loginParams: SdkLoginParams, subVerifierInfoArray?: SubVerifierInfo[]) {
+    const torusKey = await this.getTorusKey(loginParams, subVerifierInfoArray);
+    const privateKey = torusKey.finalKeyData?.privKey ?? torusKey.oAuthKeyData?.privKey;
+    const decodedUserInfo = jwtDecode<JwtPayload & { email?: string; name?: string; nickname?: string; picture?: string; user_id?: string }>(
+      loginParams.idToken
+    );
+    const userInfo: AuthUserInfo = {
+      email: decodedUserInfo.email,
+      name: decodedUserInfo.name ?? decodedUserInfo.nickname,
+      profileImage: decodedUserInfo.picture,
+      userId: decodedUserInfo.user_id,
+      authConnectionId: loginParams.authConnectionId,
+      authConnection: AUTH_CONNECTION.CUSTOM,
+      groupedAuthConnectionId: loginParams.groupedAuthConnectionId,
+      oAuthIdToken: loginParams.idToken,
+    };
+
+    const signatures = this.getSessionSignatures(torusKey.sessionData);
+
+    const authSessionData: AuthSessionData = {
+      privKey: privateKey,
+      userInfo,
+      signatures,
+    };
+    const sessionId = SessionManager.generateRandomSessionKey();
+    this.sessionManager.sessionId = sessionId;
+    await this.sessionManager.createSession(authSessionData);
+    await this.keyStore.set("sessionId", sessionId);
+
+    this.updateState(authSessionData);
+  }
+
+  private async getTorusKey(loginParams: SdkLoginParams, subVerifierInfoArray?: SubVerifierInfo[]) {
+    const userId = this.getUserIdFromJWT(loginParams.idToken);
+    const { torusNodeEndpoints, torusNodePub, torusIndexes } = await this.fetchNodeDetails.getNodeDetails({
+      verifier: loginParams.authConnectionId,
+      verifierId: userId,
+    });
+
+    let retrieveSharesResponse: TorusKey;
+
+    if (subVerifierInfoArray && subVerifierInfoArray.length > 0) {
+      const aggregateIdTokenSeeds: string[] = [];
+      const subVerifierIds: string[] = [];
+      const verifyParams: { verifier_id: string; idtoken: string }[] = [];
+
+      for (const subVerifierInfo of subVerifierInfoArray) {
+        const subVerifierId = this.getUserIdFromJWT(subVerifierInfo.idToken);
+        subVerifierIds.push(subVerifierId);
+        aggregateIdTokenSeeds.push(subVerifierInfo.idToken);
+        verifyParams.push({ verifier_id: userId, idtoken: subVerifierInfo.idToken });
+      }
+
+      aggregateIdTokenSeeds.sort();
+
+      const verifierParams: AggregateVerifierParams = {
+        verifier_id: userId,
+        verify_params: verifyParams,
+        sub_verifier_ids: subVerifierIds,
+      };
+
+      const separator = String.fromCharCode(29);
+      const joined = aggregateIdTokenSeeds.join(separator);
+      const aggregateIdToken = keccak256(Buffer.from(joined, "utf8")).replace(/^0x/, "");
+
+      retrieveSharesResponse = await this.torusUtils.retrieveShares({
+        endpoints: torusNodeEndpoints,
+        nodePubkeys: torusNodePub,
+        indexes: torusIndexes,
+        verifier: loginParams.authConnectionId,
+        verifierParams: verifierParams,
+        idToken: aggregateIdToken,
+      });
+    } else {
+      const verifierParams: VerifierParams = {
+        verifier_id: userId,
+      };
+      retrieveSharesResponse = await this.torusUtils.retrieveShares({
+        endpoints: torusNodeEndpoints,
+        nodePubkeys: torusNodePub,
+        indexes: torusIndexes,
+        verifier: loginParams.authConnectionId,
+        verifierParams: verifierParams,
+        idToken: loginParams.idToken,
+      });
+    }
+
+    const isUpgraded = retrieveSharesResponse.metadata?.upgraded;
+    if (isUpgraded) {
+      throw LoginError.mfaAlreadyEnabled();
+    }
+
+    return retrieveSharesResponse;
+  }
+
+  private getSessionSignatures(sessionData: TorusKey["sessionData"]): string[] {
+    return sessionData.sessionTokenData.filter((i) => Boolean(i)).map((session) => JSON.stringify({ data: session.token, sig: session.signature }));
+  }
+
+  private getUserIdFromJWT(token: string): string {
+    const decoded = jwtDecode<JwtPayload & { user_id: string }>(token);
+    return decoded["user_id"];
+  }
+
   private updateState(newState: State) {
     this.state = { ...newState };
   }
@@ -761,7 +942,6 @@ class Web3Auth implements IWeb3Auth {
 
     const loginSessionMgr = new SessionManager<AuthSessionConfig>({
       sessionServerBaseUrl: this.options.storageServerUrl,
-      sessionNamespace: this.options.sessionNamespace,
       sessionTime: timeout, // each login key must be used with 10 mins (might be used at the end of popup redirect)
       sessionId: loginId,
     });
@@ -777,7 +957,6 @@ class Web3Auth implements IWeb3Auth {
 
     const configParams: BaseLoginParams = {
       loginId,
-      sessionNamespace: this.options.sessionNamespace,
       storageServerUrl: this.options.storageServerUrl,
     };
 

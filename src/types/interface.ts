@@ -32,13 +32,15 @@ type SdkSpecificInitParams = {
   accountAbstractionProvider?: IBaseProvider<IProvider>;
 };
 
-export type SdkInitParams = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey"> &
+export type SdkInitParams = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey" | "sessionNamespace"> &
   Required<Pick<AuthOptions, "redirectUrl">> & {
     defaultChainId?: string;
     walletServicesConfig?: WalletServicesConfig;
   };
 
-export type SdkLoginParams = Omit<LoginParams, "getWalletKey">;
+export type SdkLoginParams = Omit<LoginParams, "getWalletKey"> & {
+  idToken?: string;
+};
 
 // export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;
 
@@ -68,7 +70,7 @@ export interface IWeb3Auth {
   provider: IProvider | null;
   connected: boolean;
   init: () => Promise<void>;
-  login: (params: SdkLoginParams) => Promise<IProvider | null>;
+  connectTo: (params: SdkLoginParams) => Promise<IProvider | null>;
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
   enableMFA: () => Promise<boolean>;
@@ -85,6 +87,7 @@ export type WalletLoginParams = {
     params: unknown[];
   };
   platform: string;
+  sessionNamespace?: string;
 };
 
 export type ChainNamespaceType = (typeof CHAIN_NAMESPACES)[keyof typeof CHAIN_NAMESPACES];
