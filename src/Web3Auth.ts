@@ -119,7 +119,7 @@ class Web3Auth implements IWeb3Auth {
     } else {
       log.setLevel("ERROR");
     }
-    if (!options.includeUserDataInToken) options.includeUserDataInToken = true;
+    if (typeof options.includeUserDataInToken === "boolean") options.includeUserDataInToken = true;
 
     this.options = options;
     this.webBrowser = webBrowser;
@@ -176,12 +176,11 @@ class Web3Auth implements IWeb3Auth {
     } catch (e) {
       throw new Error(`Error getting project config options, reason: ${e || "unknown"}`);
     }
-    const { whitelabel, whitelist, key_export_enabled } = this.projectConfig;
-    this.options.whiteLabel = merge(clonedeep(whitelabel), this.options.whiteLabel);
-    if (whitelabel && this.options.walletServicesConfig) {
-      this.options.walletServicesConfig.whiteLabel = merge(clonedeep(whitelabel), this.options.walletServicesConfig.whiteLabel);
+    this.options.whiteLabel = merge(clonedeep(this.projectConfig.whitelabel), this.options.whiteLabel);
+    if (this.projectConfig.whitelabel && this.options.walletServicesConfig) {
+      this.options.walletServicesConfig.whiteLabel = merge(clonedeep(this.projectConfig.whitelabel), this.options.walletServicesConfig.whiteLabel);
     }
-    this.options.originData = merge(clonedeep(whitelist.signed_urls), this.options.originData);
+    this.options.originData = merge(clonedeep(this.projectConfig.whitelist.signed_urls), this.options.originData);
     this.options.authConnectionConfig = unionBy(
       this.projectConfig.embeddedWalletAuth ?? [],
       this.options.authConnectionConfig ?? [],
@@ -190,8 +189,8 @@ class Web3Auth implements IWeb3Auth {
     this.options.mfaSettings = merge(clonedeep(this.projectConfig.mfaSettings), this.options.mfaSettings);
     //log.debug(`[Web3Auth] _config: ${JSON.stringify(this.options)}`);
 
-    if (typeof key_export_enabled === "boolean") {
-      this.privateKeyProvider.setKeyExportFlag(key_export_enabled);
+    if (typeof this.projectConfig.key_export_enabled === "boolean") {
+      this.privateKeyProvider.setKeyExportFlag(this.projectConfig.key_export_enabled);
     }
 
     const sessionId = await this.keyStore.get("sessionId");
