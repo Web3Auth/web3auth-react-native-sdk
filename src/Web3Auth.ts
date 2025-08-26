@@ -26,7 +26,7 @@ import {
   AuthSessionData,
   ChainConfig,
   IWeb3Auth,
-  ProjectConfigResponse,
+  ProjectConfig,
   SdkInitParams,
   SdkLoginParams,
   SmartAccountConfig,
@@ -57,7 +57,7 @@ class Web3Auth implements IWeb3Auth {
 
   private accountAbstractionProvider?: SdkInitParams["accountAbstractionProvider"];
 
-  private projectConfig?: ProjectConfigResponse;
+  private projectConfig?: ProjectConfig;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
@@ -177,9 +177,7 @@ class Web3Auth implements IWeb3Auth {
       throw new Error(`Error getting project config options, reason: ${e || "unknown"}`);
     }
     this.options.whiteLabel = merge(clonedeep(this.projectConfig.whitelabel), this.options.whiteLabel);
-    if (this.projectConfig.whitelabel && this.options.walletServicesConfig) {
-      this.options.walletServicesConfig.whiteLabel = merge(clonedeep(this.projectConfig.whitelabel), this.options.walletServicesConfig.whiteLabel);
-    }
+    this.initWalletServicesConfig(this.projectConfig);
     this.options.originData = merge(clonedeep(this.projectConfig.whitelist.signed_urls), this.options.originData);
     this.options.authConnectionConfig = unionBy(
       this.projectConfig.embeddedWalletAuth ?? [],
@@ -189,8 +187,8 @@ class Web3Auth implements IWeb3Auth {
     this.options.mfaSettings = merge(clonedeep(this.projectConfig.mfaSettings), this.options.mfaSettings);
     //log.debug(`[Web3Auth] _config: ${JSON.stringify(this.options)}`);
 
-    if (typeof this.projectConfig.key_export_enabled === "boolean") {
-      this.privateKeyProvider.setKeyExportFlag(this.projectConfig.key_export_enabled);
+    if (typeof this.projectConfig.enableKeyExport === "boolean") {
+      this.privateKeyProvider.setKeyExportFlag(this.projectConfig.enableKeyExport);
     }
 
     const sessionId = await this.keyStore.get("sessionId");
@@ -535,6 +533,50 @@ class Web3Auth implements IWeb3Auth {
       return this.state.userInfo;
     }
     throw LoginError.userNotLoggedIn();
+  }
+
+  protected initWalletServicesConfig(projectConfig: ProjectConfig) {
+    const { enableKeyExport, walletUi } = projectConfig;
+    const {
+      enablePortfolioWidget = false,
+      enableTokenDisplay = true,
+      enableNftDisplay = true,
+      enableWalletConnect = true,
+      enableBuyButton = true,
+      enableSendButton = true,
+      enableSwapButton = true,
+      enableReceiveButton = true,
+      enableShowAllTokensButton = true,
+      enableConfirmationModal = false,
+      portfolioWidgetPosition = "bottom-left",
+      defaultPortfolio = "token",
+    } = walletUi || {};
+    const projectConfigWhiteLabel = {
+      showWidgetButton: enablePortfolioWidget,
+      hideNftDisplay: !enableNftDisplay,
+      hideTokenDisplay: !enableTokenDisplay,
+      hideTransfers: !enableSendButton,
+      hideTopup: !enableBuyButton,
+      hideReceive: !enableReceiveButton,
+      hideSwap: !enableSwapButton,
+      hideShowAllTokens: !enableShowAllTokensButton,
+      hideWalletConnect: !enableWalletConnect,
+      buttonPosition: portfolioWidgetPosition,
+      defaultPortfolio,
+    };
+    const whiteLabel = merge(projectConfigWhiteLabel, this.options.walletServicesConfig?.whiteLabel || {});
+    const confirmationStrategy = this.options.walletServicesConfig?.confirmationStrategy ?? (enableConfirmationModal ? "modal" : "auto-approve");
+    const isKeyExportEnabled = this.options.walletServicesConfig?.enableKeyExport ?? enableKeyExport ?? true;
+    this.options.walletServicesConfig = {
+      ...this.options.walletServicesConfig,
+      confirmationStrategy,
+      whiteLabel: {
+        ...whiteLabel,
+        logoLight: whiteLabel?.logoLight || "",
+        logoDark: whiteLabel?.logoDark || "",
+      },
+      enableKeyExport: isKeyExportEnabled,
+    };
   }
 
   private updateState(newState: State) {

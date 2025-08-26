@@ -4,7 +4,7 @@ import { BUILD_ENV_TYPE, safeatob, WEB3AUTH_NETWORK, type WEB3AUTH_NETWORK_TYPE 
 import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
 
-import { ProjectConfigResponse } from "./index";
+import { ProjectConfig } from "./types/interface";
 
 export function constructURL(params: { baseURL: string; query?: Record<string, unknown>; hash?: Record<string, unknown> }): string {
   const { baseURL, query, hash } = params;
@@ -84,14 +84,14 @@ export const fetchProjectConfig = async (
   clientId: string,
   web3AuthNetwork: WEB3AUTH_NETWORK_TYPE,
   buildEnv?: BUILD_ENV_TYPE
-): Promise<ProjectConfigResponse> => {
+): Promise<ProjectConfig> => {
   try {
     const url = new URL(`${signerHost(web3AuthNetwork)}/api/v2/configuration`);
     url.searchParams.append("project_id", clientId);
     url.searchParams.append("network", web3AuthNetwork);
     if (buildEnv) url.searchParams.append("build_env", buildEnv);
     //log.debug("Fetching project configuration from URL:", url.href);
-    const res = await get<ProjectConfigResponse>(url.href);
+    const res = await get<ProjectConfig>(url.href);
     //log.debug(`[Web3Auth] config response: ${JSON.stringify(res)}`);
     return res;
   } catch (e) {

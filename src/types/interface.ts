@@ -16,6 +16,8 @@ import {
 } from "@web3auth/auth";
 import type { IBaseProvider, IProvider } from "@web3auth/base";
 
+import { MODAL_SIGN_IN_METHODS, WIDGET_TYPE } from "../constants";
+
 type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
@@ -105,6 +107,7 @@ export type ChainConfig = {
 export type WalletServicesConfig = {
   confirmationStrategy: ConfirmationStrategyType;
   whiteLabel?: WhiteLabelData;
+  enableKeyExport?: boolean;
 };
 
 export type ConfirmationStrategyType = "popup" | "modal" | "auto-approve" | "default";
@@ -114,22 +117,52 @@ export interface WhitelistResponse {
   signed_urls: Record<string, string>;
 }
 
-export interface ProjectConfigResponse {
-  whitelabel?: WhiteLabelData;
-  sms_otp_enabled: boolean;
-  wallet_connect_enabled: boolean;
-  walletConnectProjectId?: string;
-  whitelist?: WhitelistResponse;
-  key_export_enabled?: boolean;
-  userDataInIdToken?: boolean;
+export type ExternalWalletsConfig = {
+  disableAllRecommendedWallets?: boolean;
+  disableAllOtherWallets?: boolean;
+  disabledWallets?: string[];
+};
+
+export type ModalSignInMethodType = (typeof MODAL_SIGN_IN_METHODS)[keyof typeof MODAL_SIGN_IN_METHODS];
+
+export type WidgetType = (typeof WIDGET_TYPE)[keyof typeof WIDGET_TYPE];
+
+export type LoginModalConfig = {
+  // design
+  widgetType?: WidgetType;
+  logoAlignment?: "left" | "center";
+  borderRadiusType?: "small" | "medium" | "large";
+  buttonRadiusType?: "pill" | "rounded" | "square";
+  // authentication
+  signInMethods?: ModalSignInMethodType[];
+  addPreviousLoginHint?: boolean;
+  // external wallets
+  displayInstalledExternalWallets?: boolean;
+  displayExternalWalletsCount?: boolean;
+};
+
+export type ProjectConfig = {
+  teamId: number;
+  // General config
+  userDataIncludedInToken?: boolean; // TODO: implement this
   sessionTime?: number;
-  chains?: ChainConfig[];
-  smartAccounts?: SmartAccountConfig;
-  walletUiConfig?: WalletUiConfig;
-  embeddedWalletAuth?: AuthConnectionConfig;
-  teamId?: number;
+  enableKeyExport?: boolean;
   mfaSettings?: MfaSettings;
-}
+  walletConnectProjectId?: string;
+  whitelist?: WhitelistResponse; // remain unchanged
+  // Chains config
+  chains?: ChainConfig[];
+  // Smart accounts config
+  smartAccounts?: SmartAccountConfig;
+  // Wallet config
+  walletUi?: WalletUiConfig;
+  // Authentication config
+  externalWalletAuth?: ExternalWalletsConfig;
+  embeddedWalletAuth?: AuthConnectionConfig;
+  // Branding config
+  whitelabel?: WhiteLabelData; // remain unchanged
+  loginModal?: LoginModalConfig;
+};
 
 export type SmartAccountType = "metamask" | "safe" | "kernel" | "biconomy" | "trust" | "light" | "simple" | "nexus";
 
