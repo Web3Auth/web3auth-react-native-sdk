@@ -10,29 +10,18 @@ import {
   WEB3AUTH_NETWORK,
   type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
-import { type IProvider } from "@web3auth/base";
+import { CHAIN_NAMESPACES, type ChainsConfig, type IProvider, type ProjectConfig, type SmartAccountsConfig } from "@web3auth/no-modal";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import unionBy from "lodash.unionby";
 import log from "loglevel";
 import URI from "urijs";
 
-import { CHAIN_NAMESPACES } from "./constants";
 import { InitializationError, LoginError, RequestError } from "./errors";
 import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
-import {
-  AuthSessionData,
-  ChainConfig,
-  IWeb3Auth,
-  ProjectConfig,
-  SdkInitParams,
-  SdkLoginParams,
-  SmartAccountConfig,
-  State,
-  WalletLoginParams,
-} from "./types/interface";
+import { AuthSessionData, IWeb3Auth, SdkInitParams, SdkLoginParams, State, WalletLoginParams } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
 import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
 
@@ -184,8 +173,6 @@ class Web3Auth implements IWeb3Auth {
       this.options.authConnectionConfig ?? [],
       "authConnectionId"
     );
-    this.options.mfaSettings = merge(clonedeep(this.projectConfig.mfaSettings), this.options.mfaSettings);
-    //log.debug(`[Web3Auth] _config: ${JSON.stringify(this.options)}`);
 
     if (typeof this.projectConfig.enableKeyExport === "boolean") {
       this.privateKeyProvider.setKeyExportFlag(this.projectConfig.enableKeyExport);
@@ -337,10 +324,10 @@ class Web3Auth implements IWeb3Auth {
 
     const dataObject: Omit<AuthSessionConfig, "options"> & {
       options: SdkInitParams & {
-        chains: ChainConfig[];
+        chains: ChainsConfig;
         chainId: string;
         embeddedWalletAuth?: AuthConnectionConfig;
-        accountAbstractionConfig: SmartAccountConfig;
+        accountAbstractionConfig: SmartAccountsConfig;
       };
     } = {
       actionType: AUTH_ACTIONS.LOGIN,
@@ -386,9 +373,9 @@ class Web3Auth implements IWeb3Auth {
 
     const dataObject: Omit<AuthSessionConfig, "options"> & {
       options: SdkInitParams & {
-        chains: ChainConfig[];
+        chains: ChainsConfig;
         chainId: string;
-        accountAbstractionConfig: SmartAccountConfig;
+        accountAbstractionConfig: SmartAccountsConfig;
         embeddedWalletAuth: AuthConnectionConfig;
       };
     } = {

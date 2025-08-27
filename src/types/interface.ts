@@ -1,6 +1,5 @@
 import {
   AUTH_CONNECTION,
-  AuthConnectionConfig,
   type AuthOptions,
   type AuthSessionData,
   BUILD_ENV,
@@ -8,15 +7,12 @@ import {
   type LoginParams,
   MFA_FACTOR,
   MFA_LEVELS,
-  MfaSettings,
   SUPPORTED_KEY_CURVES,
   THEME_MODES,
   WEB3AUTH_NETWORK,
-  type WhiteLabelData,
 } from "@web3auth/auth";
 import type { IBaseProvider, IProvider } from "@web3auth/base";
-
-import { MODAL_SIGN_IN_METHODS, WIDGET_TYPE } from "../constants";
+import { type WalletServicesConfig } from "@web3auth/no-modal";
 
 type SdkSpecificInitParams = {
   enableLogging?: boolean;
@@ -86,122 +82,5 @@ export type WalletLoginParams = {
   };
   platform: string;
 };
-
-export enum ChainNamespace {
-  EIP155 = "eip155",
-  SOLANA = "solana",
-}
-
-export type ChainConfig = {
-  chainNamespace: ChainNamespace;
-  decimals?: number;
-  blockExplorerUrl?: string;
-  chainId: string;
-  displayName?: string;
-  logo?: string;
-  rpcTarget: string;
-  ticker?: string;
-  tickerName?: string;
-};
-
-export type WalletServicesConfig = {
-  confirmationStrategy: ConfirmationStrategyType;
-  whiteLabel?: WhiteLabelData;
-  enableKeyExport?: boolean;
-};
-
-export type ConfirmationStrategyType = "popup" | "modal" | "auto-approve" | "default";
-
-export interface WhitelistResponse {
-  urls: string[];
-  signed_urls: Record<string, string>;
-}
-
-export type ExternalWalletsConfig = {
-  disableAllRecommendedWallets?: boolean;
-  disableAllOtherWallets?: boolean;
-  disabledWallets?: string[];
-};
-
-export type ModalSignInMethodType = (typeof MODAL_SIGN_IN_METHODS)[keyof typeof MODAL_SIGN_IN_METHODS];
-
-export type WidgetType = (typeof WIDGET_TYPE)[keyof typeof WIDGET_TYPE];
-
-export type LoginModalConfig = {
-  // design
-  widgetType?: WidgetType;
-  logoAlignment?: "left" | "center";
-  borderRadiusType?: "small" | "medium" | "large";
-  buttonRadiusType?: "pill" | "rounded" | "square";
-  // authentication
-  signInMethods?: ModalSignInMethodType[];
-  addPreviousLoginHint?: boolean;
-  // external wallets
-  displayInstalledExternalWallets?: boolean;
-  displayExternalWalletsCount?: boolean;
-};
-
-export type ProjectConfig = {
-  teamId: number;
-  // General config
-  userDataIncludedInToken?: boolean; // TODO: implement this
-  sessionTime?: number;
-  enableKeyExport?: boolean;
-  mfaSettings?: MfaSettings;
-  walletConnectProjectId?: string;
-  whitelist?: WhitelistResponse; // remain unchanged
-  // Chains config
-  chains?: ChainConfig[];
-  // Smart accounts config
-  smartAccounts?: SmartAccountConfig;
-  // Wallet config
-  walletUi?: WalletUiConfig;
-  // Authentication config
-  externalWalletAuth?: ExternalWalletsConfig;
-  embeddedWalletAuth?: AuthConnectionConfig;
-  // Branding config
-  whitelabel?: WhiteLabelData; // remain unchanged
-  loginModal?: LoginModalConfig;
-};
-
-export type SmartAccountType = "metamask" | "safe" | "kernel" | "biconomy" | "trust" | "light" | "simple" | "nexus";
-
-export type SmartAccountConfig = {
-  smartAccountType: SmartAccountType;
-  chains: SmartAccountChainConfig[];
-};
-
-export type SmartAccountChainConfig = {
-  chainId: string;
-  bundler: BundlerConfig;
-  paymaster?: PaymasterConfig;
-};
-
-export type BundlerConfig = {
-  url: string;
-};
-
-export type PaymasterConfig = {
-  url: string;
-};
-
-export type WalletUiConfig = {
-  enablePortfolioWidget?: boolean;
-  enableConfirmationModal?: boolean;
-  enableWalletConnect?: boolean;
-  enableTokenDisplay?: boolean;
-  enableNftDisplay?: boolean;
-  enableShowAllTokensButton?: boolean;
-  enableBuyButton?: boolean;
-  enableSendButton?: boolean;
-  enableSwapButton?: boolean;
-  enableReceiveButton?: boolean;
-  portfolioWidgetPosition?: ButtonPositionType;
-  defaultPortfolio?: DefaultPortfolioType;
-};
-
-export type ButtonPositionType = "bottom-left" | "bottom-right" | "top-left" | "top-right";
-
-export type DefaultPortfolioType = "token" | "nft";
 
 export { AUTH_CONNECTION, BUILD_ENV, LANGUAGES, MFA_FACTOR, MFA_LEVELS, SUPPORTED_KEY_CURVES, THEME_MODES, WEB3AUTH_NETWORK };

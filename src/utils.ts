@@ -1,10 +1,9 @@
 import { SIGNER_MAP } from "@toruslabs/constants";
 import { get } from "@toruslabs/http-helpers";
 import { BUILD_ENV_TYPE, safeatob, WEB3AUTH_NETWORK, type WEB3AUTH_NETWORK_TYPE } from "@web3auth/auth";
+import { type ProjectConfig } from "@web3auth/no-modal";
 import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
-
-import { ProjectConfig } from "./types/interface";
 
 export function constructURL(params: { baseURL: string; query?: Record<string, unknown>; hash?: Record<string, unknown> }): string {
   const { baseURL, query, hash } = params;
