@@ -10,13 +10,13 @@ import {
   WEB3AUTH_NETWORK,
   type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
-import { CHAIN_NAMESPACES, type ChainsConfig, type IProvider, type ProjectConfig, type SmartAccountsConfig } from "@web3auth/no-modal";
+import { type ChainsConfig, type IProvider, type ProjectConfig, type SmartAccountsConfig } from "@web3auth/no-modal";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import unionBy from "lodash.unionby";
-import log from "loglevel";
 import URI from "urijs";
 
+import { Analytics, ANALYTICS_EVENTS, ANALYTICS_INTEGRATION_TYPE, ANALYTICS_SDK_NAME, log, sdkVersion } from "./base";
 import { InitializationError, LoginError, RequestError } from "./errors";
 import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
@@ -24,6 +24,12 @@ import { SecureStore } from "./types/IExpoSecureStore";
 import { AuthSessionData, IWeb3Auth, SdkInitParams, SdkLoginParams, State, WalletLoginParams } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
 import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
+
+const CHAIN_NAMESPACES = {
+  EIP155: "eip155",
+  SOLANA: "solana",
+  OTHER: "other",
+};
 
 // import WebViewComponent from "./WebViewComponent";
 
@@ -47,6 +53,8 @@ class Web3Auth implements IWeb3Auth {
   private accountAbstractionProvider?: SdkInitParams["accountAbstractionProvider"];
 
   private projectConfig?: ProjectConfig;
+
+  protected analytics: Analytics;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
@@ -113,6 +121,10 @@ class Web3Auth implements IWeb3Auth {
     this.options = options;
     this.webBrowser = webBrowser;
     this.keyStore = new KeyStore(storage);
+
+    this.analytics = new Analytics();
+    this.analytics.setGlobalProperties({ integration_type: ANALYTICS_INTEGRATION_TYPE.NATIVE_SDK });
+
     this.privateKeyProvider = options.privateKeyProvider;
     if (options.accountAbstractionProvider) {
       this.accountAbstractionProvider = options.accountAbstractionProvider;
@@ -154,55 +166,117 @@ class Web3Auth implements IWeb3Auth {
     ) {
       throw InitializationError.invalidParams("provider should have chainConfig and should be initialized with chainId and chainNamespace");
     }
-    this.sessionManager = new SessionManager<AuthSessionData>({
-      sessionServerBaseUrl: this.options.storageServerUrl,
-      sessionTime: this.options.sessionTime,
-      sessionNamespace: this.options.sessionNamespace,
+    // init analytics
+    const startTime = Date.now();
+    this.analytics.init();
+    this.analytics.identify({
+      userId: this.options.clientId,
+      traits: {
+        web3auth_client_id: this.options.clientId,
+        web3auth_network: this.options.network,
+      },
+    });
+    this.analytics.setGlobalProperties({
+      dapp_url: window.location.origin,
+      sdk_name: ANALYTICS_SDK_NAME,
+      sdk_version: sdkVersion,
+      // Required for organization analytics
+      web3auth_client_id: this.options.clientId,
+      web3auth_network: this.options.network,
     });
 
     try {
-      this.projectConfig = await fetchProjectConfig(this.options.clientId, this.options.network, this.options.buildEnv);
-    } catch (e) {
-      throw new Error(`Error getting project config options, reason: ${e || "unknown"}`);
-    }
-    this.options.whiteLabel = merge(clonedeep(this.projectConfig.whitelabel), this.options.whiteLabel);
-    this.initWalletServicesConfig(this.projectConfig);
-    this.options.originData = merge(clonedeep(this.projectConfig.whitelist.signed_urls), this.options.originData);
-    this.options.authConnectionConfig = unionBy(
-      this.projectConfig.embeddedWalletAuth ?? [],
-      this.options.authConnectionConfig ?? [],
-      "authConnectionId"
-    );
+      this.sessionManager = new SessionManager<AuthSessionData>({
+        sessionServerBaseUrl: this.options.storageServerUrl,
+        sessionTime: this.options.sessionTime,
+        sessionNamespace: this.options.sessionNamespace,
+      });
 
-    if (typeof this.projectConfig.enableKeyExport === "boolean") {
-      this.privateKeyProvider.setKeyExportFlag(this.projectConfig.enableKeyExport);
-    }
-
-    const sessionId = await this.keyStore.get("sessionId");
-    if (sessionId) {
-      this.sessionManager.sessionId = sessionId;
-      const data = await this.authorizeSession();
-      if (Object.keys(data).length > 0) {
-        this.updateState(data);
-        const finalPrivKey = this.getFinalPrivKey();
-        if (!finalPrivKey) return;
-        await this.privateKeyProvider.setupProvider(finalPrivKey);
-        // setup aa provider after private key provider is setup
-        if (this.accountAbstractionProvider) {
-          await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
-        }
-      } else {
-        await this.keyStore.remove("sessionId");
-        this.updateState({});
+      try {
+        this.projectConfig = await fetchProjectConfig(this.options.clientId, this.options.network, this.options.buildEnv);
+      } catch (e) {
+        throw new Error(`Error getting project config options, reason: ${e || "unknown"}`);
       }
+      this.options.whiteLabel = merge(clonedeep(this.projectConfig.whitelabel), this.options.whiteLabel);
+      this.initWalletServicesConfig(this.projectConfig);
+      this.options.originData = merge(clonedeep(this.projectConfig.whitelist.signed_urls), this.options.originData);
+      this.options.authConnectionConfig = unionBy(
+        this.projectConfig.embeddedWalletAuth ?? [],
+        this.options.authConnectionConfig ?? [],
+        "authConnectionId"
+      );
+
+      if (typeof this.projectConfig.enableKeyExport === "boolean") {
+        this.privateKeyProvider.setKeyExportFlag(this.projectConfig.enableKeyExport);
+      }
+
+      this.analytics.setGlobalProperties({ team_id: this.projectConfig.teamId });
+
+      const sessionId = await this.keyStore.get("sessionId");
+      if (sessionId) {
+        this.sessionManager.sessionId = sessionId;
+        const data = await this.authorizeSession();
+        if (Object.keys(data).length > 0) {
+          this.updateState(data);
+          const finalPrivKey = this.getFinalPrivKey();
+          if (!finalPrivKey) return;
+          await this.privateKeyProvider.setupProvider(finalPrivKey);
+          // setup aa provider after private key provider is setup
+          if (this.accountAbstractionProvider) {
+            await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
+          }
+        } else {
+          await this.keyStore.remove("sessionId");
+          this.updateState({});
+        }
+      }
+      this.ready = true;
+
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.SDK_INITIALIZATION_COMPLETED,
+        properties: {
+          default_chain_id: this.options.defaultChainId,
+          chain_ids: this.projectConfig.chains.map((chain) => chain.chainId),
+          chain_nameSpaces: [CHAIN_NAMESPACES.EIP155, CHAIN_NAMESPACES.SOLANA, CHAIN_NAMESPACES.OTHER],
+          logging_enabled: this.options.enableLogging,
+          auth_build_env: this.options.buildEnv,
+          auth_mfa_settings: this.options.mfaSettings,
+          whitelabel_logo_light_enabled: this.options.whiteLabel.logoLight != null,
+          whitelabel_logo_dark_enabled: this.options.whiteLabel.logoDark != null,
+          whitelabel_theme_mode: this.options.whiteLabel.theme,
+          duration: Date.now() - startTime,
+        },
+      });
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.SDK_INITIALIZATION_FAILED,
+        properties: {
+          duration: Date.now() - startTime,
+          error_message: `Fetch project config API error. ${e instanceof Error ? e.message : e}`,
+        },
+      });
+      throw e;
     }
-    this.ready = true;
   }
 
   async login(loginParams: SdkLoginParams): Promise<IProvider | null> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!this.options.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
     if (!loginParams.authConnection) throw InitializationError.invalidParams("authConnection is required");
+
+    const analyticsProperties = {
+      connector: "auth",
+      auth_connection: loginParams.authConnection,
+      auth_connection_id: loginParams.authConnectionId,
+      group_auth_connection_id: loginParams.groupedAuthConnectionId,
+      chain_id: this.options.defaultChainId,
+      dapp_url: loginParams.dappUrl,
+      chains: this.projectConfig.chains.map((chain) => chain.chainId),
+    };
+    this.analytics.track({
+      event: ANALYTICS_EVENTS.CONNECTION_STARTED,
+      properties: analyticsProperties,
+    });
 
     // check for share
     if (this.options.authConnectionConfig) {
@@ -260,6 +334,11 @@ class Web3Auth implements IWeb3Auth {
       await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
     }
 
+    this.analytics.track({
+      event: ANALYTICS_EVENTS.CONNECTION_COMPLETED,
+      properties: analyticsProperties,
+    });
+
     return this.provider;
   }
 
@@ -267,49 +346,68 @@ class Web3Auth implements IWeb3Auth {
     if (!this.sessionManager.sessionId) {
       throw LoginError.userNotLoggedIn();
     }
-    const currentUserInfo = this.userInfo();
 
-    await this.sessionManager.invalidateSession();
-    await this.keyStore.remove("sessionId");
-
-    if (currentUserInfo.authConnectionId && currentUserInfo.dappShare.length > 0) {
-      await this.keyStore.remove(currentUserInfo.authConnectionId);
-    }
-
-    this.updateState({
-      privKey: "",
-      coreKitKey: "",
-      coreKitEd25519PrivKey: "",
-      ed25519PrivKey: "",
-      walletKey: "",
-      oAuthPrivateKey: "",
-      tKey: "",
-      metadataNonce: "",
-      keyMode: undefined,
-      userInfo: {
-        name: "",
-        profileImage: "",
-        dappShare: "",
-        idToken: "",
-        oAuthIdToken: "",
-        oAuthAccessToken: "",
-        appState: "",
-        email: "",
-        userId: "",
-        authConnection: "",
-        authConnectionId: "",
-        groupedAuthConnectionId: "",
-        isMfaEnabled: false,
-      },
-      authToken: "",
-      sessionId: "",
-      factorKey: "",
-      signatures: [],
-      tssShareIndex: -1,
-      tssPubKey: "",
-      tssShare: "",
-      tssNonce: -1,
+    this.analytics.track({
+      event: ANALYTICS_EVENTS.LOGOUT_STARTED,
     });
+
+    try {
+      const currentUserInfo = this.userInfo();
+
+      await this.sessionManager.invalidateSession();
+      await this.keyStore.remove("sessionId");
+
+      if (currentUserInfo.authConnectionId && currentUserInfo.dappShare.length > 0) {
+        await this.keyStore.remove(currentUserInfo.authConnectionId);
+      }
+
+      this.updateState({
+        privKey: "",
+        coreKitKey: "",
+        coreKitEd25519PrivKey: "",
+        ed25519PrivKey: "",
+        walletKey: "",
+        oAuthPrivateKey: "",
+        tKey: "",
+        metadataNonce: "",
+        keyMode: undefined,
+        userInfo: {
+          name: "",
+          profileImage: "",
+          dappShare: "",
+          idToken: "",
+          oAuthIdToken: "",
+          oAuthAccessToken: "",
+          appState: "",
+          email: "",
+          userId: "",
+          authConnection: "",
+          authConnectionId: "",
+          groupedAuthConnectionId: "",
+          isMfaEnabled: false,
+        },
+        authToken: "",
+        sessionId: "",
+        factorKey: "",
+        signatures: [],
+        tssShareIndex: -1,
+        tssPubKey: "",
+        tssShare: "",
+        tssNonce: -1,
+      });
+
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.LOGOUT_COMPLETED,
+      });
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.LOGOUT_FAILED,
+        properties: {
+          error_message: `Logout failed. ${e instanceof Error ? e.message : e}`,
+        },
+      });
+      throw e;
+    }
   }
 
   async launchWalletServices(path: string | null = "wallet"): Promise<void> {
@@ -322,43 +420,57 @@ class Web3Auth implements IWeb3Auth {
       throw InitializationError.invalidParams("Project config not found");
     }
 
-    const dataObject: Omit<AuthSessionConfig, "options"> & {
-      options: SdkInitParams & {
-        chains: ChainsConfig;
-        chainId: string;
-        embeddedWalletAuth?: AuthConnectionConfig;
-        accountAbstractionConfig: SmartAccountsConfig;
-      };
-    } = {
-      actionType: AUTH_ACTIONS.LOGIN,
-      options: {
-        ...this.options,
-        chains: this.projectConfig.chains,
-        defaultChainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
-        chainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
-        embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
-        accountAbstractionConfig: this.projectConfig.smartAccounts ?? undefined,
-      },
-      params: {},
-    };
-
-    const url = `${this.walletSdkUrl}/${path}`;
-    const loginId = SessionManager.generateRandomSessionKey();
-    await this.createLoginSession(loginId, dataObject);
-
-    const { sessionId } = this.sessionManager;
-    const configParams: WalletLoginParams = {
-      loginId,
-      sessionId,
-      platform: "react-native",
-    };
-
-    const loginUrl = constructURL({
-      baseURL: url,
-      hash: { b64Params: jsonToBase64(configParams) },
+    this.analytics.track({
+      event: ANALYTICS_EVENTS.WALLET_UI_CLICKED,
     });
 
-    this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
+    try {
+      const dataObject: Omit<AuthSessionConfig, "options"> & {
+        options: SdkInitParams & {
+          chains: ChainsConfig;
+          chainId: string;
+          embeddedWalletAuth?: AuthConnectionConfig;
+          accountAbstractionConfig: SmartAccountsConfig;
+        };
+      } = {
+        actionType: AUTH_ACTIONS.LOGIN,
+        options: {
+          ...this.options,
+          chains: this.projectConfig.chains,
+          defaultChainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
+          chainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
+          embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
+          accountAbstractionConfig: this.projectConfig.smartAccounts ?? undefined,
+        },
+        params: {},
+      };
+
+      const url = `${this.walletSdkUrl}/${path}`;
+      const loginId = SessionManager.generateRandomSessionKey();
+      await this.createLoginSession(loginId, dataObject);
+
+      const { sessionId } = this.sessionManager;
+      const configParams: WalletLoginParams = {
+        loginId,
+        sessionId,
+        platform: "react-native",
+      };
+
+      const loginUrl = constructURL({
+        baseURL: url,
+        hash: { b64Params: jsonToBase64(configParams) },
+      });
+
+      this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.WALLET_SERVICES_FAILED,
+        properties: {
+          error_message: `Wallet services failed. ${e instanceof Error ? e.message : e}`,
+        },
+      });
+      throw e;
+    }
   }
 
   async request(method: string, params: unknown[], path: string = "wallet/request"): Promise<string> {
@@ -371,57 +483,82 @@ class Web3Auth implements IWeb3Auth {
       throw InitializationError.invalidParams("Project config not found");
     }
 
-    const dataObject: Omit<AuthSessionConfig, "options"> & {
-      options: SdkInitParams & {
-        chains: ChainsConfig;
-        chainId: string;
-        accountAbstractionConfig: SmartAccountsConfig;
-        embeddedWalletAuth: AuthConnectionConfig;
-      };
-    } = {
-      actionType: AUTH_ACTIONS.LOGIN,
-      options: {
-        ...this.options,
-        chains: this.projectConfig.chains,
-        defaultChainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
-        chainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
-        accountAbstractionConfig: this.projectConfig.smartAccounts ?? undefined,
-        embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
-      },
-      params: {},
-    };
-
-    const url = `${this.walletSdkUrl}/${path}`;
-    const loginId = SessionManager.generateRandomSessionKey();
-    await this.createLoginSession(loginId, dataObject);
-
-    const { sessionId } = this.sessionManager;
-    const configParams: WalletLoginParams = {
-      loginId,
-      sessionId,
-      request: {
-        method,
-        params,
-      },
-      platform: "react-native",
-    };
-
-    const loginUrl = constructURL({
-      baseURL: url,
-      hash: { b64Params: jsonToBase64(configParams) },
+    this.analytics.track({
+      event: ANALYTICS_EVENTS.REQUEST_FUNCTION_STARTED,
     });
 
-    const result = await this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
-    if (result.type !== "success" || !result.url) {
-      log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
-      throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
-    }
+    const startTime = Date.now();
 
-    const { success, result: requestResult, error } = getHashQueryParams(result.url);
-    if (error || success === "false" || !success) {
-      throw RequestError.fromCode(5000, error);
+    try {
+      const dataObject: Omit<AuthSessionConfig, "options"> & {
+        options: SdkInitParams & {
+          chains: ChainsConfig;
+          chainId: string;
+          accountAbstractionConfig: SmartAccountsConfig;
+          embeddedWalletAuth: AuthConnectionConfig;
+        };
+      } = {
+        actionType: AUTH_ACTIONS.LOGIN,
+        options: {
+          ...this.options,
+          chains: this.projectConfig.chains,
+          defaultChainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
+          chainId: this.projectConfig.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
+          accountAbstractionConfig: this.projectConfig.smartAccounts ?? undefined,
+          embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
+        },
+        params: {},
+      };
+
+      const url = `${this.walletSdkUrl}/${path}`;
+      const loginId = SessionManager.generateRandomSessionKey();
+      await this.createLoginSession(loginId, dataObject);
+
+      const { sessionId } = this.sessionManager;
+      const configParams: WalletLoginParams = {
+        loginId,
+        sessionId,
+        request: {
+          method,
+          params,
+        },
+        platform: "react-native",
+      };
+
+      const loginUrl = constructURL({
+        baseURL: url,
+        hash: { b64Params: jsonToBase64(configParams) },
+      });
+
+      const result = await this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
+      if (result.type !== "success" || !result.url) {
+        log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
+        throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
+      }
+
+      const { success, result: requestResult, error } = getHashQueryParams(result.url);
+      if (error || success === "false" || !success) {
+        throw RequestError.fromCode(5000, error);
+      }
+
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.REQUEST_FUNCTION_COMPLETED,
+        properties: {
+          duration: Date.now() - startTime,
+        },
+      });
+
+      return requestResult;
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.REQUEST_FUNCTION_FAILED,
+        properties: {
+          error_message: `Request function failed. ${e instanceof Error ? e.message : e}`,
+          duration: Date.now() - startTime,
+        },
+      });
+      throw e;
     }
-    return requestResult;
   }
 
   async enableMFA(): Promise<boolean> {
@@ -432,51 +569,77 @@ class Web3Auth implements IWeb3Auth {
     if (this.state.userInfo.isMfaEnabled) {
       throw LoginError.mfaAlreadyEnabled();
     }
-    const loginParams: SdkLoginParams = {
-      authConnection: this.state.userInfo?.authConnection,
-      mfaLevel: MFA_LEVELS.MANDATORY,
-      extraLoginOptions: {
-        login_hint: this.state.userInfo?.userId,
+
+    this.analytics.track({
+      event: ANALYTICS_EVENTS.MFA_ENABLEMENT_STARTED,
+      properties: {
+        connector: "auth",
       },
-    };
+    });
 
-    const dataObject: AuthSessionConfig = {
-      actionType: AUTH_ACTIONS.ENABLE_MFA,
-      options: this.options,
-      params: {
-        ...loginParams,
-        mfaLevel: "mandatory",
-      },
-      sessionId: this.sessionManager.sessionId,
-    };
+    try {
+      const loginParams: SdkLoginParams = {
+        authConnection: this.state.userInfo?.authConnection,
+        mfaLevel: MFA_LEVELS.MANDATORY,
+        extraLoginOptions: {
+          login_hint: this.state.userInfo?.userId,
+        },
+      };
 
-    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+      const dataObject: AuthSessionConfig = {
+        actionType: AUTH_ACTIONS.ENABLE_MFA,
+        options: this.options,
+        params: {
+          ...loginParams,
+          mfaLevel: "mandatory",
+        },
+        sessionId: this.sessionManager.sessionId,
+      };
 
-    if (result.type !== "success" || !result.url) {
-      log.error(`[Web3Auth] enableMFA flow failed with error type ${result.type}`);
-      throw LoginError.loginFailed(`enableMFA flow failed with error type ${result.type}`);
+      const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+
+      if (result.type !== "success" || !result.url) {
+        log.error(`[Web3Auth] enableMFA flow failed with error type ${result.type}`);
+        throw LoginError.loginFailed(`enableMFA flow failed with error type ${result.type}`);
+      }
+
+      const { sessionId, sessionNamespace, error } = getHashQueryParams(result.url);
+      if (error || !sessionId) {
+        throw LoginError.loginFailed(error || "SessionId is missing");
+      }
+
+      if (sessionId) {
+        await this.keyStore.set("sessionId", sessionId);
+        this.sessionManager.sessionId = sessionId;
+        this.sessionManager.sessionNamespace = sessionNamespace || "";
+      }
+
+      const sessionData = await this.authorizeSession();
+
+      if (sessionData.userInfo?.dappShare.length > 0) {
+        const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
+        await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
+      }
+
+      this.updateState(sessionData);
+
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.MFA_ENABLEMENT_COMPLETED,
+        properties: {
+          connector: "auth",
+        },
+      });
+
+      return Boolean(this.state.userInfo.isMfaEnabled);
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.MFA_ENABLEMENT_FAILED,
+        properties: {
+          error_message: `MFA enablement failed. ${e instanceof Error ? e.message : e}`,
+        },
+      });
+      throw e;
     }
-
-    const { sessionId, sessionNamespace, error } = getHashQueryParams(result.url);
-    if (error || !sessionId) {
-      throw LoginError.loginFailed(error || "SessionId is missing");
-    }
-
-    if (sessionId) {
-      await this.keyStore.set("sessionId", sessionId);
-      this.sessionManager.sessionId = sessionId;
-      this.sessionManager.sessionNamespace = sessionNamespace || "";
-    }
-
-    const sessionData = await this.authorizeSession();
-
-    if (sessionData.userInfo?.dappShare.length > 0) {
-      const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
-      await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
-    }
-
-    this.updateState(sessionData);
-    return Boolean(this.state.userInfo.isMfaEnabled);
   }
 
   async manageMFA(): Promise<void> {
@@ -487,31 +650,48 @@ class Web3Auth implements IWeb3Auth {
     if (this.state.userInfo.isMfaEnabled) {
       throw LoginError.mfaAlreadyEnabled();
     }
-    const loginParams: SdkLoginParams & { redirectUrl: string } = {
-      authConnection: this.state.userInfo?.authConnection,
-      mfaLevel: MFA_LEVELS.MANDATORY,
-      extraLoginOptions: {
-        login_hint: this.state.userInfo?.userId,
+
+    this.analytics.track({
+      event: ANALYTICS_EVENTS.MFA_MANAGEMENT_STARTED,
+      properties: {
+        connector: "auth",
       },
-      dappUrl: this.options.redirectUrl,
-      redirectUrl: this.options.dashboardUrl,
-    };
+    });
+    try {
+      const loginParams: SdkLoginParams & { redirectUrl: string } = {
+        authConnection: this.state.userInfo?.authConnection,
+        mfaLevel: MFA_LEVELS.MANDATORY,
+        extraLoginOptions: {
+          login_hint: this.state.userInfo?.userId,
+        },
+        dappUrl: this.options.redirectUrl,
+        redirectUrl: this.options.dashboardUrl,
+      };
 
-    const dataObject: AuthSessionConfig = {
-      actionType: AUTH_ACTIONS.MANAGE_MFA,
-      options: this.options,
-      params: {
-        ...loginParams,
-        mfaLevel: "mandatory",
-      },
-      sessionId: this.sessionManager.sessionId,
-    };
+      const dataObject: AuthSessionConfig = {
+        actionType: AUTH_ACTIONS.MANAGE_MFA,
+        options: this.options,
+        params: {
+          ...loginParams,
+          mfaLevel: "mandatory",
+        },
+        sessionId: this.sessionManager.sessionId,
+      };
 
-    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+      const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
 
-    if (result.type !== "success" || !result.url) {
-      log.error(`[Web3Auth] manageMFA flow failed with error type ${result.type}`);
-      throw LoginError.loginFailed(`manageMFA flow failed with error type ${result.type}`);
+      if (result.type !== "success" || !result.url) {
+        log.error(`[Web3Auth] manageMFA flow failed with error type ${result.type}`);
+        throw LoginError.loginFailed(`manageMFA flow failed with error type ${result.type}`);
+      }
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.MFA_MANAGEMENT_FAILED,
+        properties: {
+          error_message: `MFA management failed. ${e instanceof Error ? e.message : e}`,
+        },
+      });
+      throw e;
     }
   }
 
@@ -520,6 +700,10 @@ class Web3Auth implements IWeb3Auth {
       return this.state.userInfo;
     }
     throw LoginError.userNotLoggedIn();
+  }
+
+  public setAnalyticsProperties(properties: Record<string, unknown>) {
+    this.analytics.setGlobalProperties(properties);
   }
 
   protected initWalletServicesConfig(projectConfig: ProjectConfig) {
