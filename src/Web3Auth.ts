@@ -10,7 +10,7 @@ import {
   WEB3AUTH_NETWORK,
   type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
-import { type ChainsConfig, type IProvider, type ProjectConfig, type SmartAccountsConfig } from "@web3auth/no-modal";
+import { CHAIN_NAMESPACES, type ChainsConfig, type IProvider, type ProjectConfig, type SmartAccountsConfig } from "@web3auth/no-modal";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import unionBy from "lodash.unionby";
@@ -24,12 +24,6 @@ import { SecureStore } from "./types/IExpoSecureStore";
 import { AuthSessionData, IWeb3Auth, SdkInitParams, SdkLoginParams, State, WalletLoginParams } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
 import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
-
-const CHAIN_NAMESPACES = {
-  EIP155: "eip155",
-  SOLANA: "solana",
-  OTHER: "other",
-};
 
 // import WebViewComponent from "./WebViewComponent";
 
