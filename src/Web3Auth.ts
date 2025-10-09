@@ -10,18 +10,28 @@ import {
   WEB3AUTH_NETWORK,
   type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
-import { CHAIN_NAMESPACES, type ChainsConfig, type IProvider, type ProjectConfig, type SmartAccountsConfig } from "@web3auth/no-modal";
+import { type IProvider } from "@web3auth/base";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
 import unionBy from "lodash.unionby";
 import URI from "urijs";
 
-import { Analytics, ANALYTICS_EVENTS, ANALYTICS_INTEGRATION_TYPE, ANALYTICS_SDK_NAME, log, sdkVersion } from "./base";
+import { Analytics, ANALYTICS_EVENTS, ANALYTICS_INTEGRATION_TYPE, ANALYTICS_SDK_NAME, CHAIN_NAMESPACES, log, sdkVersion } from "./base";
 import { InitializationError, LoginError, RequestError } from "./errors";
 import KeyStore from "./session/KeyStore";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
-import { AuthSessionData, IWeb3Auth, SdkInitParams, SdkLoginParams, State, WalletLoginParams } from "./types/interface";
+import {
+  AuthSessionData,
+  type ChainsConfig,
+  IWeb3Auth,
+  type ProjectConfig,
+  SdkInitParams,
+  SdkLoginParams,
+  type SmartAccountsConfig,
+  State,
+  WalletLoginParams,
+} from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
 import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
 
@@ -48,7 +58,7 @@ class Web3Auth implements IWeb3Auth {
 
   private projectConfig?: ProjectConfig;
 
-  protected analytics: Analytics;
+  private analytics: Analytics;
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
@@ -203,9 +213,7 @@ class Web3Auth implements IWeb3Auth {
       if (typeof this.projectConfig.enableKeyExport === "boolean") {
         this.privateKeyProvider.setKeyExportFlag(this.projectConfig.enableKeyExport);
       }
-
       this.analytics.setGlobalProperties({ team_id: this.projectConfig.teamId });
-
       const sessionId = await this.keyStore.get("sessionId");
       if (sessionId) {
         this.sessionManager.sessionId = sessionId;

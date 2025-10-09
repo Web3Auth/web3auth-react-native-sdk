@@ -41,7 +41,7 @@
     "@toruslabs/loglevel-sentry": "^8.1.0",
     "@toruslabs/session-manager": "^4.0.2",
     "@web3auth/auth": "^10.5.0",
-    "@web3auth/no-modal": "^10.3.0",
+    "@web3auth/ws-embed": "^5.0.23",
     "buffer": "^6.0.3",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
