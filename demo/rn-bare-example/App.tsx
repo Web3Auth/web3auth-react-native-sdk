@@ -11,7 +11,7 @@ import {
   TrustSmartAccount,
 } from "@web3auth/account-abstraction-provider";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-import Web3Auth, { AUTH_CONNECTION, ChainNamespace, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
+import Web3Auth, { AUTH_CONNECTION, CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
 import { ethers } from "ethers";
 import React, { useEffect, useState } from "react";
 import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
@@ -30,9 +30,9 @@ const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw
 
 // IMP START - SDK Initialization
 const chainConfig = {
-  chainNamespace: ChainNamespace.EIP155,
+  chainNamespace: CHAIN_NAMESPACES.EIP155,
   chainId: "0xaa36a7",
-  rpcTarget: "https://1rpc.io/sepolia",
+  rpcTarget: "https://ethereum-sepolia-rpc.publicnode.com",
   // Avoid using public rpcTarget in production.
   // Use services like Infura, Quicknode etc
   displayName: "Ethereum Sepolia Testnet",
@@ -296,7 +296,7 @@ export default function App() {
       const address: string = await getAccounts();
 
       const params = ["Hello World", address];
-      const res = await web3auth.request(chainConfig, "personal_sign", params);
+      const res = await web3auth.request("personal_sign", params);
       uiConsole(res);
     } catch (error) {
       uiConsole("Error in requestSignature:", error);

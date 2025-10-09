@@ -1,4 +1,11 @@
+import { fromByteArray } from "react-native-quick-base64";
+
 global.Buffer = require("buffer").Buffer;
+
+global.base64FromArrayBuffer = (ab) => {
+    const u8 = ab instanceof Uint8Array ? ab : new Uint8Array(ab);
+    return fromByteArray(u8);
+};
 
 import { install } from "react-native-quick-crypto";
 
