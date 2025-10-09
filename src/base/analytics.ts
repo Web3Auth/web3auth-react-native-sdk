@@ -1,12 +1,11 @@
-import { Analytics as AnalyticsNode, type UserTraits } from "@segment/analytics-node";
-
 import { log } from "./loglevel";
+import { SegmentHTTP, Traits } from "./segmentHttp";
 
 const SEGMENT_WRITE_KEY = "f6LbNqCeVRf512ggdME4b6CyflhF1tsX";
 // const SEGMENT_WRITE_KEY_DEV = "rpE5pCcpA6ME2oFu2TbuVydhOXapjHs3";
 
 export class Analytics {
-  private segment: AnalyticsNode;
+  private segment: SegmentHTTP;
 
   private globalProperties: Record<string, unknown> = {};
 
@@ -20,8 +19,7 @@ export class Analytics {
       throw new Error("Analytics already initialized");
     }
 
-    this.segment = new AnalyticsNode({ writeKey: SEGMENT_WRITE_KEY });
-    this.segment.on("error", (error) => log.error("Failed to initialize Analytics", error));
+    this.segment = new SegmentHTTP(SEGMENT_WRITE_KEY);
   }
 
   public enable(): void {
@@ -36,16 +34,12 @@ export class Analytics {
     this.globalProperties = { ...this.globalProperties, ...properties };
   }
 
-  public async identify(params: { userId?: string; traits?: UserTraits }) {
+  public async identify(params: { userId?: string; traits?: Traits }) {
     if (!this.enabled) return;
     if (this.isSkipped()) return;
     try {
-      this.getSegment().identify({
-        userId: params.userId,
-        traits: {
-          ...params.traits,
-        },
-      });
+      this.getSegment().identify(params.userId, params.traits);
+      this.setGlobalProperties({ userId: params.userId });
     } catch (error) {
       log.error(`Failed to identify user ${params.userId} in analytics`, error);
     }
@@ -55,17 +49,17 @@ export class Analytics {
     if (!this.enabled) return;
     if (this.isSkipped()) return;
     try {
-      return this.getSegment().track({
-        userId: params.userId,
-        event: params.event,
-        properties: {
+      return this.getSegment().track(
+        params.event,
+        {
           ...params.properties,
           ...this.globalProperties,
         },
-        anonymousId: params.anonymousId,
-      });
+        params.userId ?? (this.globalProperties.userId as string),
+        params.anonymousId
+      );
     } catch (error) {
-      log.error(`Failed to track event ${params.event}`, error);
+      log.error(`Failed to track event ${params.event}`, error, params);
     }
   }
 
@@ -90,7 +84,6 @@ export class Analytics {
     // }
 
     // return false;
-
     return __DEV__;
   }
 }
