@@ -24,7 +24,7 @@ import { MMKVLoader, useMMKVStorage } from "react-native-mmkv-storage";
 
 // IMP START - Whitelist bundle ID
 const redirectUrl =
-  //@ts-ignore
+  //@ts-expect-error - Guest is not a valid AppOwnership
   Constants.appOwnership == AppOwnership.Expo || Constants.appOwnership == AppOwnership.Guest
     ? Linking.createURL("web3auth", {})
     : Linking.createURL("web3auth", { scheme: "web3authexpoexample" });
@@ -38,7 +38,7 @@ const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw
 const chainConfig = {
   chainNamespace: ChainNamespace.EIP155,
   chainId: "0xaa36a7",
-  rpcTarget: "https://1rpc.io/sepolia",
+  rpcTarget: "https://ethereum-sepolia-rpc.publicnode.com",
   // Avoid using public rpcTarget in production.
   // Use services like Infura, Quicknode etc
   displayName: "Ethereum Sepolia Testnet",
@@ -155,7 +155,10 @@ export default function App() {
         setLoggedIn(true);
       }
     };
-    init();
+    setConsole(">> start");
+    init().catch((e) => {
+      setConsole(`>>> jeorije oirj ${e}`);
+    });
   }, [useAccountAbstraction]);
 
   const login = async () => {
