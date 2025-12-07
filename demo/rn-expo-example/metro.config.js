@@ -46,6 +46,8 @@ config.resolver.extraNodeModules = {
   buffer: require.resolve("buffer"),
 };
 
+config.resolver.unstable_enablePackageExports = true;
+
 config.transformer.getTransformOptions = () => ({
   transform: {
     experimentalImportSupport: false,
