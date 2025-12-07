@@ -16,6 +16,7 @@
     "@web3auth/ethereum-provider": "^9.7.0",
     "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-8.1.0.tgz",
     "ethers": "^6.13.2",
+    "ox": "^0.9.17",
     "react": "18.2.0",
     "react-native": "0.74.2",
     "react-native-encrypted-storage": "^4.0.3",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@babel/plugin-transform-export-namespace-from": "^7.27.1",
     "@babel/preset-env": "^7.20.0",
     "@babel/runtime": "^7.20.0",
     "@react-native/babel-preset": "0.74.84",

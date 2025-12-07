@@ -17,6 +17,7 @@ const config = {
       stream: require.resolve("readable-stream"),
     },
     sourceExts: [...defaultConfig.resolver.sourceExts, "svg"],
+    unstable_enablePackageExports: true,
   },
 };
 

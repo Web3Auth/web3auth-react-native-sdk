@@ -57,8 +57,12 @@
     "@babel/runtime": "^7.x",
     "react-native": "*",
     "react": ">=18",
-    "react-dom": ">=18",
     "vue": ">=3.x"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@babel/runtime": "^7.27.6",

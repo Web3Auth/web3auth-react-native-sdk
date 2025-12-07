@@ -25,14 +25,14 @@ const redirectUrl = `${scheme}://auth`;
 // IMP END - Whitelist bundle ID
 
 // IMP START - Dashboard Registration
-const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw4tsluTITPqA8zMsfxIKMjiqNQ"; // get from https://dashboard.web3auth.io
+const clientId = "BCfIbiMcEwBkmyNxwn-DcYIfUU4QrpQgyOZZTNi5f_ygWMS1g_dNcuxylwDkIbVNhDtn7dAs-aMUhX0dtAYhvWk"; // get from https://dashboard.web3auth.io
 // IMP END - Dashboard Registration
 
 // IMP START - SDK Initialization
 const chainConfig = {
   chainNamespace: CHAIN_NAMESPACES.EIP155,
   chainId: "0xaa36a7",
-  rpcTarget: "https://ethereum-sepolia-rpc.publicnode.com",
+  rpcTarget: `https://api.web3auth.io/infura-service/v1/0xaa36a7/${clientId}`,
   // Avoid using public rpcTarget in production.
   // Use services like Infura, Quicknode etc
   displayName: "Ethereum Sepolia Testnet",
@@ -166,7 +166,7 @@ export default function App() {
 
       setConsole("Logging in");
       // IMP START - Login
-      await web3auth.login({
+      await web3auth.connectTo({
         authConnection: AUTH_CONNECTION.EMAIL_PASSWORDLESS,
         extraLoginOptions: {
           login_hint: email,
