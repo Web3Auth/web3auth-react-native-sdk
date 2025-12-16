@@ -38,7 +38,7 @@ const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw
 const chainConfig = {
   chainNamespace: ChainNamespace.EIP155,
   chainId: "0xaa36a7",
-  rpcTarget: "https://ethereum-sepolia-rpc.publicnode.com",
+  rpcTarget: `https://api.web3auth.io/infura-service/v1/0xaa36a7/${clientId}`,
   // Avoid using public rpcTarget in production.
   // Use services like Infura, Quicknode etc
   displayName: "Ethereum Sepolia Testnet",

@@ -3,7 +3,7 @@ import "@ethersproject/shims";
 import firebaseAuth from "@react-native-firebase/auth";
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-import Web3Auth, { AUTH_CONNECTION, ChainNamespace, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
+import Web3Auth, { AUTH_CONNECTION, CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
 import { ethers } from "ethers";
 import React, { useEffect, useState } from "react";
 import { Button, Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -14,7 +14,7 @@ const redirectUrl = `${scheme}://auth`;
 const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw4tsluTITPqA8zMsfxIKMjiqNQ";
 
 const chainConfig = {
-  chainNamespace: ChainNamespace.EIP155,
+  chainNamespace: CHAIN_NAMESPACES.EIP155,
   chainId: "0xaa36a7",
   rpcTarget: `https://api.web3auth.io/infura-service/v1/0xaa36a7/${clientId}`,
   // Avoid using public rpcTarget in production.
