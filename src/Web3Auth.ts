@@ -208,8 +208,7 @@ class Web3Auth implements IWeb3Auth {
     });
 
     try {
-      const isSFAValue = await this.keyStore.get(KEYSTORE_KEYS.IS_SFA);
-      const isSFA = isSFAValue === "true";
+      const isSFA = await this.checkIsSFAFromStorage();
 
       this.sessionManager = new SessionManager<AuthSessionData>({
         sessionServerBaseUrl: this.options.storageServerUrl,
@@ -249,8 +248,20 @@ class Web3Auth implements IWeb3Auth {
             await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
           }
         } else {
-          await this.keyStore.remove("sessionId");
-          await this.keyStore.remove(KEYSTORE_KEYS.IS_SFA);
+          try {
+            await this.keyStore.remove("sessionId");
+            await this.clearSFAFromStorage();
+          } catch (e) {
+            if (!(await this.handleKeyStoreCorruptedError(e))) {
+              throw e;
+            }
+            this.analytics.track({
+              event: ANALYTICS_EVENTS.SDK_INITIALIZATION_KEYSTORE_CORRUPTED,
+              properties: {
+                error_message: `SDK initialization keystore corrupted. ${e instanceof Error ? e.message : e}`,
+              },
+            });
+          }
           this.updateState({});
         }
       }
@@ -296,12 +307,23 @@ class Web3Auth implements IWeb3Auth {
       const currentUserInfo = this.userInfo();
 
       await this.sessionManager.invalidateSession();
-      await this.keyStore.remove("sessionId");
-      await this.keyStore.remove(KEYSTORE_KEYS.IS_SFA);
-
-      if (currentUserInfo.authConnectionId && currentUserInfo.dappShare.length > 0) {
-        const verifier = currentUserInfo.groupedAuthConnectionId || currentUserInfo.authConnectionId;
-        await this.keyStore.remove(verifier);
+      try {
+        await this.keyStore.remove("sessionId");
+        await this.clearSFAFromStorage();
+        if (currentUserInfo.authConnectionId && currentUserInfo.dappShare.length > 0) {
+          const verifier = currentUserInfo.groupedAuthConnectionId || currentUserInfo.authConnectionId;
+          await this.keyStore.remove(verifier);
+        }
+      } catch (e) {
+        if (!(await this.handleKeyStoreCorruptedError(e))) {
+          throw e;
+        }
+        this.analytics.track({
+          event: ANALYTICS_EVENTS.LOGOUT_KEYSTORE_CORRUPTED,
+          properties: {
+            error_message: `Logout keystore corrupted. ${e instanceof Error ? e.message : e}`,
+          },
+        });
       }
 
       this.updateState({
@@ -393,8 +415,7 @@ class Web3Auth implements IWeb3Auth {
       await this.createLoginSession(loginId, dataObject);
 
       const { sessionId } = this.sessionManager;
-      const isSFAValue = await this.keyStore.get(KEYSTORE_KEYS.IS_SFA);
-      const isSFA = isSFAValue === "true";
+      const isSFA = await this.checkIsSFAFromStorage();
 
       const configParams: WalletLoginParams = {
         loginId,
@@ -966,6 +987,33 @@ class Web3Auth implements IWeb3Auth {
     });
 
     return this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
+  }
+
+  private async checkIsSFAFromStorage(): Promise<boolean> {
+    const isSFAValue = await this.keyStore.get(KEYSTORE_KEYS.IS_SFA);
+    return isSFAValue === "true";
+  }
+
+  private async clearSFAFromStorage(): Promise<void> {
+    const sfaValue = await this.keyStore.get(KEYSTORE_KEYS.IS_SFA);
+    if (sfaValue) {
+      await this.keyStore.remove(KEYSTORE_KEYS.IS_SFA);
+    }
+  }
+
+  /**
+   * Handle key store corrupted error.
+   * @param e - The error.
+   * @returns True if the key store is corrupted, false otherwise.
+   */
+  private async handleKeyStoreCorruptedError(e: unknown): Promise<boolean> {
+    if (e instanceof Error && e.message.includes("error occured while removing value")) {
+      // keystore error might be corrupted, clean up and throw error
+      await this.keyStore.clear();
+      return true;
+    }
+
+    return false;
   }
 
   private async authorizeSession(): Promise<AuthSessionData> {

@@ -92,6 +92,7 @@ export const ANALYTICS_EVENTS = {
   // SDK Initialization
   SDK_INITIALIZATION_COMPLETED: "SDK Initialization Completed",
   SDK_INITIALIZATION_FAILED: "SDK Initialization Failed",
+  SDK_INITIALIZATION_KEYSTORE_CORRUPTED: "SDK Initialization Keystore Corrupted",
   // Connection
   CONNECTION_STARTED: "Connection Started",
   CONNECTION_COMPLETED: "Connection Completed",
@@ -111,6 +112,7 @@ export const ANALYTICS_EVENTS = {
   LOGOUT_STARTED: "Logout Started",
   LOGOUT_COMPLETED: "Logout Completed",
   LOGOUT_FAILED: "Logout Failed",
+  LOGOUT_KEYSTORE_CORRUPTED: "Logout Keystore Corrupted",
   // request
   REQUEST_FUNCTION_STARTED: "Request Function Started",
   REQUEST_FUNCTION_COMPLETED: "Request Function Completed",

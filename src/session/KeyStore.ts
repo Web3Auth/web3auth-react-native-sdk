@@ -32,4 +32,11 @@ export default class KeyStore {
     }
     return (this.storage as EncryptedStorage).removeItem(key);
   }
+
+  async clear() {
+    if ("clear" in this.storage) {
+      return (this.storage as EncryptedStorage).clear();
+    }
+    // SecureStore does not have a clear method
+  }
 }
