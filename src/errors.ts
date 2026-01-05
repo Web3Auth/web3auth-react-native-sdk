@@ -39,6 +39,7 @@ export class InitializationError extends Web3authRNError {
     5000: "Custom",
     5001: "Invalid constructor params",
     5002: "SDK not initialized. please call init first",
+    5003: "Wallet is not ready yet",
   };
 
   public constructor(code: number, message?: string) {
@@ -59,6 +60,10 @@ export class InitializationError extends Web3authRNError {
 
   public static notInitialized(extraMessage = ""): Web3authRNError {
     return InitializationError.fromCode(5002, extraMessage);
+  }
+
+  public static notReady(extraMessage = ""): Web3authRNError {
+    return InitializationError.fromCode(5003, extraMessage);
   }
 }
 
