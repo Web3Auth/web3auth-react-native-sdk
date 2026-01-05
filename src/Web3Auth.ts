@@ -11,6 +11,7 @@ import {
   BUILD_ENV,
   jsonToBase64,
   MFA_LEVELS,
+  serializeError,
   WEB3AUTH_NETWORK,
   type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
@@ -236,7 +237,9 @@ class Web3Auth implements IWeb3Auth {
       try {
         this.projectConfig = await fetchProjectConfig(this.options.clientId, this.options.network, this.options.buildEnv);
       } catch (e) {
-        throw new Error(`Error getting project config options, reason: ${e || "unknown"}`);
+        const error = await serializeError(e);
+        log.error("Failed to fetch project configurations", error);
+        throw InitializationError.notReady(`Failed to fetch project configurations: ${error.message}`);
       }
       this.options.whiteLabel = merge(clonedeep(this.projectConfig.whitelabel), this.options.whiteLabel);
       this.initWalletServicesConfig(this.projectConfig);
