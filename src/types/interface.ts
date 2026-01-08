@@ -77,6 +77,7 @@ export type State = AuthSessionData & {
 
 export interface IWeb3Auth {
   provider: IProvider | null;
+  signer: Wallet | TransactionSigner | null;
   connected: boolean;
   init: () => Promise<void>;
   connectTo: (params: SdkLoginParams) => Promise<WalletResult | null>;

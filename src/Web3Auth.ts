@@ -1,5 +1,5 @@
 import { createKeyPairFromBytes } from "@solana/keys";
-import { createSignerFromKeyPair } from "@solana/signers";
+import { createSignerFromKeyPair, type TransactionSigner } from "@solana/signers";
 import { NodeDetailManager } from "@toruslabs/fetch-node-details";
 import { SessionManager } from "@toruslabs/session-manager";
 import { keccak256, Torus, TorusKey, VerifierParams } from "@toruslabs/torus.js";
@@ -32,7 +32,7 @@ import {
 } from "@web3auth/no-modal";
 import { WsEmbedParams } from "@web3auth/ws-embed";
 import deepmerge from "deepmerge";
-import { JsonRpcProvider, Wallet } from "ethers";
+import { ethers, JsonRpcProvider, Wallet } from "ethers";
 import { jwtDecode, JwtPayload } from "jwt-decode";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
@@ -65,6 +65,8 @@ import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
 
 class Web3Auth implements IWeb3Auth {
   public ready = false;
+
+  public signer: Wallet | TransactionSigner | null = null;
 
   private options: SdkInitParams;
 
@@ -282,6 +284,7 @@ class Web3Auth implements IWeb3Auth {
           if (!finalPrivKey) return;
           const result = await this.getWallet(finalPrivKey);
           this.commonJRPCProvider.updateProviderEngineProxy(result.provider);
+          this.signer = result.signer;
         } else {
           try {
             await this.keyStore.remove("sessionId");
@@ -300,6 +303,7 @@ class Web3Auth implements IWeb3Auth {
           this.updateState({
             currentChainId: this.currentChainId,
           });
+          this.signer = null;
         }
       }
       this.ready = true;
@@ -367,6 +371,7 @@ class Web3Auth implements IWeb3Auth {
       // re-setup commonJRPCProvider
       this.commonJRPCProvider.removeAllListeners();
       this.setupCommonJRPCProvider();
+      this.signer = null;
 
       this.updateState({
         privKey: "",
@@ -751,6 +756,7 @@ class Web3Auth implements IWeb3Auth {
     }
 
     this.commonJRPCProvider.updateProviderEngineProxy(walletResult?.provider);
+    this.signer = walletResult?.signer;
     return walletResult;
   }
 
