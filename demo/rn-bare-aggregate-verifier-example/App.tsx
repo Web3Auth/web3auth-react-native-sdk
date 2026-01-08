@@ -173,7 +173,7 @@ export default function App() {
     setConsole("Getting account");
     const ethersProvider = new ethers.BrowserProvider(provider!);
     const signer = await ethersProvider.getSigner();
-    const address = signer.getAddress();
+    const address = await signer.getAddress();
     uiConsole(address);
     return address;
   };
