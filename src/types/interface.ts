@@ -20,7 +20,6 @@ import type {
   CustomChainConfig,
   IProvider,
   ModalSignInMethodType,
-  PrivateKeyProvider,
   SmartAccountsConfig,
   WhitelistResponse,
   WidgetType,
@@ -108,9 +107,9 @@ export type ChainsConfig = ProviderConfig[];
 
 // Discriminated union for wallet results
 export type WalletResult =
-  | { chainNamespace: typeof CHAIN_NAMESPACES.SOLANA; provider: PrivateKeyProvider; signer: TransactionSigner }
-  | { chainNamespace: typeof CHAIN_NAMESPACES.EIP155; provider: PrivateKeyProvider; signer: Wallet }
-  | { chainNamespace: typeof CHAIN_NAMESPACES.OTHER; provider: PrivateKeyProvider; signer: null };
+  | { chainNamespace: typeof CHAIN_NAMESPACES.SOLANA; provider: IProvider; signer: TransactionSigner }
+  | { chainNamespace: typeof CHAIN_NAMESPACES.EIP155; provider: IProvider; signer: Wallet }
+  | { chainNamespace: typeof CHAIN_NAMESPACES.OTHER; provider: IProvider; signer: null };
 
 export interface ExternalWalletsConfig {
   disableAllRecommendedWallets?: boolean;

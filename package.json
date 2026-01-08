@@ -43,6 +43,7 @@
     "@toruslabs/session-manager": "^4.0.2",
     "@toruslabs/torus.js": "^16.0.0",
     "@web3auth/auth": "^10.5.0",
+    "@web3auth/ethereum-provider": "^9.7.0",
     "@web3auth/no-modal": "^10.10.0",
     "@web3auth/ws-embed": "^5.0.23",
     "@solana/keys": "^2.3.0",
