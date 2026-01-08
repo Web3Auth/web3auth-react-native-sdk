@@ -1,3 +1,4 @@
+import type { TransactionSigner } from "@solana/signers";
 import {
   AUTH_CONNECTION,
   AuthConnectionConfigItem,
@@ -13,27 +14,32 @@ import {
   WEB3AUTH_NETWORK,
   WhiteLabelData,
 } from "@web3auth/auth";
-import type { IBaseProvider, IProvider, WhitelistResponse } from "@web3auth/base";
+import type {
+  AccountAbstractionMultiChainConfig,
+  CHAIN_NAMESPACES,
+  CustomChainConfig,
+  IProvider,
+  ModalSignInMethodType,
+  SmartAccountsConfig,
+  WhitelistResponse,
+  WidgetType,
+} from "@web3auth/no-modal";
 import { WsEmbedParams } from "@web3auth/ws-embed";
+import type { Wallet } from "ethers";
 
-import { BUTTON_POSITION, CHAIN_NAMESPACES, MODAL_SIGN_IN_METHODS, SMART_ACCOUNT, SMART_ACCOUNT_WALLET_SCOPE, WIDGET_TYPE } from "../base";
+import type { BUTTON_POSITION_TYPE, ChainNamespaceType } from "../base";
+import { SMART_ACCOUNT } from "../base";
 
 type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
   walletSdkURL?: string;
-  /**
-   * Private key provider for your chain namespace
-   */
-  privateKeyProvider: IBaseProvider<string>;
-  /**
-   * Account abstraction provider for your chain namespace
-   */
-  accountAbstractionProvider?: IBaseProvider<IProvider>;
 };
 
 export type SdkInitParams = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey" | "sessionNamespace"> &
   Required<Pick<AuthOptions, "redirectUrl">> & {
+    accountAbstractionConfig?: AccountAbstractionMultiChainConfig | null;
+    chains?: ChainsConfig;
     defaultChainId?: string;
     walletServicesConfig?: WalletServicesConfig;
   };
@@ -64,13 +70,16 @@ export type {
   WhiteLabelData,
 } from "@web3auth/auth";
 
-export type State = AuthSessionData;
+export type State = AuthSessionData & {
+  currentChainId?: string;
+};
 
 export interface IWeb3Auth {
   provider: IProvider | null;
+  signer: Wallet | TransactionSigner | null;
   connected: boolean;
   init: () => Promise<void>;
-  connectTo: (params: SdkLoginParams) => Promise<IProvider | null>;
+  connectTo: (params: SdkLoginParams) => Promise<WalletResult | null>;
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
   enableMFA: () => Promise<boolean>;
@@ -90,85 +99,24 @@ export type WalletLoginParams = {
   sessionNamespace?: string;
 };
 
-export type ChainNamespaceType = (typeof CHAIN_NAMESPACES)[keyof typeof CHAIN_NAMESPACES];
-
 export type SmartAccountType = (typeof SMART_ACCOUNT)[keyof typeof SMART_ACCOUNT];
 
-export type ButtonPositionType = (typeof BUTTON_POSITION)[keyof typeof BUTTON_POSITION];
+export type ProviderConfig = CustomChainConfig;
 
-export type ProviderConfig = {
-  chainNamespace: ChainNamespaceType;
-  /**
-   * Block explorer url for the chain
-   * @example https://ropsten.etherscan.io
-   */
-  blockExplorerUrl: string;
-  /**
-   * Logo url for the base token
-   */
-  logo: string;
-  /**
-   * Name for ticker
-   * @example 'Binance Token', 'Ethereum', 'Polygon Ecosystem Token'
-   */
-  tickerName: string;
-  /**
-   * Symbol for ticker
-   * @example BNB, ETH
-   */
-  ticker: string;
-  /**
-   * RPC target Url for the chain
-   * @example https://ropsten.infura.io/v3/YOUR_API_KEY
-   */
-  rpcTarget: string;
-  /**
-   * websocket target Url for the chain
-   */
-  wsTarget?: string;
-  /**
-   * Chain Id parameter(hex with 0x prefix) for the network. Mandatory for all networks. (assign one with a map to network identifier for platforms)
-   * @example 0x1 for mainnet, 'loading' if not connected to anything yet or connection fails
-   * @defaultValue 'loading'
-   */
-  chainId: string;
-  /**
-   * Display name for the network
-   */
-  displayName: string;
-  /**
-   * Whether the network is testnet or not
-   */
-  isTestnet?: boolean;
-  /**
-   * Number of decimals for the currency ticker (e.g: 18)
-   */
-  decimals?: number;
-};
+export type ChainsConfig = ProviderConfig[];
 
-export type CustomChainConfig = ProviderConfig;
-
-export type ChainsConfig = CustomChainConfig[];
+// Discriminated union for wallet results
+export type WalletResult =
+  | { chainNamespace: typeof CHAIN_NAMESPACES.SOLANA; provider: IProvider; signer: TransactionSigner }
+  | { chainNamespace: typeof CHAIN_NAMESPACES.EIP155; provider: IProvider; signer: Wallet }
+  | { chainNamespace: typeof CHAIN_NAMESPACES.OTHER; provider: IProvider; signer: null };
 
 export interface ExternalWalletsConfig {
   disableAllRecommendedWallets?: boolean;
   disableAllOtherWallets?: boolean;
   disabledWallets?: string[];
 }
-export type SmartAccountWalletScope = (typeof SMART_ACCOUNT_WALLET_SCOPE)[keyof typeof SMART_ACCOUNT_WALLET_SCOPE];
-export interface SmartAccountsConfig {
-  smartAccountType: SmartAccountType;
-  walletScope: SmartAccountWalletScope;
-  chains: {
-    chainId: string;
-    bundlerConfig: {
-      url: string;
-    };
-    paymasterConfig?: {
-      url: string;
-    };
-  }[];
-}
+
 export interface WalletUiConfig {
   enablePortfolioWidget?: boolean;
   enableConfirmationModal?: boolean;
@@ -180,11 +128,10 @@ export interface WalletUiConfig {
   enableSendButton?: boolean;
   enableSwapButton?: boolean;
   enableReceiveButton?: boolean;
-  portfolioWidgetPosition?: ButtonPositionType;
+  portfolioWidgetPosition?: BUTTON_POSITION_TYPE;
   defaultPortfolio?: "token" | "nft";
 }
-export type ModalSignInMethodType = (typeof MODAL_SIGN_IN_METHODS)[keyof typeof MODAL_SIGN_IN_METHODS];
-export type WidgetType = (typeof WIDGET_TYPE)[keyof typeof WIDGET_TYPE];
+
 export interface LoginModalConfig {
   widgetType?: WidgetType;
   logoAlignment?: "left" | "center";
@@ -195,6 +142,7 @@ export interface LoginModalConfig {
   displayInstalledExternalWallets?: boolean;
   displayExternalWalletsCount?: boolean;
 }
+
 export interface ProjectConfig {
   teamId: number;
   userDataIncludedInToken?: boolean;
@@ -212,6 +160,7 @@ export interface ProjectConfig {
   whitelabel?: WhiteLabelData;
   loginModal?: LoginModalConfig;
 }
+
 export interface WalletRegistryItem {
   name: string;
   chains: string[];
