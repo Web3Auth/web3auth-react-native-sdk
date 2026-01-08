@@ -62,7 +62,7 @@ export default function App() {
         redirectUrl,
         // IMP END - Whitelist bundle ID
         network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
-        accountAbstractionConfig: useAccountAbstraction ? AAConfig : undefined,
+        accountAbstractionConfig: useAccountAbstraction ? AAConfig : null,
       });
       setWeb3auth(web3auth);
 

@@ -1,5 +1,10 @@
-// Standalone URL shim for React Native
-// Provides Node.js url module compatibility without external dependencies
+/**
+ * Web3Auth React Native SDK - URL Shim
+ *
+ * Provides Node.js url module compatibility for React Native.
+ * Includes pathToFileURL and fileURLToPath which are Node.js-specific
+ * functions not available in browser environments.
+ */
 
 // pathToFileURL - converts file path to file:// URL
 function pathToFileURL(filepath) {
