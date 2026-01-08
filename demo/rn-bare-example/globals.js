@@ -61,3 +61,7 @@ install();
 global.location = { protocol: "file:" };
 global.process.version = "v16.0.0";
 process.browser = true;
+
+// Node.js path globals - not available in React Native
+global.__filename = "";
+global.__dirname = "";
