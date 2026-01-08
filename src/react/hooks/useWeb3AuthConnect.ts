@@ -1,4 +1,4 @@
-import { type IProvider } from "@web3auth/base";
+import { type IProvider } from "@web3auth/no-modal";
 import { useCallback, useState } from "react";
 
 import { Web3authRNError } from "../../errors";
