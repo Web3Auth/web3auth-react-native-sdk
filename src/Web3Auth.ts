@@ -18,13 +18,13 @@ import {
   WEB3AUTH_NETWORK,
   type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import {
   type AccountAbstractionMultiChainConfig,
   type AccountAbstractionProvider,
   accountAbstractionProvider,
   type ChainNamespaceType,
   CommonJRPCProvider,
-  CommonPrivateKeyProvider,
   type IBaseProvider,
   type IProvider,
   isHexStrict,
@@ -877,19 +877,18 @@ class Web3Auth implements IWeb3Auth {
   }
 
   protected async getWallet(privateKey: string): Promise<WalletResult> {
-    const provider = new CommonPrivateKeyProvider({
+    const eoaProvider = new EthereumPrivateKeyProvider({
       config: {
-        keyExportEnabled: this.projectConfig.enableKeyExport,
-        chain: this.currentChain,
-        chains: this.options.chains,
+        keyExportEnabled: this.projectConfig?.enableKeyExport,
+        chainConfig: this.currentChain,
       },
     });
-    await provider.setupProvider(privateKey);
+    await eoaProvider.setupProvider(privateKey);
     if (this.currentChainNamespace === CHAIN_NAMESPACES.SOLANA) {
       const ed25519Key = getED25519Key(privateKey).sk;
       const keyPair = await createKeyPairFromBytes(new Uint8Array(ed25519Key));
       const signer = await createSignerFromKeyPair(keyPair);
-      return { chainNamespace: CHAIN_NAMESPACES.SOLANA, provider, signer: signer };
+      return { chainNamespace: CHAIN_NAMESPACES.SOLANA, provider: eoaProvider, signer: signer };
     } else if (this.currentChainNamespace === CHAIN_NAMESPACES.EIP155) {
       const ethersWallet = new Wallet(privateKey);
       const signer = ethersWallet.connect(new JsonRpcProvider(this.currentChain.rpcTarget));
@@ -899,15 +898,17 @@ class Web3Auth implements IWeb3Auth {
         const aaChainIds = new Set(this.options.accountAbstractionConfig?.chains?.map((chain) => chain.chainId) || []);
         aaProvider = await accountAbstractionProvider({
           accountAbstractionConfig: this.options.accountAbstractionConfig,
-          provider,
+          provider: eoaProvider,
           chain: this.currentChain,
           chains: this.options.chains.filter((chain) => aaChainIds.has(chain.chainId)),
           // useProviderAsTransport: data.connector === WALLET_CONNECTORS.AUTH,
         });
+        const ethersProvider = new ethers.BrowserProvider(aaProvider);
+        signer.connect(ethersProvider);
       }
-      return { chainNamespace: CHAIN_NAMESPACES.EIP155, provider: (aaProvider as unknown as IBaseProvider<string>) ?? provider, signer: signer };
+      return { chainNamespace: CHAIN_NAMESPACES.EIP155, provider: (aaProvider as unknown as IBaseProvider<string>) ?? eoaProvider, signer: signer };
     } else {
-      return { chainNamespace: CHAIN_NAMESPACES.OTHER, provider, signer: null };
+      return { chainNamespace: CHAIN_NAMESPACES.OTHER, provider: eoaProvider, signer: null };
     }
   }
 
