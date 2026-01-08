@@ -7,8 +7,23 @@
   "module": "dist/lib.esm/index.js",
   "source": "src/index.ts",
   "types": "dist/lib.cjs/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/lib.esm/index.js",
+      "require": "./dist/lib.cjs/index.js",
+      "types": "./dist/lib.cjs/types/index.d.ts"
+    },
+    "./metro-config": {
+      "require": "./src/metro/metro-config.js"
+    },
+    "./setup": {
+      "import": "./src/metro/setup.js",
+      "require": "./src/metro/setup.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "src/metro"
   ],
   "scripts": {
     "release": "torus-scripts release",
@@ -49,24 +64,32 @@
     "@solana/keys": "^2.3.0",
     "@solana/signers": "^2.3.0",
     "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.0",
     "deepmerge": "^4.3.1",
+    "empty-module": "^0.0.2",
     "ethers": "^6.15.0",
+    "events": "^3.3.0",
     "jwt-decode": "^4.0.0",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
     "lodash.unionby": "^4.8.0",
     "loglevel": "^1.9.2",
     "react-native-url-polyfill": "^2.0.0",
+    "readable-stream": "^4.5.2",
     "urijs": "^1.19.11"
   },
   "peerDependencies": {
     "@babel/runtime": "^7.x",
     "react": ">=18",
     "react-native": "*",
+    "react-native-quick-crypto": ">=0.7.0",
     "vue": ">=3.x"
   },
   "peerDependenciesMeta": {
     "vue": {
+      "optional": true
+    },
+    "react-native-quick-crypto": {
       "optional": true
     }
   },
