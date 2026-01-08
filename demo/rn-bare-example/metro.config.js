@@ -10,11 +10,17 @@ const config = {
       http: require.resolve("empty-module"), // stream-http can be polyfilled here if needed
       https: require.resolve("empty-module"), // https-browserify can be polyfilled here if needed
       os: require.resolve("empty-module"), // os-browserify can be polyfilled here if needed
-      url: require.resolve("empty-module"), // url can be polyfilled here if needed
+      url: require.resolve("./shims/url-shim.js"),
+      "node:url": require.resolve("./shims/url-shim.js"),
       zlib: require.resolve("empty-module"), // browserify-zlib can be polyfilled here if needed
       path: require.resolve("empty-module"),
       crypto: require.resolve("crypto-browserify"),
       stream: require.resolve("readable-stream"),
+      // Node.js protocol mappings for packages using node: prefix imports
+      "node:crypto": require.resolve("react-native-quick-crypto"),
+      "node:stream": require.resolve("readable-stream"),
+      "node:buffer": require.resolve("buffer"),
+      "node:events": require.resolve("events"),
     },
     sourceExts: [...defaultConfig.resolver.sourceExts, "svg"],
     unstable_enablePackageExports: true,

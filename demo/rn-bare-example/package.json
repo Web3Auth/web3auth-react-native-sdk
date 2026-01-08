@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ethersproject/shims": "^5.7.0",
+    "@react-native-async-storage/async-storage": "^1.24.0",
     "@toruslabs/react-native-web-browser": "^1.1.0",
     "@web3auth/account-abstraction-provider": "^9.7.0",
     "@web3auth/ethereum-provider": "^9.7.0",
