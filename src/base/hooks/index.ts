@@ -1,4 +1,4 @@
-import { type IProvider } from "@web3auth/base";
+import { type IProvider } from "@web3auth/no-modal";
 
 export interface IBaseWeb3AuthHookContext {
   isInitialized: boolean;
