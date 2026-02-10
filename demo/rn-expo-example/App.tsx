@@ -10,7 +10,7 @@ import {
   TrustSmartAccount,
 } from "@web3auth/account-abstraction-provider";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-import Web3Auth, { AUTH_CONNECTION, ChainNamespace, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
+import Web3Auth, { AUTH_CONNECTION, CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
 // IMP END - Quick Start
 import { ethers } from "ethers";
 import Constants, { AppOwnership } from "expo-constants";
@@ -36,7 +36,7 @@ const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw
 
 // IMP START - SDK Initialization
 const chainConfig = {
-  chainNamespace: ChainNamespace.EIP155,
+  chainNamespace: CHAIN_NAMESPACES.EIP155,
   chainId: "0xaa36a7",
   rpcTarget: `https://api.web3auth.io/infura-service/v1/0xaa36a7/${clientId}`,
   // Avoid using public rpcTarget in production.
