@@ -2,9 +2,8 @@ import "@ethersproject/shims";
 
 // IMP START - Quick Start
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-import Web3Auth, { AUTH_CONNECTION, CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
-import { ethers } from "ethers";
+import Web3Auth, { AUTH_CONNECTION, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
+import { ethers, Wallet } from "ethers";
 import React, { useEffect, useState } from "react";
 import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import EncryptedStorage from "react-native-encrypted-storage";
@@ -19,31 +18,10 @@ const redirectUrl = `${scheme}://auth`;
 const clientId = "BHgArYmWwSeq21czpcarYh0EVq2WWOzflX-NTK-tY1-1pauPzHKRRLgpABkmYiIV_og9jAvoIxQ8L3Smrwe04Lw";
 // IMP END - Dashboard Registration
 
-// IMP START - SDK Initialization
-const chainConfig = {
-  chainNamespace: CHAIN_NAMESPACES.EIP155,
-  chainId: "0xaa36a7",
-  rpcTarget: `https://api.web3auth.io/infura-service/v1/0xaa36a7/${clientId}`,
-  // Avoid using public rpcTarget in production.
-  // Use services like Infura, Quicknode etc
-  displayName: "Ethereum Sepolia Testnet",
-  blockExplorerUrl: "https://sepolia.etherscan.io",
-  ticker: "ETH",
-  tickerName: "Ethereum",
-  decimals: 18,
-  logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-};
-
-const privateKeyProvider = new EthereumPrivateKeyProvider({
-  config: {
-    chainConfig,
-  },
-});
-
 export default function App() {
   const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [provider, setProvider] = useState<any>(null);
+  const [signer, setSigner] = useState<Wallet | null>(null);
   const [console, setConsole] = useState<string>("");
 
   useEffect(() => {
@@ -56,7 +34,6 @@ export default function App() {
           redirectUrl,
           // IMP END - Whitelist bundle ID
           network: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET, // or other networks
-          privateKeyProvider,
           enableLogging: true, // Enable debug logging
         });
         setWeb3auth(web3auth);
@@ -66,7 +43,7 @@ export default function App() {
 
         if (web3auth.connected) {
           // IMP END - SDK Initialization
-          setProvider(web3auth.provider);
+          setSigner(web3auth.signer as Wallet);
           setLoggedIn(true);
         }
       } catch (error: any) {
@@ -91,7 +68,7 @@ export default function App() {
       });
 
       if (web3auth.connected) {
-        setProvider(web3auth.provider);
+        setSigner(web3auth.signer as Wallet);
         uiConsole("Logged In");
         setLoggedIn(true);
       }
@@ -115,7 +92,7 @@ export default function App() {
       });
 
       if (web3auth.connected) {
-        setProvider(web3auth.provider);
+        setSigner(web3auth.signer as Wallet);
         uiConsole("Logged In");
         setLoggedIn(true);
       }
@@ -139,7 +116,7 @@ export default function App() {
       });
 
       if (web3auth.connected) {
-        setProvider(web3auth.provider);
+        setSigner(web3auth.signer as Wallet);
         uiConsole("Logged In");
         setLoggedIn(true);
       }
@@ -158,7 +135,7 @@ export default function App() {
     await web3auth.logout();
 
     if (!web3auth.connected) {
-      setProvider(null);
+      setSigner(null);
       uiConsole("Logged out");
       setLoggedIn(false);
     }
@@ -166,39 +143,34 @@ export default function App() {
 
   // IMP START - Blockchain Calls
   const getAccounts = async (): Promise<string> => {
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!signer) {
+      uiConsole("signer not set");
       return "";
     }
     setConsole("Getting account");
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-    const signer = await ethersProvider.getSigner();
     const address = await signer.getAddress();
     uiConsole(address);
     return address;
   };
 
   const getBalance = async () => {
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!signer) {
+      uiConsole("signer not set");
       return;
     }
     setConsole("Fetching balance");
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-    const signer = await ethersProvider.getSigner();
     const address = signer.getAddress();
-    const balance = ethers.formatEther(await ethersProvider.getBalance(address));
+    const b = await signer.provider?.getBalance(address);
+    const balance = ethers.formatEther(b?.toString() ?? "0");
     uiConsole(balance);
   };
 
   const signMessage = async () => {
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!signer) {
+      uiConsole("signer not set");
       return;
     }
     setConsole("Signing message");
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-    const signer = await ethersProvider.getSigner();
     const originalMessage = "YOUR_MESSAGE";
     const signedMessage = await signer.signMessage(originalMessage);
     uiConsole(signedMessage);
