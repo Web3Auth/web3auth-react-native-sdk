@@ -540,6 +540,7 @@ class Web3Auth implements IWeb3Auth {
           params,
         },
         platform: "react-native",
+        sessionNamespace: isSFA ? "sfa" : undefined,
       };
 
       const loginUrl = constructURL({
