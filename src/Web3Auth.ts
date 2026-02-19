@@ -352,7 +352,7 @@ class Web3Auth implements IWeb3Auth {
       try {
         await this.keyStore.remove("sessionId");
         await this.clearSFAFromStorage();
-        if (currentUserInfo.authConnectionId && currentUserInfo.dappShare.length > 0) {
+        if (currentUserInfo.authConnectionId && currentUserInfo.dappShare && currentUserInfo.dappShare.length > 0) {
           const verifier = currentUserInfo.groupedAuthConnectionId || currentUserInfo.authConnectionId;
           await this.keyStore.remove(verifier);
         }
@@ -633,7 +633,7 @@ class Web3Auth implements IWeb3Auth {
 
       const sessionData = await this.authorizeSession();
 
-      if (sessionData.userInfo?.dappShare.length > 0) {
+      if (sessionData.userInfo?.dappShare && sessionData.userInfo?.dappShare.length > 0) {
         const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
         await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
       }
@@ -1026,7 +1026,7 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.loginFailed("Session data is missing");
     }
 
-    if (sessionData.userInfo?.dappShare.length > 0) {
+    if (sessionData.userInfo?.dappShare && sessionData.userInfo?.dappShare.length > 0) {
       const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
       await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
     }
