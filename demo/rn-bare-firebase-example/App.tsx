@@ -2,9 +2,8 @@ import "@ethersproject/shims";
 
 import firebaseAuth from "@react-native-firebase/auth";
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-import Web3Auth, { AUTH_CONNECTION, CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
-import { ethers } from "ethers";
+import Web3Auth, { AUTH_CONNECTION, BUILD_ENV, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
+import { ethers, Wallet } from "ethers";
 import React, { useEffect, useState } from "react";
 import { Button, Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
 import EncryptedStorage from "react-native-encrypted-storage";
@@ -12,26 +11,6 @@ import EncryptedStorage from "react-native-encrypted-storage";
 const scheme = "web3authrnbarefirebase"; // Or your desired app redirection scheme
 const redirectUrl = `${scheme}://auth`;
 const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw4tsluTITPqA8zMsfxIKMjiqNQ";
-
-const chainConfig = {
-  chainNamespace: CHAIN_NAMESPACES.EIP155,
-  chainId: "0xaa36a7",
-  rpcTarget: `https://api.web3auth.io/infura-service/v1/0xaa36a7/${clientId}`,
-  // Avoid using public rpcTarget in production.
-  // Use services like Infura, Quicknode etc
-  displayName: "Ethereum Sepolia Testnet",
-  blockExplorerUrl: "https://sepolia.etherscan.io",
-  ticker: "ETH",
-  tickerName: "Ethereum",
-  decimals: 18,
-  logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-};
-
-const privateKeyProvider = new EthereumPrivateKeyProvider({
-  config: {
-    chainConfig,
-  },
-});
 
 async function signInWithEmailPassword() {
   try {
@@ -45,7 +24,7 @@ async function signInWithEmailPassword() {
 export default function App() {
   const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [provider, setProvider] = useState<any>(null);
+  const [signer, setSigner] = useState<Wallet | null>(null);
   const [console, setConsole] = useState<string>("");
 
   useEffect(() => {
@@ -53,16 +32,29 @@ export default function App() {
       const web3auth = new Web3Auth(WebBrowser, EncryptedStorage, {
         clientId,
         redirectUrl,
+        // buildEnv: BUILD_ENV.DEVELOPMENT,
         network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
-        privateKeyProvider,
-        loginConfig: {
-          jwt: {
-            name: "Web3Auth-Auth0-JWT",
-            verifier: "w3a-firebase-demo",
-            typeOfLogin: "jwt",
-            clientId,
-          },
-        },
+        // authConnectionConfig: [
+        //   {
+        //     name: "Web3Auth-Auth0-JWT",
+        //     authConnectionId: "w3a-firebase-demo",
+        //     authConnection: AUTH_CONNECTION.CUSTOM,
+        //     clientId,
+        //     jwtParameters: {
+        //       verifier: "w3a-firebase-demo",
+        //       typeOfLogin: "jwt",
+        //       clientId,
+        //     },
+        //   },
+        // ],
+        // loginConfig: {
+        //   jwt: {
+        //     name: "Web3Auth-Auth0-JWT",
+        //     verifier: "w3a-firebase-demo",
+        //     typeOfLogin: "jwt",
+        //     clientId,
+        //   },
+        // },
       });
       setWeb3auth(web3auth);
 
@@ -71,7 +63,7 @@ export default function App() {
 
       if (web3auth.connected) {
         // IMP END - SDK Initialization
-        setProvider(web3auth.provider);
+        setSigner(web3auth.signer as Wallet);
         setLoggedIn(true);
       }
     };
@@ -105,7 +97,7 @@ export default function App() {
 
       if (web3auth.connected) {
         // IMP END - Login
-        setProvider(web3auth.provider);
+        setSigner(web3auth.signer as Wallet);
         uiConsole("Logged In");
         setLoggedIn(true);
       }
@@ -126,7 +118,7 @@ export default function App() {
     // IMP END - Logout
 
     if (!web3auth.connected) {
-      setProvider(null);
+      setSigner(null);
       uiConsole("Logged out");
       setLoggedIn(false);
     }
@@ -134,18 +126,11 @@ export default function App() {
 
   // IMP START - Blockchain Calls
   const getAccounts = async (): Promise<string> => {
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!signer) {
+      uiConsole("signer not set");
       return "";
     }
     setConsole("Getting account");
-    // For ethers v5
-    // const ethersProvider = new ethers.providers.Web3Provider(this.provider);
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-
-    // For ethers v5
-    // const signer = ethersProvider.getSigner();
-    const signer = await ethersProvider.getSigner();
 
     // Get user's Ethereum public address
     const address = signer.getAddress();
@@ -154,46 +139,26 @@ export default function App() {
   };
 
   const getBalance = async () => {
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!signer) {
+      uiConsole("signer not set");
       return;
     }
     setConsole("Fetching balance");
-    // For ethers v5
-    // const ethersProvider = new ethers.providers.Web3Provider(this.provider);
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-
-    // For ethers v5
-    // const signer = ethersProvider.getSigner();
-    const signer = await ethersProvider.getSigner();
-
     // Get user's Ethereum public address
     const address = signer.getAddress();
 
     // Get user's balance in ether
-    // For ethers v5
-    // const balance = ethers.utils.formatEther(
-    // await ethersProvider.getBalance(address) // Balance is in wei
-    // );
-    const balance = ethers.formatEther(
-      await ethersProvider.getBalance(address) // Balance is in wei
-    );
+    const b = await signer.provider?.getBalance(address);
+    const balance = ethers.formatEther(b?.toString() ?? "0");
     uiConsole(balance);
   };
 
   const signMessage = async () => {
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!signer) {
+      uiConsole("signer not set");
       return;
     }
     setConsole("Signing message");
-    // For ethers v5
-    // const ethersProvider = new ethers.providers.Web3Provider(this.provider);
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-
-    // For ethers v5
-    // const signer = ethersProvider.getSigner();
-    const signer = await ethersProvider.getSigner();
     const originalMessage = "YOUR_MESSAGE";
 
     // Sign the message
@@ -225,7 +190,7 @@ export default function App() {
       const address: string = await getAccounts();
 
       const params = ["Hello World", address];
-      const res = await web3auth.request(chainConfig, "personal_sign", params);
+      const res = await web3auth.request("personal_sign", params);
       uiConsole(res);
     } catch (error) {
       uiConsole("Error in requestSignature:", error);
