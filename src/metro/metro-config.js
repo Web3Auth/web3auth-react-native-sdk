@@ -65,9 +65,9 @@ function withWeb3Auth(userConfig, options = {}) {
   // Get original polyfills function
   const originalGetPolyfills =
     userConfig.serializer?.getPolyfills ||
-    (() => {
+    ((options) => {
       try {
-        return require("@react-native/metro-config/src/defaults/defaults").getPolyfills();
+        return require("@react-native/metro-config/src/defaults/defaults").getPolyfills(options);
       } catch {
         return [];
       }
@@ -112,9 +112,8 @@ function withWeb3Auth(userConfig, options = {}) {
       resolveRequest: customResolveRequest,
     },
     serializer: {
-      getPolyfills: () => {
-        // Add Web3Auth global shim to the beginning of polyfills
-        return [require.resolve("./global-shim.js"), ...originalGetPolyfills()];
+      getPolyfills: (options) => {
+        return [require.resolve("./global-shim.js"), ...originalGetPolyfills(options)];
       },
     },
   };
