@@ -513,6 +513,7 @@ class Web3Auth implements IWeb3Auth {
       await this.createLoginSession(loginId, dataObject);
 
       const { sessionId } = this.sessionManager;
+      const isSFA = await this.checkIsSFAFromStorage();
       const configParams: WalletLoginParams = {
         loginId,
         sessionId,
@@ -1160,10 +1161,12 @@ class Web3Auth implements IWeb3Auth {
   private async createLoginSession(loginId: string, data: AuthSessionConfig, timeout = 600): Promise<string> {
     if (!this.sessionManager) throw InitializationError.notInitialized();
 
+    const isSFA = await this.checkIsSFAFromStorage();
     const loginSessionMgr = new SessionManager<AuthSessionConfig>({
       sessionServerBaseUrl: this.options.storageServerUrl,
       sessionTime: timeout, // each login key must be used with 10 mins (might be used at the end of popup redirect)
       sessionId: loginId,
+      sessionNamespace: isSFA ? "sfa" : undefined,
     });
 
     await loginSessionMgr.createSession(JSON.parse(JSON.stringify(data)));
