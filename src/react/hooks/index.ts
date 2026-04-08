@@ -3,6 +3,7 @@ export * from "./useIdentityToken";
 export * from "./useManageMFA";
 export * from "./useSignatureRequest";
 export * from "./useWalletUI";
+export * from "./useWeb3Auth";
 export * from "./useWeb3AuthConnect";
 export * from "./useWeb3AuthDisconnect";
 export * from "./useWeb3AuthUser";

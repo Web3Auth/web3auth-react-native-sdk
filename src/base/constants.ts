@@ -1,6 +1,7 @@
 // TODO: setup process.env.WEB3AUTH_VERSION in rollup build config
 export const sdkVersion = process.env.WEB3AUTH_VERSION || "9.0.0";
 
+
 export const CHAIN_NAMESPACES = {
   EIP155: "eip155",
   SOLANA: "solana",

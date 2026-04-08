@@ -71,6 +71,23 @@ class Web3Auth implements IWeb3Auth {
 
   private torusUtils: Torus;
 
+  private _listeners: Map<string, Set<() => void>> = new Map();
+
+  on(event: "connected" | "disconnected", listener: () => void): this {
+    if (!this._listeners.has(event)) this._listeners.set(event, new Set());
+    this._listeners.get(event).add(listener);
+    return this;
+  }
+
+  removeListener(event: "connected" | "disconnected", listener: () => void): this {
+    this._listeners.get(event)?.delete(listener);
+    return this;
+  }
+
+  private emit(event: "connected" | "disconnected"): void {
+    this._listeners.get(event)?.forEach(l => l());
+  }
+
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
     if (!options.privateKeyProvider) {
@@ -266,6 +283,7 @@ class Web3Auth implements IWeb3Auth {
         }
       }
       this.ready = true;
+      if (this.connected) this.emit("connected");
 
       this.analytics.track({
         event: ANALYTICS_EVENTS.SDK_INITIALIZATION_COMPLETED,
@@ -361,6 +379,7 @@ class Web3Auth implements IWeb3Auth {
         tssNonce: -1,
       });
 
+      this.emit("disconnected");
       this.analytics.track({
         event: ANALYTICS_EVENTS.LOGOUT_COMPLETED,
       });
@@ -710,6 +729,7 @@ class Web3Auth implements IWeb3Auth {
       await this.accountAbstractionProvider.setupProvider(this.privateKeyProvider);
     }
 
+    this.emit("connected");
     return this.provider;
   }
 

@@ -23,10 +23,10 @@ export const useWeb3AuthConnect = (): IUseWeb3AuthConnect => {
       setLoading(true);
       setError(null);
       try {
-        const provider = await web3Auth.connectTo(params);
-        return provider;
+        return await web3Auth.connectTo(params);
       } catch (error) {
         setError(error as Web3authRNError);
+        return null;
       } finally {
         setLoading(false);
       }

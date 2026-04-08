@@ -15,14 +15,32 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
   const [provider, setProvider] = useState<IProvider | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [isMFAEnabled, setIsMFAEnabled] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
 
   const web3Auth = useMemo(() => {
     setProvider(null);
-
+    setIsConnected(false);
     return new Web3Auth(webBrowser, storage, web3AuthOptions);
   }, [web3AuthOptions, webBrowser, storage]);
 
-  const isConnected = web3Auth.connected;
+  useEffect(() => {
+    const connectedListener = () => {
+      setIsConnected(true);
+      setProvider(web3Auth.provider);
+    };
+    const disconnectedListener = () => {
+      setIsConnected(false);
+      setProvider(null);
+    };
+
+    web3Auth.on("connected", connectedListener);
+    web3Auth.on("disconnected", disconnectedListener);
+
+    return () => {
+      web3Auth.removeListener("connected", connectedListener);
+      web3Auth.removeListener("disconnected", disconnectedListener);
+    };
+  }, [web3Auth]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -45,12 +63,6 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
       controller.abort();
     };
   }, [web3Auth, config]);
-
-  useEffect(() => {
-    if (isConnected) {
-      setProvider(web3Auth.provider);
-    }
-  }, [isConnected]);
 
   const value = useMemo(() => {
     return {
