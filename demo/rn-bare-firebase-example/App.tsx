@@ -55,14 +55,6 @@ export default function App() {
         redirectUrl,
         network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
         privateKeyProvider,
-        loginConfig: {
-          jwt: {
-            name: "Web3Auth-Auth0-JWT",
-            verifier: "w3a-firebase-demo",
-            typeOfLogin: "jwt",
-            clientId,
-          },
-        },
       });
       setWeb3auth(web3auth);
 
