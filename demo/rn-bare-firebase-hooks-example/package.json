@@ -14,8 +14,6 @@
     "@react-native-firebase/app": "^20.1.0",
     "@react-native-firebase/auth": "^20.1.0",
     "@toruslabs/react-native-web-browser": "^1.1.0",
-    "@web3auth/account-abstraction-provider": "^9.7.0",
-    "@web3auth/ethereum-provider": "^9.7.0",
     "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-8.1.0.tgz",
     "ethers": "^6.13.2",
     "react": "19.2.3",

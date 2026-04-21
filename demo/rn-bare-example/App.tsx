@@ -2,7 +2,7 @@ import "@ethersproject/shims";
 
 // IMP START - Quick Start
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
-import Web3Auth, { AUTH_CONNECTION, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
+import Web3Auth, { type AccountAbstractionConfig, AUTH_CONNECTION, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
 import { ethers, Wallet } from "ethers";
 import React, { useEffect, useState } from "react";
 import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
@@ -23,14 +23,6 @@ const PIMLICO_API_KEY = "pim_WDBELWbZeo9guUAr7HNFaF";
 
 export const getDefaultBundlerUrl = (chainId: string): string => {
   return `https://api.pimlico.io/v2/${Number(chainId)}/rpc?apikey=${PIMLICO_API_KEY}`;
-};
-
-export type SmartAccountType = "safe" | "kernel" | "biconomy" | "trust";
-
-export type AccountAbstractionConfig = {
-  bundlerUrl?: string;
-  paymasterUrl?: string;
-  smartAccountType?: SmartAccountType;
 };
 
 const AAConfig: AccountAbstractionConfig = {

@@ -1,4 +1,3 @@
-import './globals';
 import { registerRootComponent } from 'expo';
 
 import App from './App';

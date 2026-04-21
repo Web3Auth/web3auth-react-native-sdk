@@ -1,15 +1,14 @@
-import { type IProvider } from "@web3auth/no-modal";
 import { useCallback, useState } from "react";
 
 import { Web3authRNError } from "../../errors";
-import { SdkLoginParams } from "../../types/interface";
+import { SdkLoginParams, WalletResult } from "../../types/interface";
 import { useWeb3AuthInner } from "../hooks/useWeb3AuthInner";
 
 export interface IUseWeb3AuthConnect {
   isConnected: boolean;
   loading: boolean;
   error: Web3authRNError | null;
-  connectTo: (params: SdkLoginParams) => Promise<IProvider | null>;
+  connectTo: (params: SdkLoginParams) => Promise<WalletResult | null>;
 }
 
 export const useWeb3AuthConnect = (): IUseWeb3AuthConnect => {

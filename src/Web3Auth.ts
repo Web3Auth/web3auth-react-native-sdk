@@ -104,7 +104,7 @@ class Web3Auth implements IWeb3Auth {
   }
 
   private emit(event: "connected" | "disconnected"): void {
-    this._listeners.get(event)?.forEach((l)l) => l());
+    this._listeners.get(event)?.forEach((l) => l());
   }
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {

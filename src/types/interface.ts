@@ -36,13 +36,17 @@ type SdkSpecificInitParams = {
   walletSdkURL?: string;
 };
 
-export type SdkInitParams = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey" | "sessionNamespace"> &
-  Required<Pick<AuthOptions, "redirectUrl">> & {
-    accountAbstractionConfig?: AccountAbstractionMultiChainConfig | null;
-    chains?: ChainsConfig;
-    defaultChainId?: string;
-    walletServicesConfig?: WalletServicesConfig;
-  };
+type SdkInitParamsBase = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey" | "sessionNamespace"> &
+  Required<Pick<AuthOptions, "redirectUrl">>;
+
+// Using interface extends instead of type intersection so TypeScript's excess
+// property checks on object literals correctly recognise all members.
+export interface SdkInitParams extends SdkInitParamsBase {
+  accountAbstractionConfig?: AccountAbstractionMultiChainConfig | null;
+  chains?: ChainsConfig;
+  defaultChainId?: string;
+  walletServicesConfig?: WalletServicesConfig;
+}
 
 export type SdkLoginParams = Omit<LoginParams, "getWalletKey"> & {
   idToken?: string;
@@ -100,6 +104,8 @@ export type WalletLoginParams = {
 };
 
 export type SmartAccountType = (typeof SMART_ACCOUNT)[keyof typeof SMART_ACCOUNT];
+
+export type AccountAbstractionConfig = AccountAbstractionMultiChainConfig;
 
 export type ProviderConfig = CustomChainConfig;
 

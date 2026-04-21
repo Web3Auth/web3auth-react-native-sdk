@@ -16,13 +16,18 @@ import {
 } from "@web3auth/react-native-sdk";
 import { ethers } from "ethers";
 import React, { useState } from "react";
-import { Button, Dimensions, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import EncryptedStorage from "react-native-encrypted-storage";
 
-import web3AuthContextConfig from "./web3authConfig";
+import { getWeb3AuthConfig } from "./web3authConfig";
+
+interface HomeScreenProps {
+  useAccountAbstraction: boolean;
+  onToggleAA: (value: boolean) => void;
+}
 
 // IMP START - SDK Initialization
-function HomeScreen() {
+function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
   const { isConnected, isInitializing, provider } = useWeb3Auth();
   const { connectTo, loading: connectLoading } = useWeb3AuthConnect();
   const { disconnect } = useWeb3AuthDisconnect();
@@ -75,6 +80,10 @@ function HomeScreen() {
     return (
       // IMP START - Login
       <View style={styles.loginArea}>
+        <View style={styles.aaToggleRow}>
+          <Text style={{ paddingRight: 6 }}>Use Account Abstraction:</Text>
+          <Switch onValueChange={onToggleAA} value={useAccountAbstraction} />
+        </View>
         <TextInput style={styles.input} placeholder="Enter your email" onChangeText={setEmail} />
         <Button title={connectLoading ? "Logging in..." : "Login"} onPress={login} />
       </View>
@@ -109,10 +118,17 @@ function HomeScreen() {
 }
 
 export default function App() {
+  const [useAccountAbstraction, setUseAccountAbstraction] = useState(false);
+
   return (
     // IMP START - Setup Web3Auth Provider
-    <Web3AuthProvider webBrowser={WebBrowser} storage={EncryptedStorage} config={web3AuthContextConfig}>
-      <HomeScreen />
+    <Web3AuthProvider
+      key={String(useAccountAbstraction)}
+      webBrowser={WebBrowser}
+      storage={EncryptedStorage}
+      config={getWeb3AuthConfig(useAccountAbstraction)}
+    >
+      <HomeScreen useAccountAbstraction={useAccountAbstraction} onToggleAA={setUseAccountAbstraction} />
     </Web3AuthProvider>
     // IMP END - Setup Web3Auth Provider
   );
@@ -130,6 +146,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
+  },
+  aaToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   input: {
     height: 44,

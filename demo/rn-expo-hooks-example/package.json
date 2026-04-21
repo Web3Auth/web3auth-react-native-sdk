@@ -10,8 +10,6 @@
   },
   "dependencies": {
     "@ethersproject/shims": "^5.7.0",
-    "@web3auth/account-abstraction-provider": "^9.7.0",
-    "@web3auth/ethereum-provider": "^9.7.0",
     "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-8.1.0.tgz",
     "ethers": "^6.13.4",
     "expo": "~54.0.33",
