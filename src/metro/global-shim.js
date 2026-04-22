@@ -89,4 +89,25 @@
   if (typeof global.__dirname === "undefined") {
     global.__dirname = "";
   }
+
+  // Minimal Event polyfill for packages like @wallet-standard/app that extend
+  // the browser Event class at module-load time (e.g. class AppReadyEvent extends Event).
+  // The actual event dispatching in those packages is already guarded by typeof window checks,
+  // so only the class definition needs to succeed.
+  //
+  // IMPORTANT: Must use ES5 constructor function, NOT class syntax. This file runs as a
+  // polyfill script before the module system is ready, so Babel-injected helpers that call
+  // require() (e.g. classCallCheck, createClass) would crash with "Property 'require' doesn't exist".
+  if (typeof global.Event === "undefined") {
+    function Event(type, options) {
+      this.type = type;
+      this.bubbles = !!(options && options.bubbles);
+      this.cancelable = !!(options && options.cancelable);
+      this.composed = !!(options && options.composed);
+    }
+    Event.prototype.preventDefault = function () {};
+    Event.prototype.stopImmediatePropagation = function () {};
+    Event.prototype.stopPropagation = function () {};
+    global.Event = Event;
+  }
 })();

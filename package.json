@@ -19,6 +19,9 @@
     "./setup": {
       "import": "./src/metro/setup.js",
       "require": "./src/metro/setup.js"
+    },
+    "./src/metro/shims/url-shim.js": {
+      "require": "./src/metro/shims/url-shim.js"
     }
   },
   "files": [
@@ -51,7 +54,9 @@
     "web3auth"
   ],
   "dependencies": {
+    "@toruslabs/base-controllers": "^7.4.0",
     "@toruslabs/constants": "^15.0.0",
+    "@toruslabs/ethereum-controllers": "^8.17.0",
     "@toruslabs/fetch-node-details": "^15.0.0",
     "@toruslabs/http-helpers": "^8.1.1",
     "@toruslabs/loglevel-sentry": "^8.1.0",

@@ -19,17 +19,16 @@ import {
   type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-import {
-  type AccountAbstractionMultiChainConfig,
-  type AccountAbstractionProvider,
-  accountAbstractionProvider,
-  type ChainNamespaceType,
-  CommonJRPCProvider,
-  type IBaseProvider,
-  type IProvider,
-  isHexStrict,
-  type SmartAccountsConfig,
+import type {
+  AccountAbstractionMultiChainConfig,
+  AccountAbstractionProvider,
+  ChainNamespaceType,
+  IBaseProvider,
+  IProvider,
+  SmartAccountsConfig,
 } from "@web3auth/no-modal";
+import { accountAbstractionProvider } from "@web3auth/no-modal/dist/lib.esm/providers/account-abstraction-provider/index.js";
+import { CommonJRPCProvider } from "@web3auth/no-modal/dist/lib.esm/providers/base-provider/CommonJRPCProvider.js";
 import { WsEmbedParams } from "@web3auth/ws-embed";
 import deepmerge from "deepmerge";
 import { ethers, JsonRpcProvider, Wallet } from "ethers";
@@ -60,6 +59,10 @@ import {
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
 import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
+
+// Inlined from @web3auth/no-modal/base/utils to avoid loading the barrel file
+const isHexStrict = (hex: unknown): boolean =>
+  (typeof hex === "string" || typeof hex === "number") && /^(-)?0x[0-9a-f]*$/i.test(String(hex));
 
 // import WebViewComponent from "./WebViewComponent";
 
