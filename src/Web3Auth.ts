@@ -762,6 +762,7 @@ class Web3Auth implements IWeb3Auth {
 
     this.commonJRPCProvider.updateProviderEngineProxy(walletResult?.provider);
     this.signer = walletResult?.signer;
+    if (this.connected) this.emit("connected");
     return walletResult;
   }
 
