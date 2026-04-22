@@ -159,7 +159,7 @@ export default function App() {
       return;
     }
     setConsole("Fetching balance");
-    const address = signer.getAddress();
+    const address = await signer.getAddress();
     const b = await signer.provider?.getBalance(address);
     const balance = ethers.formatEther(b?.toString() ?? "0");
     uiConsole(balance);
@@ -203,7 +203,7 @@ export default function App() {
   };
 
   const uiConsole = (...args: unknown[]) => {
-    setConsole(`${JSON.stringify(args || {}, null, 2)}\n\n\n\n${console}`);
+    setConsole(prev => `${JSON.stringify(args || {}, null, 2)}\n\n\n\n${prev}`);
   };
 
   const loggedInView = (
