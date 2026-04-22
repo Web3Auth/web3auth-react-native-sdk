@@ -90,11 +90,21 @@ export const fetchProjectConfig = async (
     url.searchParams.append("project_id", clientId);
     url.searchParams.append("network", web3AuthNetwork);
     if (buildEnv) url.searchParams.append("build_env", buildEnv);
-    //log.debug("Fetching project configuration from URL:", url.href);
     const res = await get<ProjectConfig>(url.href);
-    //log.debug(`[Web3Auth] config response: ${JSON.stringify(res)}`);
     return res;
   } catch (e) {
+    // @toruslabs/http-helpers throws the raw Response object on non-2xx.
+    // Read the body to surface the actual API error message.
+    if (e instanceof Response) {
+      let detail: string;
+      try {
+        const body = await (e as Response).json();
+        detail = body.error || body.message || (e as Response).statusText || `HTTP ${(e as Response).status}`;
+      } catch {
+        detail = (e as Response).statusText || `HTTP ${(e as Response).status}`;
+      }
+      throw new Error(`Failed to fetch project config: ${detail}`);
+    }
     throw new Error(`Failed to fetch project config: ${(e as Error).message}`);
   }
 };
