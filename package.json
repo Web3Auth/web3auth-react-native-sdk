@@ -54,6 +54,8 @@
     "web3auth"
   ],
   "dependencies": {
+    "@solana/keys": "^2.3.0",
+    "@solana/signers": "^2.3.0",
     "@toruslabs/base-controllers": "^7.4.0",
     "@toruslabs/constants": "^15.0.0",
     "@toruslabs/ethereum-controllers": "^8.17.0",
@@ -66,8 +68,6 @@
     "@web3auth/ethereum-provider": "^9.7.0",
     "@web3auth/no-modal": "^10.15.0",
     "@web3auth/ws-embed": "^5.0.23",
-    "@solana/keys": "^2.3.0",
-    "@solana/signers": "^2.3.0",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
     "deepmerge": "^4.3.1",
