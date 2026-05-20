@@ -1,10 +1,10 @@
 import { SIGNER_MAP } from "@toruslabs/constants";
 import { get } from "@toruslabs/http-helpers";
-import { safeatob, WEB3AUTH_NETWORK, type WEB3AUTH_NETWORK_TYPE } from "@web3auth/auth";
+import { BUILD_ENV_TYPE, safeatob, WEB3AUTH_NETWORK, type WEB3AUTH_NETWORK_TYPE } from "@web3auth/auth";
 import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
 
-import { ProjectConfigResponse } from "./index";
+import { ProjectConfig } from "./types/interface";
 
 export function constructURL(params: { baseURL: string; query?: Record<string, unknown>; hash?: Record<string, unknown> }): string {
   const { baseURL, query, hash } = params;
@@ -80,17 +80,31 @@ export const signerHost = (web3AuthNetwork?: WEB3AUTH_NETWORK_TYPE): string => {
   return SIGNER_MAP[web3AuthNetwork ?? WEB3AUTH_NETWORK.SAPPHIRE_MAINNET];
 };
 
-export const fetchProjectConfig = async (clientId: string, web3AuthNetwork: WEB3AUTH_NETWORK_TYPE): Promise<ProjectConfigResponse> => {
+export const fetchProjectConfig = async (
+  clientId: string,
+  web3AuthNetwork: WEB3AUTH_NETWORK_TYPE,
+  buildEnv?: BUILD_ENV_TYPE
+): Promise<ProjectConfig> => {
   try {
-    const url = new URL(`${signerHost(web3AuthNetwork)}/api/configuration`);
+    const url = new URL(`${signerHost(web3AuthNetwork)}/api/v2/configuration`);
     url.searchParams.append("project_id", clientId);
     url.searchParams.append("network", web3AuthNetwork);
-    url.searchParams.append("whitelist", "true");
-    //log.debug("Fetching project configuration from URL:", url.href);
-    const res = await get<ProjectConfigResponse>(url.href);
-    //log.debug(`[Web3Auth] config response: ${JSON.stringify(res)}`);
+    if (buildEnv) url.searchParams.append("build_env", buildEnv);
+    const res = await get<ProjectConfig>(url.href);
     return res;
   } catch (e) {
+    // @toruslabs/http-helpers throws the raw Response object on non-2xx.
+    // Read the body to surface the actual API error message.
+    if (e instanceof Response) {
+      let detail: string;
+      try {
+        const body = await (e as Response).json();
+        detail = body.error || body.message || (e as Response).statusText || `HTTP ${(e as Response).status}`;
+      } catch {
+        detail = (e as Response).statusText || `HTTP ${(e as Response).status}`;
+      }
+      throw new Error(`Failed to fetch project config: ${detail}`);
+    }
     throw new Error(`Failed to fetch project config: ${(e as Error).message}`);
   }
 };

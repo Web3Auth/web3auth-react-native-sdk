@@ -2,7 +2,11 @@
   "extends": "@toruslabs/config/tsconfig.default.json",
   "compilerOptions": {
     "moduleResolution": "Node16",
-    "module": "Node16"
+    "module": "Node16",
+    "paths": {
+      "@web3auth/no-modal/dist/lib.esm/providers/account-abstraction-provider/index.js": ["./src/types/no-modal-shims.d.ts"],
+      "@web3auth/no-modal/dist/lib.esm/providers/base-provider/CommonJRPCProvider.js": ["./src/types/no-modal-shims.d.ts"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

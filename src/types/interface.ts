@@ -1,48 +1,67 @@
+import type { TransactionSigner } from "@solana/signers";
 import {
+  AUTH_CONNECTION,
+  AuthConnectionConfigItem,
   type AuthOptions,
   type AuthSessionData,
   BUILD_ENV,
   LANGUAGES,
-  LOGIN_PROVIDER,
   type LoginParams,
   MFA_FACTOR,
   MFA_LEVELS,
   SUPPORTED_KEY_CURVES,
   THEME_MODES,
   WEB3AUTH_NETWORK,
-  type WhiteLabelData,
+  WhiteLabelData,
 } from "@web3auth/auth";
-import type { IBaseProvider, IProvider } from "@web3auth/base";
+import type {
+  AccountAbstractionMultiChainConfig,
+  CHAIN_NAMESPACES,
+  CustomChainConfig,
+  IProvider,
+  ModalSignInMethodType,
+  SmartAccountsConfig,
+  WhitelistResponse,
+  WidgetType,
+} from "@web3auth/no-modal";
+import { WsEmbedParams } from "@web3auth/ws-embed";
+import type { Wallet } from "ethers";
+
+import type { BUTTON_POSITION_TYPE, ChainNamespaceType } from "../base";
+import { SMART_ACCOUNT } from "../base";
 
 type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
   walletSdkURL?: string;
-  /**
-   * Private key provider for your chain namespace
-   */
-  privateKeyProvider: IBaseProvider<string>;
-  /**
-   * Account abstraction provider for your chain namespace
-   */
-  accountAbstractionProvider?: IBaseProvider<IProvider>;
 };
 
-export type SdkInitParams = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey"> &
+type SdkInitParamsBase = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey" | "sessionNamespace"> &
   Required<Pick<AuthOptions, "redirectUrl">>;
 
-export type SdkLoginParams = Omit<LoginParams, "getWalletKey">;
+// Using interface extends instead of type intersection so TypeScript's excess
+// property checks on object literals correctly recognise all members.
+export interface SdkInitParams extends SdkInitParamsBase {
+  accountAbstractionConfig?: AccountAbstractionMultiChainConfig | null;
+  chains?: ChainsConfig;
+  defaultChainId?: string;
+  walletServicesConfig?: WalletServicesConfig;
+}
+
+export type SdkLoginParams = Omit<LoginParams, "getWalletKey"> & {
+  idToken?: string;
+};
 
 // export type SdkLogoutParams = Partial<BaseLogoutParams> & Partial<BaseRedirectParams>;
 
 export type {
+  AUTH_CONNECTION_TYPE,
   AuthSessionData,
   AuthUserInfo,
   BUILD_ENV_TYPE,
-  CUSTOM_LOGIN_PROVIDER_TYPE,
+  CUSTOM_AUTH_CONNECTION_TYPE,
   ExtraLoginOptions,
   LANGUAGE_TYPE,
-  LOGIN_PROVIDER_TYPE,
   LoginParams,
   MFA_FACTOR_TYPE,
   MFA_SETTINGS,
@@ -51,23 +70,26 @@ export type {
   SocialMfaModParams,
   SUPPORTED_KEY_CURVES_TYPE,
   THEME_MODE_TYPE,
-  TypeOfLogin,
   WEB3AUTH_NETWORK_TYPE,
   WhiteLabelData,
 } from "@web3auth/auth";
 
-export type State = AuthSessionData;
+export type State = AuthSessionData & {
+  currentChainId?: string;
+};
 
 export interface IWeb3Auth {
   provider: IProvider | null;
+  signer: Wallet | TransactionSigner | null;
   connected: boolean;
   init: () => Promise<void>;
-  login: (params: SdkLoginParams) => Promise<IProvider | null>;
+  connectTo: (params: SdkLoginParams) => Promise<WalletResult | null>;
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
   enableMFA: () => Promise<boolean>;
-  launchWalletServices: (chainConfig: ChainConfig, path?: string) => Promise<void>;
-  request(chainConfig: ChainConfig, method: string, params: unknown[], path?: string): Promise<string>;
+  manageMFA: () => Promise<void>;
+  launchWalletServices: (path?: string) => Promise<void>;
+  request(method: string, params: unknown[], path?: string): Promise<string>;
 }
 
 export type WalletLoginParams = {
@@ -78,37 +100,128 @@ export type WalletLoginParams = {
     params: unknown[];
   };
   platform: string;
+  sessionNamespace?: string;
 };
 
-export enum ChainNamespace {
-  EIP155 = "eip155",
-  SOLANA = "solana",
+export type SmartAccountType = (typeof SMART_ACCOUNT)[keyof typeof SMART_ACCOUNT];
+
+export type AccountAbstractionConfig = AccountAbstractionMultiChainConfig;
+
+export type ProviderConfig = CustomChainConfig;
+
+export type ChainsConfig = ProviderConfig[];
+
+// Discriminated union for wallet results
+export type WalletResult =
+  | { chainNamespace: typeof CHAIN_NAMESPACES.SOLANA; provider: IProvider; signer: TransactionSigner }
+  | { chainNamespace: typeof CHAIN_NAMESPACES.EIP155; provider: IProvider; signer: Wallet }
+  | { chainNamespace: typeof CHAIN_NAMESPACES.OTHER; provider: IProvider; signer: null };
+
+export interface ExternalWalletsConfig {
+  disableAllRecommendedWallets?: boolean;
+  disableAllOtherWallets?: boolean;
+  disabledWallets?: string[];
 }
 
-export type ChainConfig = {
-  chainNamespace: ChainNamespace;
-  decimals?: number;
-  blockExplorerUrl?: string;
-  chainId: string;
-  displayName?: string;
-  logo?: string;
-  rpcTarget: string;
-  ticker?: string;
-  tickerName?: string;
-};
-
-export interface WhitelistResponse {
-  urls: string[];
-  signed_urls: Record<string, string>;
+export interface WalletUiConfig {
+  enablePortfolioWidget?: boolean;
+  enableConfirmationModal?: boolean;
+  enableWalletConnect?: boolean;
+  enableTokenDisplay?: boolean;
+  enableNftDisplay?: boolean;
+  enableShowAllTokensButton?: boolean;
+  enableBuyButton?: boolean;
+  enableSendButton?: boolean;
+  enableSwapButton?: boolean;
+  enableReceiveButton?: boolean;
+  portfolioWidgetPosition?: BUTTON_POSITION_TYPE;
+  defaultPortfolio?: "token" | "nft";
 }
 
-export interface ProjectConfigResponse {
-  whitelabel?: WhiteLabelData;
-  sms_otp_enabled: boolean;
-  wallet_connect_enabled: boolean;
-  wallet_connect_project_id?: string;
+export interface LoginModalConfig {
+  widgetType?: WidgetType;
+  logoAlignment?: "left" | "center";
+  borderRadiusType?: "small" | "medium" | "large";
+  buttonRadiusType?: "pill" | "rounded" | "square";
+  signInMethods?: ModalSignInMethodType[];
+  addPreviousLoginHint?: boolean;
+  displayInstalledExternalWallets?: boolean;
+  displayExternalWalletsCount?: boolean;
+}
+
+export interface ProjectConfig {
+  teamId: number;
+  userDataIncludedInToken?: boolean;
+  sessionTime?: number;
+  enableKeyExport?: boolean;
+  walletConnectProjectId?: string;
   whitelist?: WhitelistResponse;
-  key_export_enabled?: boolean;
+  chains?: ChainsConfig;
+  smartAccounts?: SmartAccountsConfig;
+  walletUi?: WalletUiConfig;
+  externalWalletAuth?: ExternalWalletsConfig;
+  embeddedWalletAuth?: (AuthConnectionConfigItem & {
+    isDefault?: boolean;
+  })[];
+  whitelabel?: WhiteLabelData;
+  loginModal?: LoginModalConfig;
 }
 
-export { BUILD_ENV, LANGUAGES, LOGIN_PROVIDER, MFA_FACTOR, MFA_LEVELS, SUPPORTED_KEY_CURVES, THEME_MODES, WEB3AUTH_NETWORK };
+export interface WalletRegistryItem {
+  name: string;
+  chains: string[];
+  walletConnect?: {
+    sdks: string[];
+  };
+  app?: {
+    browser?: string;
+    android?: string;
+    ios?: string;
+    chrome?: string;
+    firefox?: string;
+    edge?: string;
+  };
+  mobile?: {
+    native?: string;
+    universal?: string;
+    inAppBrowser?: string;
+  };
+  primaryColor?: string;
+  injected?: {
+    namespace: ChainNamespaceType;
+    injected_id: string;
+  }[];
+  imgExtension?: string;
+}
+
+export type WalletServicesConfig = Omit<
+  WsEmbedParams,
+  "buildEnv" | "enableLogging" | "chainId" | "chains" | "confirmationStrategy" | "accountAbstractionConfig"
+> & {
+  /**
+   * Determines how to show confirmation screens
+   * @defaultValue default
+   *
+   * default & auto-approve
+   * - use auto-approve as default
+   * - if wallet connect request use modal
+   *
+   * modal
+   * - use modal always
+   */
+  confirmationStrategy?: Exclude<WsEmbedParams["confirmationStrategy"], "popup">;
+  modalZIndex?: number;
+};
+
+export type SubVerifierInfo = {
+  verifier: string;
+  idToken: string;
+};
+
+export type AggregateVerifierParams = {
+  verify_params: { verifier_id: string; idtoken: string }[];
+  sub_verifier_ids: string[];
+  verifier_id: string;
+};
+
+export { AUTH_CONNECTION, BUILD_ENV, LANGUAGES, MFA_FACTOR, MFA_LEVELS, SUPPORTED_KEY_CURVES, THEME_MODES, WEB3AUTH_NETWORK };

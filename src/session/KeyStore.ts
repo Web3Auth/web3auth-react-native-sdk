@@ -1,6 +1,10 @@
 import { EncryptedStorage } from "../types/IEncryptedStorage";
 import { SecureStore } from "../types/IExpoSecureStore";
 
+export const KEYSTORE_KEYS = {
+  IS_SFA: "sfa_storage_is_sfa",
+};
+
 export default class KeyStore {
   storage: SecureStore | EncryptedStorage;
 
@@ -27,5 +31,12 @@ export default class KeyStore {
       return (this.storage as SecureStore).deleteItemAsync(key, {});
     }
     return (this.storage as EncryptedStorage).removeItem(key);
+  }
+
+  async clear() {
+    if ("clear" in this.storage) {
+      return (this.storage as EncryptedStorage).clear();
+    }
+    // SecureStore does not have a clear method
   }
 }

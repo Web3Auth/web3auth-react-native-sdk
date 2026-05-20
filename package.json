@@ -7,8 +7,26 @@
   "module": "dist/lib.esm/index.js",
   "source": "src/index.ts",
   "types": "dist/lib.cjs/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/lib.esm/index.js",
+      "require": "./dist/lib.cjs/index.js",
+      "types": "./dist/lib.cjs/types/index.d.ts"
+    },
+    "./metro-config": {
+      "require": "./src/metro/metro-config.js"
+    },
+    "./setup": {
+      "import": "./src/metro/setup.js",
+      "require": "./src/metro/setup.js"
+    },
+    "./src/metro/shims/url-shim.js": {
+      "require": "./src/metro/shims/url-shim.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "src/metro"
   ],
   "scripts": {
     "release": "torus-scripts release",
@@ -36,20 +54,49 @@
     "web3auth"
   ],
   "dependencies": {
+    "@toruslabs/base-controllers": "^7.4.0",
     "@toruslabs/constants": "^15.0.0",
+    "@toruslabs/ethereum-controllers": "^8.17.0",
+    "@toruslabs/fetch-node-details": "^15.0.0",
     "@toruslabs/http-helpers": "^8.1.1",
+    "@toruslabs/loglevel-sentry": "^8.1.0",
     "@toruslabs/session-manager": "^4.0.2",
-    "@web3auth/auth": "^9.6.4",
+    "@toruslabs/torus.js": "^16.0.0",
+    "@web3auth/auth": "^10.8.0",
+    "@web3auth/ethereum-provider": "^9.7.0",
+    "@web3auth/no-modal": "^10.15.0",
+    "@web3auth/ws-embed": "^5.0.23",
+    "@solana/keys": "^2.3.0",
+    "@solana/signers": "^2.3.0",
     "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.1",
+    "deepmerge": "^4.3.1",
+    "empty-module": "^0.0.2",
+    "ethers": "^6.16.0",
+    "events": "^3.3.0",
+    "jwt-decode": "^4.0.0",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
+    "lodash.unionby": "^4.8.0",
     "loglevel": "^1.9.2",
     "react-native-url-polyfill": "^2.0.0",
+    "readable-stream": "^4.5.2",
     "urijs": "^1.19.11"
   },
   "peerDependencies": {
     "@babel/runtime": "^7.x",
-    "react-native": "*"
+    "react": ">=18",
+    "react-native": "*",
+    "react-native-quick-crypto": ">=0.7.0",
+    "vue": ">=3.x"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    },
+    "react-native-quick-crypto": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@babel/runtime": "^7.27.6",
@@ -58,17 +105,20 @@
     "@toruslabs/torus-scripts": "^7.1.6",
     "@types/lodash.clonedeep": "^4.5.9",
     "@types/lodash.merge": "^4.6.9",
+    "@types/lodash.unionby": "^4.8.9",
     "@types/node": "^22",
+    "@types/react": "^19.1.10",
     "@types/react-native": "^0.73.0",
     "@types/urijs": "^1.19.25",
-    "@web3auth/base": "^9.7.0",
     "eslint": "^9.29.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
     "prettier": "^3.6.1",
+    "react": "^19.1.1",
     "react-native": "~0.80.0",
     "rimraf": "^6.0.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vue": "^3.x"
   },
   "engines": {
     "node": ">=18.x",

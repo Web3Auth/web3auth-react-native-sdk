@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@ethersproject/shims": "^5.7.0",
+    "@react-native-async-storage/async-storage": "^1.24.0",
     "@toruslabs/react-native-web-browser": "^1.1.0",
-    "@web3auth/account-abstraction-provider": "^9.3.1",
-    "@web3auth/ethereum-provider": "^9.0.2",
-    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-8.0.0.tgz",
+    "@web3auth/account-abstraction-provider": "^9.7.0",
+    "@web3auth/ethereum-provider": "^9.7.0",
+    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-8.1.0.tgz",
     "ethers": "^6.13.2",
+    "ox": "^0.9.17",
     "react": "18.2.0",
     "react-native": "0.74.2",
     "react-native-encrypted-storage": "^4.0.3",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@babel/plugin-transform-export-namespace-from": "^7.27.1",
     "@babel/preset-env": "^7.20.0",
     "@babel/runtime": "^7.20.0",
     "@react-native/babel-preset": "0.74.84",
@@ -42,7 +45,7 @@
     "process": "^0.11.10",
     "react-test-renderer": "18.2.0",
     "readable-stream": "^4.5.2",
-    "typescript": "5.0.4"
+    "typescript": "^5.4.5"
   },
   "engines": {
     "node": ">=18"

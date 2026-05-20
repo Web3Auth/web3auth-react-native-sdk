@@ -7,6 +7,7 @@ Web3Auth is where passwordless auth meets non-custodial key infrastructure for W
 Checkout the official [Web3Auth Documentation](https://web3auth.io/docs) and [SDK Reference](https://web3auth.io/docs/sdk/pnp/react-native) to get started!
 
 ## 💡 Features
+
 - Plug and Play, OAuth based Web3 Authentication Service
 - Fully decentralized, non-custodial key infrastructure
 - End to end Whitelabelable solution
@@ -99,42 +100,42 @@ web3authrnexample://openlogin
 
 ## 💥 Initialization & Usage
 
-In your sign-in activity', create an `Web3Auth` instance with your Web3Auth project's configurations and 
+In your sign-in activity', create an `Web3Auth` instance with your Web3Auth project's configurations and
 configure it like this:
 
 ### Expo Managed Workflow
 
 ```js
-import * as WebBrowser from 'expo-web-browser';
-import Web3Auth, { LOGIN_PROVIDER, OPENLOGIN_NETWORK } from "@web3auth/react-native-sdk";
+import * as WebBrowser from "expo-web-browser";
+import Web3Auth, { AUTH_CONNECTION, OPENLOGIN_NETWORK } from "@web3auth/react-native-sdk";
 
 const web3auth = new Web3Auth(WebBrowser, {
-    clientId,
-    network: OPENLOGIN_NETWORK.TESTNET, // or other networks
+  clientId,
+  network: OPENLOGIN_NETWORK.TESTNET, // or other networks
+  redirectUrl: resolvedRedirectUrl,
 });
 const info = await web3auth.login({
-    loginProvider: LOGIN_PROVIDER.GOOGLE,
-    redirectUrl: resolvedRedirectUrl,
-    mfaLevel: 'mandatory', // optional
-    curve: 'secp256k1', // optional
+  authConnection: AUTH_CONNECTION.GOOGLE,
+  mfaLevel: "mandatory", // optional
+  curve: "secp256k1", // optional
 });
 ```
 
 ### Bare Workflow
 
 ```js
-import * as WebBrowser from '@toruslabs/react-native-web-browser';
-import Web3Auth, { LOGIN_PROVIDER, OPENLOGIN_NETWORK } from "@web3auth/react-native-sdk";
+import * as WebBrowser from "@toruslabs/react-native-web-browser";
+import Web3Auth, { AUTH_CONNECTION, OPENLOGIN_NETWORK } from "@web3auth/react-native-sdk";
 
 const web3auth = new Web3Auth(WebBrowser, {
-    clientId,
-    network: OPENLOGIN_NETWORK.TESTNET, // or other networks
+  clientId,
+  network: OPENLOGIN_NETWORK.TESTNET, // or other networks
+  redirectUrl: resolvedRedirectUrl,
 });
 const info = await web3auth.login({
-    loginProvider: LOGIN_PROVIDER.GOOGLE,
-    redirectUrl: resolvedRedirectUrl,
-    mfaLevel: 'mandatory', // optional
-    curve: 'secp256k1', // optional
+  authConnection: AUTH_CONNECTION.GOOGLE,
+  mfaLevel: "mandatory", // optional
+  curve: "secp256k1", // optional
 });
 ```
 

@@ -1,22 +1,13 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Button, ScrollView, Dimensions, TextInput, Switch } from "react-native";
 import "@ethersproject/shims";
-import { ethers } from "ethers";
 
 // IMP START - Quick Start
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
+import Web3Auth, { type AccountAbstractionConfig, AUTH_CONNECTION, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
+import { ethers, Wallet } from "ethers";
+import React, { useEffect, useState } from "react";
+import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import EncryptedStorage from "react-native-encrypted-storage";
-import Web3Auth, { LOGIN_PROVIDER, WEB3AUTH_NETWORK, ChainNamespace } from "@web3auth/react-native-sdk";
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import { MMKVLoader, useMMKVStorage } from "react-native-mmkv-storage";
-import {
-  AccountAbstractionProvider,
-  BiconomySmartAccount,
-  ISmartAccount,
-  KernelSmartAccount,
-  SafeSmartAccount,
-  TrustSmartAccount,
-} from "@web3auth/account-abstraction-provider";
 // IMP END - Quick Start
 
 const scheme = "web3authrnexample"; // Or your desired app redirection scheme
@@ -25,42 +16,13 @@ const redirectUrl = `${scheme}://auth`;
 // IMP END - Whitelist bundle ID
 
 // IMP START - Dashboard Registration
-const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw4tsluTITPqA8zMsfxIKMjiqNQ"; // get from https://dashboard.web3auth.io
+const clientId = "BCfIbiMcEwBkmyNxwn-DcYIfUU4QrpQgyOZZTNi5f_ygWMS1g_dNcuxylwDkIbVNhDtn7dAs-aMUhX0dtAYhvWk"; // get from https://dashboard.web3auth.io
 // IMP END - Dashboard Registration
 
-// IMP START - SDK Initialization
-const chainConfig = {
-  chainNamespace: ChainNamespace.EIP155,
-  chainId: "0xaa36a7",
-  rpcTarget: "https://rpc.ankr.com/eth_sepolia",
-  // Avoid using public rpcTarget in production.
-  // Use services like Infura, Quicknode etc
-  displayName: "Ethereum Sepolia Testnet",
-  blockExplorerUrl: "https://sepolia.etherscan.io",
-  ticker: "ETH",
-  tickerName: "Ethereum",
-  decimals: 18,
-  logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-};
-
-const privateKeyProvider = new EthereumPrivateKeyProvider({
-  config: {
-    chainConfig,
-  },
-});
-
-const PIMLICO_API_KEY = "YOUR_PIMLICO_API_KEY";
+const PIMLICO_API_KEY = "pim_WDBELWbZeo9guUAr7HNFaF";
 
 export const getDefaultBundlerUrl = (chainId: string): string => {
   return `https://api.pimlico.io/v2/${Number(chainId)}/rpc?apikey=${PIMLICO_API_KEY}`;
-};
-
-export type SmartAccountType = "safe" | "kernel" | "biconomy" | "trust";
-
-export type AccountAbstractionConfig = {
-  bundlerUrl?: string;
-  paymasterUrl?: string;
-  smartAccountType?: SmartAccountType;
 };
 
 const AAConfig: AccountAbstractionConfig = {
@@ -75,7 +37,7 @@ const storage = new MMKVLoader().initialize();
 export default function App() {
   const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [provider, setProvider] = useState<any>(null);
+  const [signer, setSigner] = useState<Wallet | null>(null);
   const [console, setConsole] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [useAccountAbstraction, setUseAccountAbstraction] = useMMKVStorage<boolean>("useAccountAbstraction", storage, false);
@@ -86,58 +48,13 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
-      // setup aa provider
-      let aaProvider: AccountAbstractionProvider | undefined;
-      if (useAccountAbstraction) {
-        const { bundlerUrl, paymasterUrl, smartAccountType } = AAConfig;
-
-        let smartAccountInit: ISmartAccount;
-        switch (smartAccountType) {
-          case "biconomy":
-            smartAccountInit = new BiconomySmartAccount();
-            break;
-          case "kernel":
-            smartAccountInit = new KernelSmartAccount();
-            break;
-          case "trust":
-            smartAccountInit = new TrustSmartAccount();
-            break;
-          // case "light":
-          //   smartAccountInit = new LightSmartAccount();
-          //   break;
-          // case "simple":
-          //   smartAccountInit = new SimpleSmartAccount();
-          //   break;
-          case "safe":
-          default:
-            smartAccountInit = new SafeSmartAccount();
-            break;
-        }
-
-        aaProvider = new AccountAbstractionProvider({
-          config: {
-            chainConfig,
-            bundlerConfig: {
-              url: bundlerUrl ?? getDefaultBundlerUrl(chainConfig.chainId),
-            },
-            paymasterConfig: paymasterUrl
-              ? {
-                  url: paymasterUrl,
-                }
-              : undefined,
-            smartAccountInit,
-          },
-        });
-      }
-
       const web3auth = new Web3Auth(WebBrowser, EncryptedStorage, {
         clientId,
         // IMP START - Whitelist bundle ID
         redirectUrl,
         // IMP END - Whitelist bundle ID
         network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // or other networks
-        privateKeyProvider,
-        accountAbstractionProvider: aaProvider,
+        accountAbstractionConfig: useAccountAbstraction ? AAConfig : null,
       });
       setWeb3auth(web3auth);
 
@@ -146,7 +63,7 @@ export default function App() {
 
       if (web3auth.connected) {
         // IMP END - SDK Initialization
-        setProvider(web3auth.provider);
+        setSigner(web3auth.signer as Wallet);
         setLoggedIn(true);
       }
     };
@@ -166,8 +83,8 @@ export default function App() {
 
       setConsole("Logging in");
       // IMP START - Login
-      await web3auth.login({
-        loginProvider: LOGIN_PROVIDER.EMAIL_PASSWORDLESS,
+      await web3auth.connectTo({
+        authConnection: AUTH_CONNECTION.EMAIL_PASSWORDLESS,
         extraLoginOptions: {
           login_hint: email,
         },
@@ -176,7 +93,7 @@ export default function App() {
 
       if (web3auth.connected) {
         // IMP END - Login
-        setProvider(web3auth.provider);
+        setSigner(web3auth.signer as Wallet);
         uiConsole("Logged In");
         setLoggedIn(true);
       }
@@ -197,7 +114,7 @@ export default function App() {
     // IMP END - Logout
 
     if (!web3auth.connected) {
-      setProvider(null);
+      setSigner(null);
       uiConsole("Logged out");
       setLoggedIn(false);
     }
@@ -205,18 +122,11 @@ export default function App() {
 
   // IMP START - Blockchain Calls
   const getAccounts = async (): Promise<string> => {
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!signer) {
+      uiConsole("signer not set");
       return "";
     }
     setConsole("Getting account");
-    // For ethers v5
-    // const ethersProvider = new ethers.providers.Web3Provider(this.provider);
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-
-    // For ethers v5
-    // const signer = ethersProvider.getSigner();
-    const signer = await ethersProvider.getSigner();
 
     // Get user's Ethereum public address
     const address = signer.getAddress();
@@ -225,18 +135,11 @@ export default function App() {
   };
 
   const getBalance = async () => {
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!signer) {
+      uiConsole("signer not set");
       return;
     }
     setConsole("Fetching balance");
-    // For ethers v5
-    // const ethersProvider = new ethers.providers.Web3Provider(this.provider);
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-
-    // For ethers v5
-    // const signer = ethersProvider.getSigner();
-    const signer = await ethersProvider.getSigner();
 
     // Get user's Ethereum public address
     const address = signer.getAddress();
@@ -247,24 +150,17 @@ export default function App() {
     // await ethersProvider.getBalance(address) // Balance is in wei
     // );
     const balance = ethers.formatEther(
-      await ethersProvider.getBalance(address) // Balance is in wei
+      (await signer.provider?.getBalance(address))?.toString() ?? "0" // Balance is in wei
     );
     uiConsole(balance);
   };
 
   const signMessage = async () => {
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!signer) {
+      uiConsole("signer not set");
       return;
     }
     setConsole("Signing message");
-    // For ethers v5
-    // const ethersProvider = new ethers.providers.Web3Provider(this.provider);
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-
-    // For ethers v5
-    // const signer = ethersProvider.getSigner();
-    const signer = await ethersProvider.getSigner();
     const originalMessage = "YOUR_MESSAGE";
 
     // Sign the message
@@ -280,7 +176,7 @@ export default function App() {
     }
 
     setConsole("Launch Wallet Services");
-    await web3auth.launchWalletServices(chainConfig);
+    await web3auth.launchWalletServices();
   };
 
   const uiConsole = (...args: unknown[]) => {
@@ -296,7 +192,7 @@ export default function App() {
       const address: string = await getAccounts();
 
       const params = ["Hello World", address];
-      const res = await web3auth.request(chainConfig, "personal_sign", params);
+      const res = await web3auth.request("personal_sign", params);
       uiConsole(res);
     } catch (error) {
       uiConsole("Error in requestSignature:", error);

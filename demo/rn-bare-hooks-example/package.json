@@ -1,0 +1,53 @@
+{
+  "name": "RnBareHooksExample",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "lint": "eslint .",
+    "start": "react-native start",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@ethersproject/shims": "^5.7.0",
+    "@toruslabs/react-native-web-browser": "^1.1.0",
+    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-8.1.0.tgz",
+    "ethers": "^6.13.2",
+    "react": "19.2.3",
+    "react-native": "0.85.0",
+    "react-native-encrypted-storage": "^4.0.3",
+    "react-native-quick-crypto": "^0.7.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/plugin-transform-export-namespace-from": "^7.27.1",
+    "@babel/preset-env": "^7.25.3",
+    "@babel/runtime": "^7.25.0",
+    "@react-native-community/cli": "20.1.0",
+    "@react-native-community/cli-platform-android": "20.1.0",
+    "@react-native-community/cli-platform-ios": "20.1.0",
+    "@react-native/babel-preset": "0.85.0",
+    "@react-native/eslint-config": "0.85.0",
+    "@react-native/jest-preset": "0.85.0",
+    "@react-native/metro-config": "0.85.0",
+    "@react-native/typescript-config": "0.85.0",
+    "@types/jest": "^29.5.13",
+    "@types/react": "^19.2.0",
+    "@types/react-test-renderer": "^19.1.0",
+    "babel-jest": "^29.6.3",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.0",
+    "empty-module": "^0.0.2",
+    "eslint": "^8.19.0",
+    "jest": "^29.6.3",
+    "prettier": "2.8.8",
+    "process": "^0.11.10",
+    "react-test-renderer": "19.2.3",
+    "readable-stream": "^4.5.2",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">= 22.11.0"
+  }
+}
