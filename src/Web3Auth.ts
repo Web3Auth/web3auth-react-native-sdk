@@ -533,8 +533,12 @@ class Web3Auth implements IWeb3Auth {
       const configParams: WalletLoginParams = {
         loginId,
         sessionId,
+        // SFA has no citadel token; wallet falls back to session-service auth.
+        accessToken: isSFA ? undefined : ((await this.sessionManager.getAccessToken()) ?? undefined),
         platform: "react-native",
         sessionNamespace: isSFA ? "sfa" : undefined,
+        recordId: generateRecordId(),
+        loginSource: "web3auth-react-native",
       };
 
       const loginUrl = constructURL({
@@ -600,12 +604,15 @@ class Web3Auth implements IWeb3Auth {
       const configParams: WalletLoginParams = {
         loginId,
         sessionId,
+        accessToken: isSFA ? undefined : ((await this.sessionManager.getAccessToken()) ?? undefined),
         request: {
           method,
           params,
         },
         platform: "react-native",
         sessionNamespace: isSFA ? "sfa" : undefined,
+        recordId: generateRecordId(),
+        loginSource: "web3auth-react-native",
       };
 
       const loginUrl = constructURL({
