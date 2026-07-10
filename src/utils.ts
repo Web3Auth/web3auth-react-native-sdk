@@ -1,6 +1,7 @@
-import { SIGNER_MAP } from "@toruslabs/constants";
+import { DASHBOARD_PUBLIC_API_MAP } from "@toruslabs/constants";
 import { get } from "@toruslabs/http-helpers";
-import { BUILD_ENV_TYPE, safeatob, WEB3AUTH_NETWORK, type WEB3AUTH_NETWORK_TYPE } from "@web3auth/auth";
+import { decodeBase64Url } from "@toruslabs/metadata-helpers";
+import { BUILD_ENV, type BUILD_ENV_TYPE, type WEB3AUTH_NETWORK_TYPE } from "@web3auth/auth";
 import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
 
@@ -45,7 +46,7 @@ export function getHashQueryParams(url: string): HashQueryParamResult {
   const queryResult = queryUrlParams.get("b64Params");
   if (queryResult) {
     try {
-      const queryParams = JSON.parse(safeatob(queryResult));
+      const queryParams = JSON.parse(decodeBase64Url(queryResult));
       Object.keys(queryParams).forEach((key: string) => {
         result[key as keyof HashQueryParamResult] = queryParams[key];
       });
@@ -64,7 +65,7 @@ export function getHashQueryParams(url: string): HashQueryParamResult {
   const hashResult = hashUrlParams.get("b64Params");
   if (hashResult) {
     try {
-      const hashParams = JSON.parse(safeatob(hashResult));
+      const hashParams = JSON.parse(decodeBase64Url(hashResult));
       Object.keys(hashParams).forEach((key: string) => {
         result[key as keyof HashQueryParamResult] = hashParams[key];
       });
@@ -76,17 +77,13 @@ export function getHashQueryParams(url: string): HashQueryParamResult {
   return result;
 }
 
-export const signerHost = (web3AuthNetwork?: WEB3AUTH_NETWORK_TYPE): string => {
-  return SIGNER_MAP[web3AuthNetwork ?? WEB3AUTH_NETWORK.SAPPHIRE_MAINNET];
-};
-
 export const fetchProjectConfig = async (
   clientId: string,
   web3AuthNetwork: WEB3AUTH_NETWORK_TYPE,
   buildEnv?: BUILD_ENV_TYPE
 ): Promise<ProjectConfig> => {
   try {
-    const url = new URL(`${signerHost(web3AuthNetwork)}/api/v2/configuration`);
+    const url = new URL(`${DASHBOARD_PUBLIC_API_MAP[buildEnv ?? BUILD_ENV.PRODUCTION]}/api/v2/configuration`);
     url.searchParams.append("project_id", clientId);
     url.searchParams.append("network", web3AuthNetwork);
     if (buildEnv) url.searchParams.append("build_env", buildEnv);

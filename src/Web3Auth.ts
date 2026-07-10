@@ -1,13 +1,14 @@
 import { createKeyPairFromBytes } from "@solana/keys";
 import { createSignerFromKeyPair, type TransactionSigner } from "@solana/signers";
 import { NodeDetailManager } from "@toruslabs/fetch-node-details";
-import { SessionManager } from "@toruslabs/session-manager";
+import { add0x, type Hex } from "@toruslabs/metadata-helpers";
+import { StorageManager } from "@toruslabs/session-manager";
 import { keccak256, Torus, TorusKey, VerifierParams } from "@toruslabs/torus.js";
 import {
   AUTH_ACTIONS,
   AUTH_CONNECTION,
   AuthConnectionConfig,
-  type AuthSessionConfig,
+  type AuthRequestPayload,
   AuthUserInfo,
   type BaseLoginParams,
   BUILD_ENV,
@@ -27,8 +28,7 @@ import type {
   IProvider,
   SmartAccountsConfig,
 } from "@web3auth/no-modal";
-import { accountAbstractionProvider } from "@web3auth/no-modal/dist/lib.esm/providers/account-abstraction-provider/index.js";
-import { CommonJRPCProvider } from "@web3auth/no-modal/dist/lib.esm/providers/base-provider/CommonJRPCProvider.js";
+import { accountAbstractionProvider, CommonJRPCProvider } from "@web3auth/no-modal";
 import { WsEmbedParams } from "@web3auth/ws-embed";
 import deepmerge from "deepmerge";
 import { ethers, JsonRpcProvider, Wallet } from "ethers";
@@ -61,8 +61,7 @@ import { IWebBrowser } from "./types/IWebBrowser";
 import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
 
 // Inlined from @web3auth/no-modal/base/utils to avoid loading the barrel file
-const isHexStrict = (hex: unknown): boolean =>
-  (typeof hex === "string" || typeof hex === "number") && /^(-)?0x[0-9a-f]*$/i.test(String(hex));
+const isHexStrict = (hex: unknown): boolean => (typeof hex === "string" || typeof hex === "number") && /^(-)?0x[0-9a-f]*$/i.test(String(hex));
 
 // import WebViewComponent from "./WebViewComponent";
 
@@ -79,7 +78,7 @@ class Web3Auth implements IWeb3Auth {
 
   private state: State;
 
-  private sessionManager: SessionManager<AuthSessionData>;
+  private sessionManager: StorageManager<AuthSessionData>;
 
   private addVersionInUrls = true;
 
@@ -94,21 +93,6 @@ class Web3Auth implements IWeb3Auth {
   private torusUtils: Torus;
 
   private _listeners: Map<string, Set<() => void>> = new Map();
-
-  on(event: "connected" | "disconnected", listener: () => void): this {
-    if (!this._listeners.has(event)) this._listeners.set(event, new Set());
-    this._listeners.get(event).add(listener);
-    return this;
-  }
-
-  removeListener(event: "connected" | "disconnected", listener: () => void): this {
-    this._listeners.get(event)?.delete(listener);
-    return this;
-  }
-
-  private emit(event: "connected" | "disconnected"): void {
-    this._listeners.get(event)?.forEach((l) => l());
-  }
 
   constructor(webBrowser: IWebBrowser, storage: SecureStore | EncryptedStorage, options: SdkInitParams) {
     if (!options.clientId) throw InitializationError.invalidParams("clientId is required");
@@ -176,10 +160,11 @@ class Web3Auth implements IWeb3Auth {
     this.analytics = new Analytics();
     this.analytics.setGlobalProperties({ integration_type: ANALYTICS_INTEGRATION_TYPE.NATIVE_SDK });
 
-    this.fetchNodeDetails = new NodeDetailManager({ network: this.options.network });
+    this.fetchNodeDetails = new NodeDetailManager({ network: this.options.network, buildEnv: this.options.buildEnv });
     this.torusUtils = new Torus({
       network: this.options.network,
       clientId: this.options.clientId,
+      buildEnv: this.options.buildEnv,
       serverTimeOffset: 0,
       enableOneKey: true,
     });
@@ -223,6 +208,17 @@ class Web3Auth implements IWeb3Auth {
     throw new Error("Not implemented");
   }
 
+  on(event: "connected" | "disconnected", listener: () => void): this {
+    if (!this._listeners.has(event)) this._listeners.set(event, new Set());
+    this._listeners.get(event).add(listener);
+    return this;
+  }
+
+  removeListener(event: "connected" | "disconnected", listener: () => void): this {
+    this._listeners.get(event)?.delete(listener);
+    return this;
+  }
+
   async init(): Promise<void> {
     // init analytics
     const startTime = Date.now();
@@ -246,7 +242,7 @@ class Web3Auth implements IWeb3Auth {
     try {
       const isSFA = await this.checkIsSFAFromStorage();
 
-      this.sessionManager = new SessionManager<AuthSessionData>({
+      this.sessionManager = new StorageManager<AuthSessionData>({
         sessionServerBaseUrl: this.options.storageServerUrl,
         sessionTime: this.options.sessionTime,
         sessionNamespace: isSFA ? "sfa" : undefined,
@@ -276,7 +272,7 @@ class Web3Auth implements IWeb3Auth {
       this.analytics.setGlobalProperties({ team_id: this.projectConfig.teamId });
       const sessionId = await this.keyStore.get("sessionId");
       if (sessionId) {
-        this.sessionManager.sessionId = sessionId;
+        this.sessionManager.setSessionId(add0x(sessionId));
         const data = await this.authorizeSession();
         if (Object.keys(data).length > 0) {
           this.updateState({
@@ -403,12 +399,7 @@ class Web3Auth implements IWeb3Auth {
         },
         authToken: "",
         sessionId: "",
-        factorKey: "",
         signatures: [],
-        tssShareIndex: -1,
-        tssPubKey: "",
-        tssShare: "",
-        tssNonce: -1,
         currentChainId: this.currentChainId,
       });
 
@@ -442,7 +433,7 @@ class Web3Auth implements IWeb3Auth {
     });
 
     try {
-      const dataObject: Omit<AuthSessionConfig, "options"> & {
+      const dataObject: Omit<AuthRequestPayload, "options"> & {
         options: SdkInitParams & {
           chains: ChainsConfig;
           chainId: string;
@@ -463,7 +454,7 @@ class Web3Auth implements IWeb3Auth {
       };
 
       const url = `${this.walletSdkUrl}/${path}`;
-      const loginId = SessionManager.generateRandomSessionKey();
+      const loginId = StorageManager.generateRandomSessionKey();
       await this.createLoginSession(loginId, dataObject);
 
       const { sessionId } = this.sessionManager;
@@ -510,7 +501,7 @@ class Web3Auth implements IWeb3Auth {
     const startTime = Date.now();
 
     try {
-      const dataObject: Omit<AuthSessionConfig, "options"> & {
+      const dataObject: Omit<AuthRequestPayload, "options"> & {
         options: SdkInitParams & {
           chains: ChainsConfig;
           chainId: string;
@@ -531,7 +522,7 @@ class Web3Auth implements IWeb3Auth {
       };
 
       const url = `${this.walletSdkUrl}/${path}`;
-      const loginId = SessionManager.generateRandomSessionKey();
+      const loginId = StorageManager.generateRandomSessionKey();
       await this.createLoginSession(loginId, dataObject);
 
       const { sessionId } = this.sessionManager;
@@ -608,7 +599,7 @@ class Web3Auth implements IWeb3Auth {
         },
       };
 
-      const dataObject: AuthSessionConfig = {
+      const dataObject: AuthRequestPayload = {
         actionType: AUTH_ACTIONS.ENABLE_MFA,
         options: this.options,
         params: {
@@ -632,7 +623,7 @@ class Web3Auth implements IWeb3Auth {
 
       if (sessionId) {
         await this.keyStore.set("sessionId", sessionId);
-        this.sessionManager.sessionId = sessionId;
+        this.sessionManager.setSessionId(add0x(sessionId));
         this.sessionManager.sessionNamespace = sessionNamespace || "";
       }
 
@@ -693,7 +684,7 @@ class Web3Auth implements IWeb3Auth {
         redirectUrl: this.options.dashboardUrl,
       };
 
-      const dataObject: AuthSessionConfig = {
+      const dataObject: AuthRequestPayload = {
         actionType: AUTH_ACTIONS.MANAGE_MFA,
         options: this.options,
         params: {
@@ -731,7 +722,7 @@ class Web3Auth implements IWeb3Auth {
     const isSFA = !!loginParams.idToken;
 
     // recreate session manager with sfa option
-    this.sessionManager = new SessionManager<AuthSessionData>({
+    this.sessionManager = new StorageManager<AuthSessionData>({
       sessionServerBaseUrl: this.options.storageServerUrl,
       sessionTime: this.options.sessionTime,
       sessionNamespace: isSFA ? "sfa" : undefined,
@@ -972,6 +963,10 @@ class Web3Auth implements IWeb3Auth {
     this.commonJRPCProvider.on("chainChanged", (chainId) => this.setCurrentChain(chainId));
   }
 
+  private emit(event: "connected" | "disconnected"): void {
+    this._listeners.get(event)?.forEach((l) => l());
+  }
+
   private async login(loginParams: SdkLoginParams): Promise<WalletResult | null> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!this.options.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
@@ -1002,7 +997,7 @@ class Web3Auth implements IWeb3Auth {
       }
     }
 
-    const dataObject: AuthSessionConfig = {
+    const dataObject: AuthRequestPayload = {
       actionType: AUTH_ACTIONS.LOGIN,
       options: this.options,
       params: loginParams,
@@ -1022,7 +1017,7 @@ class Web3Auth implements IWeb3Auth {
 
     if (sessionId) {
       await this.keyStore.set("sessionId", sessionId);
-      this.sessionManager.sessionId = sessionId;
+      this.sessionManager.setSessionId(add0x(sessionId));
       this.sessionManager.sessionNamespace = sessionNamespace || "";
     }
 
@@ -1084,8 +1079,8 @@ class Web3Auth implements IWeb3Auth {
       userInfo,
       signatures,
     };
-    const sessionId = SessionManager.generateRandomSessionKey();
-    this.sessionManager.sessionId = sessionId;
+    const sessionId = StorageManager.generateRandomSessionKey();
+    this.sessionManager.setSessionId(add0x(sessionId));
     await this.sessionManager.createSession(authSessionData);
     await this.keyStore.set("sessionId", sessionId);
 
@@ -1181,11 +1176,11 @@ class Web3Auth implements IWeb3Auth {
     this.state = { ...newState };
   }
 
-  private async createLoginSession(loginId: string, data: AuthSessionConfig, timeout = 600): Promise<string> {
+  private async createLoginSession(loginId: Hex, data: AuthRequestPayload, timeout = 600): Promise<Hex> {
     if (!this.sessionManager) throw InitializationError.notInitialized();
 
     const isSFA = await this.checkIsSFAFromStorage();
-    const loginSessionMgr = new SessionManager<AuthSessionConfig>({
+    const loginSessionMgr = new StorageManager<AuthRequestPayload>({
       sessionServerBaseUrl: this.options.storageServerUrl,
       sessionTime: timeout, // each login key must be used with 10 mins (might be used at the end of popup redirect)
       sessionId: loginId,
@@ -1197,8 +1192,8 @@ class Web3Auth implements IWeb3Auth {
     return loginId;
   }
 
-  private async authHandler(url: string, dataObject: AuthSessionConfig) {
-    const loginId = SessionManager.generateRandomSessionKey();
+  private async authHandler(url: string, dataObject: AuthRequestPayload) {
+    const loginId = StorageManager.generateRandomSessionKey();
     await this.createLoginSession(loginId, dataObject);
 
     const configParams: BaseLoginParams = {
