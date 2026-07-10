@@ -112,16 +112,16 @@ class Web3Auth implements IWeb3Auth {
     if (!options.sdkUrl && !options.useMpc) {
       if (options.buildEnv === BUILD_ENV.DEVELOPMENT) {
         options.sdkUrl = "http://localhost:3000";
-        options.dashboardUrl = "http://localhost:5173/wallet/account";
+        options.dashboardUrl = "http://localhost:5173";
       } else if (options.buildEnv === BUILD_ENV.STAGING) {
         options.sdkUrl = "https://staging-auth.web3auth.io";
-        options.dashboardUrl = "https://staging-account.web3auth.io/wallet/account";
+        options.dashboardUrl = "https://staging-account.web3auth.io";
       } else if (options.buildEnv === BUILD_ENV.TESTING) {
         options.sdkUrl = "https://develop-auth.web3auth.io";
-        options.dashboardUrl = "https://develop-account.web3auth.io/wallet/account";
+        options.dashboardUrl = "https://develop-account.web3auth.io";
       } else {
         options.sdkUrl = "https://auth.web3auth.io";
-        options.dashboardUrl = "https://account.web3auth.io/wallet/account";
+        options.dashboardUrl = "https://account.web3auth.io";
       }
     }
 
@@ -215,6 +215,11 @@ class Web3Auth implements IWeb3Auth {
   private get walletSdkUrl(): string {
     if (!this.addVersionInUrls) return `${this.options.walletSdkURL}`;
     return `${this.options.walletSdkURL}/v5`;
+  }
+
+  private get dashboardUrl(): string {
+    if (!this.addVersionInUrls) return `${this.options.dashboardUrl}`;
+    return `${this.options.dashboardUrl}/v${version.split(".")[0]}`;
   }
 
   set provider(_: IProvider | null) {
@@ -765,7 +770,7 @@ class Web3Auth implements IWeb3Auth {
           login_hint: this.state.userInfo?.userId,
         },
         dappUrl: this.options.redirectUrl,
-        redirectUrl: this.options.dashboardUrl,
+        redirectUrl: `${this.dashboardUrl}/wallet/account`,
       };
 
       const dataObject: AuthRequestPayload = {
