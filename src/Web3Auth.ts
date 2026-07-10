@@ -1,8 +1,9 @@
 import { createKeyPairFromBytes } from "@solana/keys";
 import { createSignerFromKeyPair, type TransactionSigner } from "@solana/signers";
+import { CITADEL_SERVER_MAP, STORAGE_SERVER_MAP, STORAGE_SERVER_SOCKET_URL_MAP } from "@toruslabs/constants";
 import { NodeDetailManager } from "@toruslabs/fetch-node-details";
 import { add0x, type Hex } from "@toruslabs/metadata-helpers";
-import { StorageManager } from "@toruslabs/session-manager";
+import { AuthSessionManager, StorageManager } from "@toruslabs/session-manager";
 import { keccak256, Torus, TorusKey, VerifierParams } from "@toruslabs/torus.js";
 import {
   AUTH_ACTIONS,
@@ -16,6 +17,7 @@ import {
   jsonToBase64,
   MFA_LEVELS,
   serializeError,
+  version,
   WEB3AUTH_NETWORK,
   type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
@@ -41,6 +43,7 @@ import URI from "urijs";
 import { Analytics, ANALYTICS_EVENTS, ANALYTICS_INTEGRATION_TYPE, ANALYTICS_SDK_NAME, CHAIN_NAMESPACES, log, sdkVersion } from "./base";
 import { InitializationError, LoginError, RequestError } from "./errors";
 import KeyStore, { KEYSTORE_KEYS } from "./session/KeyStore";
+import KeyStoreAdapter from "./session/KeyStoreAdapter";
 import { EncryptedStorage } from "./types/IEncryptedStorage";
 import { SecureStore } from "./types/IExpoSecureStore";
 import {
@@ -78,7 +81,14 @@ class Web3Auth implements IWeb3Auth {
 
   private state: State;
 
-  private sessionManager: StorageManager<AuthSessionData>;
+  // Citadel session manager for the main auth flow (v11). Tokens live in KeyStore via KeyStoreAdapter.
+  private sessionManager!: AuthSessionManager<AuthSessionData>;
+
+  // SFA still mints sessions client-side on session-service; citadel can only mint via auth-service.
+  private sfaSessionManager?: StorageManager<AuthSessionData>;
+
+  // AuthSessionManager has no sync sessionId getter — track connected state here.
+  private currentSessionId: string | null = null;
 
   private addVersionInUrls = true;
 
@@ -143,7 +153,10 @@ class Web3Auth implements IWeb3Auth {
     if (!options.whiteLabel) options.whiteLabel = {};
     if (!options.authConnectionConfig) options.authConnectionConfig = [];
     if (!options.mfaSettings) options.mfaSettings = {};
-    if (!options.storageServerUrl) options.storageServerUrl = "https://session.web3auth.io";
+    // Env-specific defaults: citadel for auth sessions, storage for login staging + SFA, socket for web parity.
+    if (!options.citadelServerUrl) options.citadelServerUrl = CITADEL_SERVER_MAP[options.buildEnv];
+    if (!options.storageServerUrl) options.storageServerUrl = STORAGE_SERVER_MAP[options.buildEnv];
+    if (!options.sessionSocketUrl) options.sessionSocketUrl = STORAGE_SERVER_SOCKET_URL_MAP[options.buildEnv];
     if (!options.sessionTime) options.sessionTime = 86400;
     if (typeof options.enableLogging === "undefined") options.enableLogging = false;
     if (options.enableLogging) {
@@ -172,7 +185,7 @@ class Web3Auth implements IWeb3Auth {
   }
 
   get connected(): boolean {
-    return Boolean(this.sessionManager?.sessionId);
+    return Boolean(this.currentSessionId);
   }
 
   get provider(): IProvider | null {
@@ -194,9 +207,9 @@ class Web3Auth implements IWeb3Auth {
   }
 
   private get baseUrl(): string {
-    // testing and develop don't have versioning
+    // testing and develop don't have versioning; otherwise pin to auth major (v11) so redirects mint citadel tokens
     if (!this.addVersionInUrls) return `${this.options.sdkUrl}`;
-    return `${this.options.sdkUrl}/v10`;
+    return `${this.options.sdkUrl}/v${version.split(".")[0]}`;
   }
 
   private get walletSdkUrl(): string {
@@ -231,7 +244,8 @@ class Web3Auth implements IWeb3Auth {
       },
     });
     this.analytics.setGlobalProperties({
-      dapp_url: window.location.origin,
+      // RN has no window.location; derive origin from the configured redirect URL.
+      dapp_url: new URI(this.options.redirectUrl).origin(),
       sdk_name: ANALYTICS_SDK_NAME,
       sdk_version: sdkVersion,
       // Required for organization analytics
@@ -241,11 +255,19 @@ class Web3Auth implements IWeb3Auth {
 
     try {
       const isSFA = await this.checkIsSFAFromStorage();
+      const adapter = new KeyStoreAdapter(this.keyStore);
 
-      this.sessionManager = new StorageManager<AuthSessionData>({
-        sessionServerBaseUrl: this.options.storageServerUrl,
-        sessionTime: this.options.sessionTime,
-        sessionNamespace: isSFA ? "sfa" : undefined,
+      // Same adapter for all four slots so refreshToken uses KeyStore instead of web CookieStorage.
+      this.sessionManager = new AuthSessionManager({
+        storageKeyPrefix: "auth_store",
+        apiClientConfig: { baseURL: this.options.citadelServerUrl },
+        storage: {
+          sessionId: adapter,
+          accessToken: adapter,
+          refreshToken: adapter,
+          idToken: adapter,
+        },
+        accessTokenProvider: this.options.accessTokenProvider,
       });
 
       try {
@@ -270,39 +292,75 @@ class Web3Auth implements IWeb3Auth {
       await this.setupCommonJRPCProvider();
 
       this.analytics.setGlobalProperties({ team_id: this.projectConfig.teamId });
-      const sessionId = await this.keyStore.get("sessionId");
-      if (sessionId) {
-        this.sessionManager.setSessionId(add0x(sessionId));
-        const data = await this.authorizeSession();
-        if (Object.keys(data).length > 0) {
-          this.updateState({
-            ...data,
-            currentChainId: this.currentChainId,
-          });
-          const finalPrivKey = this.getFinalPrivKey();
-          if (!finalPrivKey) return;
-          const result = await this.getWallet(finalPrivKey);
-          this.commonJRPCProvider.updateProviderEngineProxy(result.provider);
-          this.signer = result.signer;
-        } else {
-          try {
-            await this.keyStore.remove("sessionId");
-            await this.clearSFAFromStorage();
-          } catch (e) {
-            if (!(await this.handleKeyStoreCorruptedError(e))) {
-              throw e;
-            }
-            this.analytics.track({
-              event: ANALYTICS_EVENTS.SDK_INITIALIZATION_KEYSTORE_CORRUPTED,
-              properties: {
-                error_message: `SDK initialization keystore corrupted. ${e instanceof Error ? e.message : e}`,
-              },
+
+      // SFA: restore from legacy session-service KeyStore entry.
+      // Citadel: restore from AuthSessionManager tokens.
+      if (isSFA) {
+        this.sfaSessionManager = new StorageManager<AuthSessionData>({
+          sessionServerBaseUrl: this.options.storageServerUrl,
+          sessionTime: this.options.sessionTime,
+          sessionNamespace: "sfa",
+        });
+        const sessionId = await this.keyStore.get("sessionId");
+        if (sessionId) {
+          this.sfaSessionManager.setSessionId(add0x(sessionId));
+          this.currentSessionId = sessionId;
+          const data = await this.authorizeSession();
+          if (Object.keys(data).length > 0) {
+            this.updateState({
+              ...data,
+              currentChainId: this.currentChainId,
             });
+            const finalPrivKey = this.getFinalPrivKey();
+            if (!finalPrivKey) return;
+            const result = await this.getWallet(finalPrivKey);
+            this.commonJRPCProvider.updateProviderEngineProxy(result.provider);
+            this.signer = result.signer;
+          } else {
+            try {
+              await this.keyStore.remove("sessionId");
+              await this.clearSFAFromStorage();
+            } catch (e) {
+              if (!(await this.handleKeyStoreCorruptedError(e))) {
+                throw e;
+              }
+              this.analytics.track({
+                event: ANALYTICS_EVENTS.SDK_INITIALIZATION_KEYSTORE_CORRUPTED,
+                properties: {
+                  error_message: `SDK initialization keystore corrupted. ${e instanceof Error ? e.message : e}`,
+                },
+              });
+            }
+            this.currentSessionId = null;
+            this.updateState({
+              currentChainId: this.currentChainId,
+            });
+            this.signer = null;
           }
-          this.updateState({
-            currentChainId: this.currentChainId,
-          });
-          this.signer = null;
+        }
+      } else {
+        const sessionId = await this.sessionManager.getSessionId();
+        if (sessionId) {
+          this.currentSessionId = sessionId;
+          const data = await this.authorizeSession();
+          if (Object.keys(data).length > 0) {
+            this.updateState({
+              ...data,
+              currentChainId: this.currentChainId,
+            });
+            const finalPrivKey = this.getFinalPrivKey();
+            if (!finalPrivKey) return;
+            const result = await this.getWallet(finalPrivKey);
+            this.commonJRPCProvider.updateProviderEngineProxy(result.provider);
+            this.signer = result.signer;
+          } else {
+            await this.sessionManager.clearSessionData();
+            this.currentSessionId = null;
+            this.updateState({
+              currentChainId: this.currentChainId,
+            });
+            this.signer = null;
+          }
         }
       }
       this.ready = true;
@@ -336,7 +394,7 @@ class Web3Auth implements IWeb3Auth {
   }
 
   async logout(): Promise<void> {
-    if (!this.sessionManager.sessionId) {
+    if (!this.currentSessionId) {
       throw LoginError.userNotLoggedIn();
     }
 
@@ -346,11 +404,31 @@ class Web3Auth implements IWeb3Auth {
 
     try {
       const currentUserInfo = this.userInfo();
+      const isSFA = await this.checkIsSFAFromStorage();
 
-      await this.sessionManager.invalidateSession();
+      // SFA: invalidate session-service entry + clear KeyStore flag.
+      // Citadel: logout() POSTs /v1/auth/logout and clears all four stored tokens.
+      if (isSFA) {
+        await this.sfaSessionManager!.invalidateSession();
+        try {
+          await this.keyStore.remove("sessionId");
+          await this.clearSFAFromStorage();
+        } catch (e) {
+          if (!(await this.handleKeyStoreCorruptedError(e))) {
+            throw e;
+          }
+          this.analytics.track({
+            event: ANALYTICS_EVENTS.LOGOUT_KEYSTORE_CORRUPTED,
+            properties: {
+              error_message: `Logout keystore corrupted. ${e instanceof Error ? e.message : e}`,
+            },
+          });
+        }
+      } else {
+        await this.sessionManager.logout();
+      }
+
       try {
-        await this.keyStore.remove("sessionId");
-        await this.clearSFAFromStorage();
         if (currentUserInfo.authConnectionId && currentUserInfo.dappShare && currentUserInfo.dappShare.length > 0) {
           const verifier = currentUserInfo.groupedAuthConnectionId || currentUserInfo.authConnectionId;
           await this.keyStore.remove(verifier);
@@ -366,6 +444,8 @@ class Web3Auth implements IWeb3Auth {
           },
         });
       }
+
+      this.currentSessionId = null;
 
       // re-setup commonJRPCProvider
       this.commonJRPCProvider.removeAllListeners();
@@ -420,7 +500,7 @@ class Web3Auth implements IWeb3Auth {
 
   async launchWalletServices(path: string | null = "wallet"): Promise<void> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
-    if (!this.sessionManager.sessionId) {
+    if (!this.currentSessionId) {
       throw LoginError.userNotLoggedIn();
     }
 
@@ -457,7 +537,7 @@ class Web3Auth implements IWeb3Auth {
       const loginId = StorageManager.generateRandomSessionKey();
       await this.createLoginSession(loginId, dataObject);
 
-      const { sessionId } = this.sessionManager;
+      const sessionId = this.currentSessionId;
       const isSFA = await this.checkIsSFAFromStorage();
 
       const configParams: WalletLoginParams = {
@@ -486,7 +566,7 @@ class Web3Auth implements IWeb3Auth {
 
   async request(method: string, params: unknown[], path: string = "wallet/request"): Promise<string> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
-    if (!this.sessionManager.sessionId) {
+    if (!this.currentSessionId) {
       throw LoginError.userNotLoggedIn();
     }
 
@@ -525,7 +605,7 @@ class Web3Auth implements IWeb3Auth {
       const loginId = StorageManager.generateRandomSessionKey();
       await this.createLoginSession(loginId, dataObject);
 
-      const { sessionId } = this.sessionManager;
+      const sessionId = this.currentSessionId;
       const isSFA = await this.checkIsSFAFromStorage();
       const configParams: WalletLoginParams = {
         loginId,
@@ -576,7 +656,7 @@ class Web3Auth implements IWeb3Auth {
 
   async enableMFA(): Promise<boolean> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
-    if (!this.sessionManager.sessionId) {
+    if (!this.currentSessionId) {
       throw LoginError.userNotLoggedIn();
     }
     if (this.state.userInfo.isMfaEnabled) {
@@ -606,7 +686,7 @@ class Web3Auth implements IWeb3Auth {
           ...loginParams,
           mfaLevel: "mandatory",
         },
-        sessionId: this.sessionManager.sessionId,
+        sessionId: this.currentSessionId,
       };
 
       const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
@@ -616,16 +696,19 @@ class Web3Auth implements IWeb3Auth {
         throw LoginError.loginFailed(`enableMFA flow failed with error type ${result.type}`);
       }
 
-      const { sessionId, sessionNamespace, error } = getHashQueryParams(result.url);
+      // v11 redirect returns the full token set; authorize() requires sessionId + access/refresh token.
+      const { sessionId, accessToken, refreshToken, idToken, error } = getHashQueryParams(result.url);
       if (error || !sessionId) {
         throw LoginError.loginFailed(error || "SessionId is missing");
       }
 
-      if (sessionId) {
-        await this.keyStore.set("sessionId", sessionId);
-        this.sessionManager.setSessionId(add0x(sessionId));
-        this.sessionManager.sessionNamespace = sessionNamespace || "";
-      }
+      await this.sessionManager.setTokens({
+        sessionId: add0x(sessionId),
+        accessToken: accessToken || "",
+        refreshToken: refreshToken || "",
+        idToken: idToken || "",
+      });
+      this.currentSessionId = sessionId;
 
       const sessionData = await this.authorizeSession();
 
@@ -660,11 +743,12 @@ class Web3Auth implements IWeb3Auth {
 
   async manageMFA(): Promise<void> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
-    if (!this.sessionManager.sessionId) {
+    if (!this.currentSessionId) {
       throw LoginError.userNotLoggedIn();
     }
-    if (this.state.userInfo.isMfaEnabled) {
-      throw LoginError.mfaAlreadyEnabled();
+    // manageMFA requires MFA already enabled; use enableMFA() first when it is not.
+    if (!this.state.userInfo.isMfaEnabled) {
+      throw LoginError.mfaNotEnabled();
     }
 
     this.analytics.track({
@@ -691,7 +775,7 @@ class Web3Auth implements IWeb3Auth {
           ...loginParams,
           mfaLevel: "mandatory",
         },
-        sessionId: this.sessionManager.sessionId,
+        sessionId: this.currentSessionId,
       };
 
       const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
@@ -721,15 +805,14 @@ class Web3Auth implements IWeb3Auth {
   public async connectTo(loginParams: SdkLoginParams): Promise<WalletResult | null> {
     const isSFA = !!loginParams.idToken;
 
-    // recreate session manager with sfa option
-    this.sessionManager = new StorageManager<AuthSessionData>({
-      sessionServerBaseUrl: this.options.storageServerUrl,
-      sessionTime: this.options.sessionTime,
-      sessionNamespace: isSFA ? "sfa" : undefined,
-    });
-
     let walletResult: WalletResult | null = null;
     if (isSFA) {
+      // Keep citadel sessionManager intact; SFA uses its own StorageManager on session-service.
+      this.sfaSessionManager = new StorageManager<AuthSessionData>({
+        sessionServerBaseUrl: this.options.storageServerUrl,
+        sessionTime: this.options.sessionTime,
+        sessionNamespace: "sfa",
+      });
       await this.keyStore.set(KEYSTORE_KEYS.IS_SFA, "true");
       if (loginParams.groupedAuthConnectionId) {
         const aggregateLoginParams: SdkLoginParams = {
@@ -1010,16 +1093,19 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
     }
 
-    const { sessionId, sessionNamespace, error } = getHashQueryParams(result.url);
+    // Persist citadel tokens from the v11 redirect; do not write a legacy KeyStore "sessionId".
+    const { sessionId, accessToken, refreshToken, idToken, error } = getHashQueryParams(result.url);
     if (error || !sessionId) {
       throw LoginError.loginFailed(error || "SessionId is missing");
     }
 
-    if (sessionId) {
-      await this.keyStore.set("sessionId", sessionId);
-      this.sessionManager.setSessionId(add0x(sessionId));
-      this.sessionManager.sessionNamespace = sessionNamespace || "";
-    }
+    await this.sessionManager.setTokens({
+      sessionId: add0x(sessionId),
+      accessToken: accessToken || "",
+      refreshToken: refreshToken || "",
+      idToken: idToken || "",
+    });
+    this.currentSessionId = sessionId;
 
     const sessionData = await this.authorizeSession();
 
@@ -1079,10 +1165,12 @@ class Web3Auth implements IWeb3Auth {
       userInfo,
       signatures,
     };
+    // SFA sessions are minted client-side on session-service and keyed in KeyStore for rehydrate.
     const sessionId = StorageManager.generateRandomSessionKey();
-    this.sessionManager.setSessionId(add0x(sessionId));
-    await this.sessionManager.createSession(authSessionData);
+    this.sfaSessionManager!.setSessionId(add0x(sessionId));
+    await this.sfaSessionManager!.createSession(authSessionData);
     await this.keyStore.set("sessionId", sessionId);
+    this.currentSessionId = sessionId;
 
     this.updateState({
       ...authSessionData,
@@ -1179,6 +1267,7 @@ class Web3Auth implements IWeb3Auth {
   private async createLoginSession(loginId: Hex, data: AuthRequestPayload, timeout = 600): Promise<Hex> {
     if (!this.sessionManager) throw InitializationError.notInitialized();
 
+    // Login payload staging still uses session-service until auth-service migrates that storage.
     const isSFA = await this.checkIsSFAFromStorage();
     const loginSessionMgr = new StorageManager<AuthRequestPayload>({
       sessionServerBaseUrl: this.options.storageServerUrl,
@@ -1238,12 +1327,19 @@ class Web3Auth implements IWeb3Auth {
 
   private async authorizeSession(): Promise<AuthSessionData> {
     try {
-      const data = await this.sessionManager.authorizeSession({
-        headers: {
-          Origin: new URI(this.options.redirectUrl).origin(),
-        },
-      });
-      return data;
+      const isSFA = await this.checkIsSFAFromStorage();
+      if (isSFA) {
+        // session-service authorize requires Origin; citadel authorize() uses stored tokens instead.
+        const data = await this.sfaSessionManager!.authorizeSession({
+          headers: {
+            Origin: new URI(this.options.redirectUrl).origin(),
+          },
+        });
+        return data;
+      }
+
+      const data = await this.sessionManager.authorize();
+      return data ?? {};
     } catch {
       return {};
     }

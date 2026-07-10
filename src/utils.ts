@@ -26,8 +26,13 @@ export function constructURL(params: { baseURL: string; query?: Record<string, u
 export type HashQueryParamResult = {
   sessionId?: string;
   sessionNamespace?: string;
+  // v11 auth redirect tokens required by AuthSessionManager.authorize()
+  accessToken?: string;
+  refreshToken?: string;
+  idToken?: string;
   error?: string;
   state?: string;
+  nonce?: string;
   // Used only for request method
   success?: string;
   result?: string;
