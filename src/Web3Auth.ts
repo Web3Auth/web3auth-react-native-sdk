@@ -60,7 +60,7 @@ import {
   WalletResult,
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
-import { constructURL, fetchProjectConfig, getHashQueryParams } from "./utils";
+import { constructURL, fetchProjectConfig, generateRecordId, getHashQueryParams } from "./utils";
 
 // Inlined from @web3auth/no-modal/base/utils to avoid loading the barrel file
 const isHexStrict = (hex: unknown): boolean => (typeof hex === "string" || typeof hex === "number") && /^(-)?0x[0-9a-f]*$/i.test(String(hex));
@@ -649,6 +649,7 @@ class Web3Auth implements IWeb3Auth {
     if (!this.currentSessionId) {
       throw LoginError.userNotLoggedIn();
     }
+    await this.refreshSession();
     if (this.state.userInfo.isMfaEnabled) {
       throw LoginError.mfaAlreadyEnabled();
     }
@@ -677,6 +678,7 @@ class Web3Auth implements IWeb3Auth {
           mfaLevel: "mandatory",
         },
         sessionId: this.currentSessionId,
+        accessToken: (await this.sessionManager.getAccessToken()) ?? undefined,
       };
 
       const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
@@ -686,7 +688,6 @@ class Web3Auth implements IWeb3Auth {
         throw LoginError.loginFailed(`enableMFA flow failed with error type ${result.type}`);
       }
 
-      // v11 redirect returns the full token set; authorize() requires sessionId + access/refresh token.
       const { sessionId, accessToken, refreshToken, idToken, error } = getHashQueryParams(result.url);
       if (error || !sessionId) {
         throw LoginError.loginFailed(error || "SessionId is missing");
@@ -700,17 +701,12 @@ class Web3Auth implements IWeb3Auth {
       });
       this.currentSessionId = sessionId;
 
-      const sessionData = await this.authorizeSession();
+      await this.refreshSession();
 
-      if (sessionData.userInfo?.dappShare && sessionData.userInfo?.dappShare.length > 0) {
-        const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
-        await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
+      const { userInfo } = this.state;
+      if (userInfo?.dappShare?.length > 0) {
+        await this.keyStore.set(userInfo.groupedAuthConnectionId || userInfo.authConnectionId, userInfo.dappShare);
       }
-
-      this.updateState({
-        ...sessionData,
-        currentChainId: this.currentChainId,
-      });
 
       this.analytics.track({
         event: ANALYTICS_EVENTS.MFA_ENABLEMENT_COMPLETED,
@@ -736,6 +732,7 @@ class Web3Auth implements IWeb3Auth {
     if (!this.currentSessionId) {
       throw LoginError.userNotLoggedIn();
     }
+    await this.refreshSession();
     // manageMFA requires MFA already enabled; use enableMFA() first when it is not.
     if (!this.state.userInfo.isMfaEnabled) {
       throw LoginError.mfaNotEnabled();
@@ -748,31 +745,59 @@ class Web3Auth implements IWeb3Auth {
       },
     });
     try {
-      const loginParams: SdkLoginParams & { redirectUrl: string } = {
+      const loginParams: SdkLoginParams = {
         authConnection: this.state.userInfo?.authConnection,
         mfaLevel: MFA_LEVELS.MANDATORY,
         extraLoginOptions: {
           login_hint: this.state.userInfo?.userId,
         },
         dappUrl: this.options.redirectUrl,
-        redirectUrl: `${this.dashboardUrl}/wallet/account`,
       };
 
+      // Pre-generate IDs so appState can embed them (authHandler generates IDs after the payload is built).
+      const loginId = StorageManager.generateRandomSessionKey();
+      const recordId = generateRecordId();
+
+      // Dashboard is the MFA UI redirect; the browser session still returns to the dapp redirectUrl.
       const dataObject: AuthRequestPayload = {
         actionType: AUTH_ACTIONS.MANAGE_MFA,
-        options: this.options,
+        options: {
+          ...this.options,
+          redirectUrl: `${this.dashboardUrl}/wallet/account`,
+        },
         params: {
           ...loginParams,
           mfaLevel: "mandatory",
+          appState: jsonToBase64({ loginId, recordId }),
         },
         sessionId: this.currentSessionId,
+        accessToken: (await this.sessionManager.getAccessToken()) ?? undefined,
       };
 
-      const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+      const result = await this.openAuthSession(`${this.baseUrl}/start`, dataObject, {
+        loginId,
+        recordId,
+        sessionTime: this.options.sessionTime,
+      });
 
       if (result.type !== "success" || !result.url) {
         log.error(`[Web3Auth] manageMFA flow failed with error type ${result.type}`);
         throw LoginError.loginFailed(`manageMFA flow failed with error type ${result.type}`);
+      }
+
+      const { sessionId, accessToken, refreshToken, idToken, error } = getHashQueryParams(result.url);
+      if (error) {
+        throw LoginError.loginFailed(error);
+      }
+      if (sessionId) {
+        await this.sessionManager.setTokens({
+          sessionId: add0x(sessionId),
+          accessToken: accessToken || "",
+          refreshToken: refreshToken || "",
+          idToken: idToken || "",
+        });
+        this.currentSessionId = sessionId;
+        await this.refreshSession();
       }
     } catch (e) {
       this.analytics.track({
@@ -1097,21 +1122,12 @@ class Web3Auth implements IWeb3Auth {
     });
     this.currentSessionId = sessionId;
 
-    const sessionData = await this.authorizeSession();
+    await this.refreshSession();
 
-    if (!sessionData || Object.keys(sessionData).length === 0) {
-      throw LoginError.loginFailed("Session data is missing");
+    const { userInfo } = this.state;
+    if (userInfo?.dappShare?.length > 0) {
+      await this.keyStore.set(userInfo.groupedAuthConnectionId || userInfo.authConnectionId, userInfo.dappShare);
     }
-
-    if (sessionData.userInfo?.dappShare && sessionData.userInfo?.dappShare.length > 0) {
-      const verifier = sessionData.userInfo?.groupedAuthConnectionId || sessionData.userInfo?.authConnectionId;
-      await this.keyStore.set(verifier, sessionData.userInfo?.dappShare);
-    }
-
-    this.updateState({
-      ...sessionData,
-      currentChainId: this.currentChainId,
-    });
 
     const finalPrivKey = this.getFinalPrivKey();
     if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
@@ -1271,13 +1287,22 @@ class Web3Auth implements IWeb3Auth {
     return loginId;
   }
 
-  private async authHandler(url: string, dataObject: AuthRequestPayload) {
-    const loginId = StorageManager.generateRandomSessionKey();
-    await this.createLoginSession(loginId, dataObject);
+  /**
+   * Stage the auth payload on session-service and open the browser auth session.
+   * Pass pre-generated loginId/recordId when the payload must embed them (manageMFA appState).
+   */
+  private async openAuthSession(url: string, dataObject: AuthRequestPayload, options?: { loginId?: Hex; recordId?: string; sessionTime?: number }) {
+    const loginId = options?.loginId ?? StorageManager.generateRandomSessionKey();
+    const recordId = options?.recordId ?? generateRecordId();
+    await this.createLoginSession(loginId, dataObject, options?.sessionTime);
 
+    const isSFA = await this.checkIsSFAFromStorage();
     const configParams: BaseLoginParams = {
       loginId,
+      recordId,
+      sessionNamespace: isSFA ? "sfa" : undefined,
       storageServerUrl: this.options.storageServerUrl,
+      loginSource: "web3auth-react-native",
     };
 
     const loginUrl = constructURL({
@@ -1285,7 +1310,13 @@ class Web3Auth implements IWeb3Auth {
       hash: { b64Params: jsonToBase64(configParams) },
     });
 
+    // Always return to the dapp redirectUrl; payload.options.redirectUrl may point elsewhere (e.g. dashboard).
     return this.webBrowser.openAuthSessionAsync(loginUrl, this.options.redirectUrl);
+  }
+
+  /** Shared path for login / enableMFA — generates loginId/recordId internally. */
+  private async authHandler(url: string, dataObject: AuthRequestPayload) {
+    return this.openAuthSession(url, dataObject);
   }
 
   private async checkIsSFAFromStorage(): Promise<boolean> {
@@ -1333,6 +1364,22 @@ class Web3Auth implements IWeb3Auth {
     } catch {
       return {};
     }
+  }
+
+  private async refreshSession(): Promise<void> {
+    const data = await this.authorizeSession();
+    if (!data || Object.keys(data).length === 0) {
+      try {
+        await this.sessionManager.logout();
+      } catch (e) {
+        // session may already be invalid on the server
+        log.error("Error during session refresh: ", e);
+      }
+      this.currentSessionId = null;
+      this.updateState({ currentChainId: this.currentChainId });
+      throw LoginError.userNotLoggedIn();
+    }
+    this.updateState({ ...data, currentChainId: this.currentChainId });
   }
 
   private getFinalPrivKey() {

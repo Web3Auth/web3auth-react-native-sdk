@@ -82,6 +82,16 @@ export function getHashQueryParams(url: string): HashQueryParamResult {
   return result;
 }
 
+export function generateRecordId(): string {
+  const cr = (globalThis as { crypto?: Crypto }).crypto;
+  if (typeof cr?.randomUUID === "function") return cr.randomUUID();
+  // UUIDv4 fallback for Hermes without crypto.randomUUID (recordId is analytics-only)
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 export const fetchProjectConfig = async (
   clientId: string,
   web3AuthNetwork: WEB3AUTH_NETWORK_TYPE,
