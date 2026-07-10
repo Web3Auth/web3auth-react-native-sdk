@@ -86,6 +86,9 @@ export interface IWeb3Auth {
   connectTo: (params: SdkLoginParams) => Promise<WalletResult | null>;
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
+  getAccessToken: () => Promise<string>;
+  getIdentityToken: () => Promise<string | null>;
+  refreshSession: () => Promise<void>;
   enableMFA: () => Promise<boolean>;
   manageMFA: () => Promise<void>;
   launchWalletServices: (path?: string) => Promise<void>;

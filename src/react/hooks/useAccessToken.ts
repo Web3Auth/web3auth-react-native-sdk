@@ -3,34 +3,33 @@ import { useCallback, useEffect, useState } from "react";
 import { Web3authRNError } from "../../errors";
 import { useWeb3AuthInner } from "./useWeb3AuthInner";
 
-export interface IUseIdentityToken {
+export interface IUseAccessToken {
   loading: boolean;
   error: Web3authRNError | null;
   token: string | null;
-  getIdentityToken: () => Promise<string | null>;
+  getAccessToken: () => Promise<string | null>;
 }
 
-export const useIdentityToken = () => {
+export const useAccessToken = () => {
   const { web3Auth, isConnected } = useWeb3AuthInner();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Web3authRNError | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  const getIdentityToken = useCallback(async () => {
+  const getAccessToken = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const idToken = await web3Auth.getIdentityToken();
-      if (idToken) {
-        setToken(idToken);
-      }
-      return idToken;
+      const accessToken = await web3Auth.getAccessToken();
+      setToken(accessToken);
+      return accessToken;
     } catch (error) {
       setError(error as Web3authRNError);
     } finally {
       setLoading(false);
     }
+    return null;
   }, [web3Auth]);
 
   useEffect(() => {
@@ -39,5 +38,5 @@ export const useIdentityToken = () => {
     }
   }, [isConnected, token]);
 
-  return { loading, error, token, getIdentityToken };
+  return { loading, error, token, getAccessToken };
 };

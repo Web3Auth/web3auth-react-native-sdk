@@ -817,6 +817,36 @@ class Web3Auth implements IWeb3Auth {
     throw LoginError.userNotLoggedIn();
   }
 
+  public async getAccessToken(): Promise<string> {
+    if (!this.currentSessionId) throw LoginError.userNotLoggedIn();
+    const token = await this.sessionManager.getAccessToken();
+    // SFA sessions live on session-service and have no citadel access token.
+    if (!token) throw LoginError.userNotLoggedIn();
+    return token;
+  }
+
+  public async getIdentityToken(): Promise<string | null> {
+    if (!this.currentSessionId) throw LoginError.userNotLoggedIn();
+    // Citadel-stored idToken is authoritative; fall back to session state for SFA.
+    return (await this.sessionManager.getIdToken()) ?? this.state.userInfo?.idToken ?? null;
+  }
+
+  public async refreshSession(): Promise<void> {
+    const data = await this.authorizeSession();
+    if (!data || Object.keys(data).length === 0) {
+      try {
+        await this.sessionManager.logout();
+      } catch (e) {
+        // session may already be invalid on the server
+        log.error("Error during session refresh: ", e);
+      }
+      this.currentSessionId = null;
+      this.updateState({ currentChainId: this.currentChainId });
+      throw LoginError.userNotLoggedIn();
+    }
+    this.updateState({ ...data, currentChainId: this.currentChainId });
+  }
+
   public async connectTo(loginParams: SdkLoginParams): Promise<WalletResult | null> {
     const isSFA = !!loginParams.idToken;
 
@@ -1364,22 +1394,6 @@ class Web3Auth implements IWeb3Auth {
     } catch {
       return {};
     }
-  }
-
-  private async refreshSession(): Promise<void> {
-    const data = await this.authorizeSession();
-    if (!data || Object.keys(data).length === 0) {
-      try {
-        await this.sessionManager.logout();
-      } catch (e) {
-        // session may already be invalid on the server
-        log.error("Error during session refresh: ", e);
-      }
-      this.currentSessionId = null;
-      this.updateState({ currentChainId: this.currentChainId });
-      throw LoginError.userNotLoggedIn();
-    }
-    this.updateState({ ...data, currentChainId: this.currentChainId });
   }
 
   private getFinalPrivKey() {
