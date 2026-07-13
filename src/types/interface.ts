@@ -33,7 +33,6 @@ import { SMART_ACCOUNT } from "../base";
 type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
-  useMpc?: boolean;
   walletSdkURL?: string;
 };
 

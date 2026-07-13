@@ -109,7 +109,7 @@ class Web3Auth implements IWeb3Auth {
     if (!options.network) options.network = WEB3AUTH_NETWORK.SAPPHIRE_MAINNET;
     if (!options.buildEnv) options.buildEnv = BUILD_ENV.PRODUCTION;
     if (options.buildEnv === BUILD_ENV.DEVELOPMENT || options.buildEnv === BUILD_ENV.TESTING || options.sdkUrl) this.addVersionInUrls = false;
-    if (!options.sdkUrl && !options.useMpc) {
+    if (!options.sdkUrl) {
       if (options.buildEnv === BUILD_ENV.DEVELOPMENT) {
         options.sdkUrl = "http://localhost:3000";
         options.dashboardUrl = "http://localhost:5173";
@@ -125,7 +125,7 @@ class Web3Auth implements IWeb3Auth {
       }
     }
 
-    if (options.useMpc && !options.sdkUrl) {
+    if (!options.sdkUrl) {
       if (Object.values(WEB3AUTH_NETWORK).includes(options.network as WEB3AUTH_NETWORK_TYPE))
         throw InitializationError.invalidParams("MPC is not supported on legacy networks, please use sapphire_devnet or sapphire_mainnet.");
       if (options.buildEnv === BUILD_ENV.DEVELOPMENT) {
