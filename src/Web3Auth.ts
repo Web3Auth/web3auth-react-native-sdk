@@ -125,20 +125,6 @@ class Web3Auth implements IWeb3Auth {
       }
     }
 
-    if (!options.sdkUrl) {
-      if (Object.values(WEB3AUTH_NETWORK).includes(options.network as WEB3AUTH_NETWORK_TYPE))
-        throw InitializationError.invalidParams("MPC is not supported on legacy networks, please use sapphire_devnet or sapphire_mainnet.");
-      if (options.buildEnv === BUILD_ENV.DEVELOPMENT) {
-        options.sdkUrl = "http://localhost:3000";
-      } else if (options.buildEnv === BUILD_ENV.STAGING) {
-        options.sdkUrl = "https://staging-mpc-auth.web3auth.io";
-      } else if (options.buildEnv === BUILD_ENV.TESTING) {
-        options.sdkUrl = "https://develop-mpc-auth.web3auth.io";
-      } else {
-        options.sdkUrl = "https://mpc-auth.web3auth.io";
-      }
-    }
-
     if (!options.walletSdkURL) {
       if (options.buildEnv === BUILD_ENV.DEVELOPMENT) {
         options.walletSdkURL = "http://localhost:4050";
