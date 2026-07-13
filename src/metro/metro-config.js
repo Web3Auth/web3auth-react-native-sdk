@@ -16,6 +16,31 @@ const fs = require("fs");
 const path = require("path");
 
 /**
+ * Resolve a module from this package first, then from the consuming app's
+ * node_modules (process.cwd()). Peer deps like react-native-quick-crypto live
+ * in the app, not in the SDK package.
+ */
+function resolveFromAppOrSelf(moduleName) {
+  try {
+    return require.resolve(moduleName);
+  } catch {
+    return require.resolve(moduleName, { paths: [process.cwd()] });
+  }
+}
+
+/**
+ * Same as resolveFromAppOrSelf, but returns fallback when the module is missing
+ * (optional peer dependencies).
+ */
+function resolveOptional(moduleName, fallbackModuleName) {
+  try {
+    return resolveFromAppOrSelf(moduleName);
+  } catch {
+    return require.resolve(fallbackModuleName);
+  }
+}
+
+/**
  * Wraps a Metro configuration with Web3Auth-specific settings
  * @param {import('metro-config').MetroConfig} userConfig - The user's existing Metro config
  * @param {object} options - Optional configuration options
@@ -30,6 +55,9 @@ function withWeb3Auth(userConfig, options = {}) {
 
   // Resolve shim paths relative to this package
   const urlShimPath = require.resolve("./shims/url-shim.js");
+  const cryptoBrowserifyPath = require.resolve("crypto-browserify");
+  // Optional peer — fall back to crypto-browserify when not installed in the app
+  const quickCryptoPath = resolveOptional("react-native-quick-crypto", "crypto-browserify");
 
   // Define Node.js module polyfills
   const extraNodeModules = {
@@ -44,14 +72,13 @@ function withWeb3Auth(userConfig, options = {}) {
     net: require.resolve("empty-module"),
     tls: require.resolve("empty-module"),
 
-
     // Polyfilled modules
-    crypto: require.resolve("crypto-browserify"),
+    crypto: cryptoBrowserifyPath,
     stream: require.resolve("readable-stream"),
     url: urlShimPath,
 
     // Node.js protocol mappings (node: prefix)
-    "node:crypto": require.resolve("react-native-quick-crypto"),
+    "node:crypto": quickCryptoPath,
     "node:stream": require.resolve("readable-stream"),
     "node:buffer": require.resolve("buffer"),
     "node:events": require.resolve("events"),
@@ -129,14 +156,19 @@ function withWeb3Auth(userConfig, options = {}) {
     // Resolve @web3auth/no-modal deep ESM dist paths directly. We import from these paths
     // intentionally (to avoid the barrel pulling in @metamask/sdk), but @web3auth/no-modal
     // does not list them in its exports field. Find the package root relative to the importer
-    // and construct the absolute path ourselves.
+    // (or the app cwd) and construct the absolute path ourselves.
     if (moduleName.startsWith("@web3auth/no-modal/dist/")) {
       const sep = `${path.sep}node_modules${path.sep}`;
       const nodeModulesIdx = originModulePath.lastIndexOf(sep);
+      const candidates = [];
       if (nodeModulesIdx !== -1) {
-        const nodeModulesRoot = originModulePath.substring(0, nodeModulesIdx + sep.length - 1);
-        const resolvedPath = path.join(nodeModulesRoot, moduleName);
-        return { type: "sourceFile", filePath: resolvedPath };
+        candidates.push(path.join(originModulePath.substring(0, nodeModulesIdx + sep.length - 1), moduleName));
+      }
+      candidates.push(path.join(process.cwd(), "node_modules", moduleName));
+      for (const resolvedPath of candidates) {
+        if (fs.existsSync(resolvedPath)) {
+          return { type: "sourceFile", filePath: resolvedPath };
+        }
       }
     }
 
