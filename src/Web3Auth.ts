@@ -19,7 +19,6 @@ import {
   serializeError,
   version,
   WEB3AUTH_NETWORK,
-  type WEB3AUTH_NETWORK_TYPE,
 } from "@web3auth/auth";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import type {
