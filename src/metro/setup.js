@@ -11,6 +11,10 @@
  *   // ... rest of your imports
  */
 
+// TextEncoder/TextDecoder — required by @noble/hashes (via @toruslabs/*).
+// Hermes may lack these on older RN; skip when already present.
+require("fast-text-encoding");
+
 // Buffer polyfill
 if (typeof global.Buffer === "undefined") {
   global.Buffer = require("buffer").Buffer;
