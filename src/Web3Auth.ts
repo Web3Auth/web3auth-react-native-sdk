@@ -2,7 +2,7 @@ import { createKeyPairFromBytes } from "@solana/keys";
 import { createSignerFromKeyPair, type TransactionSigner } from "@solana/signers";
 import { CITADEL_SERVER_MAP, STORAGE_SERVER_MAP, STORAGE_SERVER_SOCKET_URL_MAP } from "@toruslabs/constants";
 import { NodeDetailManager } from "@toruslabs/fetch-node-details";
-import { add0x, type Hex } from "@toruslabs/metadata-helpers";
+import { add0x, type Hex, remove0x } from "@toruslabs/metadata-helpers";
 import { AuthSessionManager, StorageManager } from "@toruslabs/session-manager";
 import { keccak256, Torus, TorusKey, VerifierParams } from "@toruslabs/torus.js";
 import {
@@ -199,7 +199,7 @@ class Web3Auth implements IWeb3Auth {
 
   private get walletSdkUrl(): string {
     if (!this.addVersionInUrls) return `${this.options.walletSdkURL}`;
-    return `${this.options.walletSdkURL}/v5`;
+    return `${this.options.walletSdkURL}/v6`;
   }
 
   private get dashboardUrl(): string {
@@ -530,11 +530,17 @@ class Web3Auth implements IWeb3Auth {
       const sessionId = this.currentSessionId;
       const isSFA = await this.checkIsSFAFromStorage();
 
+      // Wallet v5 session-manager rejects 0x-prefixed keys ("Bad private key: expected 32 bytes, got 0").
+      // Staging still uses the original loginId; hash params are unprefixed for cross-version authorizeSession.
       const configParams: WalletLoginParams = {
-        loginId,
-        sessionId,
+        loginId: remove0x(loginId),
+        sessionId: remove0x(sessionId),
+        // SFA has no citadel token; wallet falls back to session-service auth.
+        accessToken: isSFA ? undefined : ((await this.sessionManager.getAccessToken()) ?? undefined),
         platform: "react-native",
         sessionNamespace: isSFA ? "sfa" : undefined,
+        recordId: generateRecordId(),
+        loginSource: "web3auth-react-native",
       };
 
       const loginUrl = constructURL({
@@ -597,15 +603,19 @@ class Web3Auth implements IWeb3Auth {
 
       const sessionId = this.currentSessionId;
       const isSFA = await this.checkIsSFAFromStorage();
+      // See launchWalletServices: unprefixed ids for wallet session-manager compatibility.
       const configParams: WalletLoginParams = {
-        loginId,
-        sessionId,
+        loginId: remove0x(loginId),
+        sessionId: remove0x(sessionId),
+        accessToken: isSFA ? undefined : ((await this.sessionManager.getAccessToken()) ?? undefined),
         request: {
           method,
           params,
         },
         platform: "react-native",
         sessionNamespace: isSFA ? "sfa" : undefined,
+        recordId: generateRecordId(),
+        loginSource: "web3auth-react-native",
       };
 
       const loginUrl = constructURL({
@@ -1223,6 +1233,10 @@ class Web3Auth implements IWeb3Auth {
       verifierId: userId,
     });
 
+    // Hermes-safe recordId so torus.js uses /v1/auth/audit instead of generating one via crypto.randomUUID.
+    const recordId = generateRecordId();
+    const authConnection = loginParams.authConnection;
+
     let retrieveSharesResponse: TorusKey;
 
     if (subVerifierInfoArray && subVerifierInfoArray.length > 0) {
@@ -1256,6 +1270,8 @@ class Web3Auth implements IWeb3Auth {
         verifier: loginParams.authConnectionId,
         verifierParams: verifierParams,
         idToken: aggregateIdToken,
+        recordId,
+        authConnection,
       });
     } else {
       const verifierParams: VerifierParams = {
@@ -1268,6 +1284,8 @@ class Web3Auth implements IWeb3Auth {
         verifier: loginParams.authConnectionId,
         verifierParams: verifierParams,
         idToken: loginParams.idToken,
+        recordId,
+        authConnection,
       });
     }
 

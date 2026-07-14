@@ -98,12 +98,15 @@ export interface IWeb3Auth {
 export type WalletLoginParams = {
   loginId: string;
   sessionId: string;
+  accessToken?: string; // citadel session auth; absent for SFA (session-service)
   request?: {
     method: string;
     params: unknown[];
   };
   platform: string;
   sessionNamespace?: string;
+  recordId?: string;
+  loginSource?: string;
 };
 
 export type SmartAccountType = (typeof SMART_ACCOUNT)[keyof typeof SMART_ACCOUNT];
