@@ -777,7 +777,6 @@ class Web3Auth implements IWeb3Auth {
       const result = await this.openAuthSession(`${this.baseUrl}/start`, dataObject, {
         loginId,
         recordId,
-        sessionTime: this.options.sessionTime,
       });
 
       if (result.type !== "success" || !result.url) {
@@ -1321,10 +1320,10 @@ class Web3Auth implements IWeb3Auth {
    * Stage the auth payload on session-service and open the browser auth session.
    * Pass pre-generated loginId/recordId when the payload must embed them (manageMFA appState).
    */
-  private async openAuthSession(url: string, dataObject: AuthRequestPayload, options?: { loginId?: Hex; recordId?: string; sessionTime?: number }) {
+  private async openAuthSession(url: string, dataObject: AuthRequestPayload, options?: { loginId?: Hex; recordId?: string }) {
     const loginId = options?.loginId ?? StorageManager.generateRandomSessionKey();
     const recordId = options?.recordId ?? generateRecordId();
-    await this.createLoginSession(loginId, dataObject, options?.sessionTime);
+    await this.createLoginSession(loginId, dataObject);
 
     const isSFA = await this.checkIsSFAFromStorage();
     const configParams: BaseLoginParams = {
