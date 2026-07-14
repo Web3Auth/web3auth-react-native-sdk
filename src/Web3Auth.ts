@@ -1230,6 +1230,10 @@ class Web3Auth implements IWeb3Auth {
       verifierId: userId,
     });
 
+    // Hermes-safe recordId so torus.js uses /v1/auth/audit instead of generating one via crypto.randomUUID.
+    const recordId = generateRecordId();
+    const authConnection = loginParams.authConnection;
+
     let retrieveSharesResponse: TorusKey;
 
     if (subVerifierInfoArray && subVerifierInfoArray.length > 0) {
@@ -1263,6 +1267,8 @@ class Web3Auth implements IWeb3Auth {
         verifier: loginParams.authConnectionId,
         verifierParams: verifierParams,
         idToken: aggregateIdToken,
+        recordId,
+        authConnection,
       });
     } else {
       const verifierParams: VerifierParams = {
@@ -1275,6 +1281,8 @@ class Web3Auth implements IWeb3Auth {
         verifier: loginParams.authConnectionId,
         verifierParams: verifierParams,
         idToken: loginParams.idToken,
+        recordId,
+        authConnection,
       });
     }
 
