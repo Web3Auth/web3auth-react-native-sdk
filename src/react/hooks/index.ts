@@ -1,3 +1,4 @@
+export * from "./useAccessToken";
 export * from "./useEnableMFA";
 export * from "./useIdentityToken";
 export * from "./useManageMFA";
