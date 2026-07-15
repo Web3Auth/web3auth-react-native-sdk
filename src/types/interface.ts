@@ -34,6 +34,17 @@ type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
   walletSdkURL?: string;
+  /**
+   * Disable all Segment analytics (identify/track). Always takes precedence over
+   * {@link enableAnalyticsInDev}.
+   */
+  disableAnalytics?: boolean;
+  /**
+   * Send analytics in `__DEV__` builds using the development Segment write key.
+   * Ignored when {@link disableAnalytics} is true. Production/release builds
+   * already send analytics by default.
+   */
+  enableAnalyticsInDev?: boolean;
 };
 
 type SdkInitParamsBase = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey" | "sessionNamespace"> &

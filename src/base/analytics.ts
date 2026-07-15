@@ -2,7 +2,15 @@ import { log } from "./loglevel";
 import { SegmentHTTP, Traits } from "./segmentHttp";
 
 const SEGMENT_WRITE_KEY = "f6LbNqCeVRf512ggdME4b6CyflhF1tsX";
-// const SEGMENT_WRITE_KEY_DEV = "rpE5pCcpA6ME2oFu2TbuVydhOXapjHs3";
+const SEGMENT_WRITE_KEY_DEV = "rpE5pCcpA6ME2oFu2TbuVydhOXapjHs3";
+
+export type AnalyticsOptions = {
+  /**
+   * When true, analytics are sent even in `__DEV__` builds using the development Segment write key.
+   * Has no effect when analytics are disabled via `disable()`.
+   */
+  enableAnalyticsInDev?: boolean;
+};
 
 export class Analytics {
   private segment: SegmentHTTP;
@@ -11,7 +19,16 @@ export class Analytics {
 
   private enabled: boolean = true;
 
+  private enableAnalyticsInDev: boolean = false;
+
+  constructor(options: AnalyticsOptions = {}) {
+    this.enableAnalyticsInDev = Boolean(options.enableAnalyticsInDev);
+  }
+
   public init(): void {
+    if (!this.enabled) {
+      return;
+    }
     if (this.isSkipped()) {
       return;
     }
@@ -19,7 +36,8 @@ export class Analytics {
       throw new Error("Analytics already initialized");
     }
 
-    this.segment = new SegmentHTTP(SEGMENT_WRITE_KEY);
+    const writeKey = __DEV__ && this.enableAnalyticsInDev ? SEGMENT_WRITE_KEY_DEV : SEGMENT_WRITE_KEY;
+    this.segment = new SegmentHTTP(writeKey);
   }
 
   public enable(): void {
@@ -72,19 +90,12 @@ export class Analytics {
   }
 
   private isSkipped() {
-    // const dappOrigin = window.location.origin;
-
-    // // skip if the protocol is not http or https
-    // if (dappOrigin.startsWith("http://")) {
-    //   return true;
-    // }
-    // // skip if dapp contains localhost
-    // if (dappOrigin.includes("localhost")) {
-    //   return true;
-    // }
-
-    // return false;
-    return __DEV__;
+    // Default: skip all analytics in React Native `__DEV__` builds.
+    // QA can opt in with `enableAnalyticsInDev` (uses the development Segment key).
+    if (__DEV__ && !this.enableAnalyticsInDev) {
+      return true;
+    }
+    return false;
   }
 }
 

@@ -1,11 +1,15 @@
+import { CHAIN_NAMESPACES } from "@toruslabs/base-controllers";
 import { DASHBOARD_PUBLIC_API_MAP } from "@toruslabs/constants";
+import { type AccountAbstractionMultiChainConfig } from "@toruslabs/ethereum-controllers";
 import { get } from "@toruslabs/http-helpers";
 import { decodeBase64Url } from "@toruslabs/metadata-helpers";
-import { BUILD_ENV, type BUILD_ENV_TYPE, type WEB3AUTH_NETWORK_TYPE } from "@web3auth/auth";
+import { BUILD_ENV, type BUILD_ENV_TYPE, type WEB3AUTH_NETWORK_TYPE, type WhiteLabelData } from "@web3auth/auth";
+import { type CustomChainConfig, SOLANA_CAIP_CHAIN_MAP } from "@web3auth/no-modal";
 import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
 
-import { ProjectConfig } from "./types/interface";
+import { Web3authRNError } from "./errors";
+import { ProjectConfig, type SdkInitParams, type WalletServicesConfig } from "./types/interface";
 
 export function constructURL(params: { baseURL: string; query?: Record<string, unknown>; hash?: Record<string, unknown> }): string {
   const { baseURL, query, hash } = params;
@@ -120,5 +124,120 @@ export const fetchProjectConfig = async (
       throw new Error(`Failed to fetch project config: ${detail}`);
     }
     throw new Error(`Failed to fetch project config: ${(e as Error).message}`);
+  }
+};
+
+export const getHostname = (url?: string): string => {
+  if (!url) return "";
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+};
+
+export const getCaipChainId = (chain: Pick<CustomChainConfig, "chainNamespace" | "chainId">): string => {
+  if (chain.chainNamespace === CHAIN_NAMESPACES.EIP155) {
+    return `${chain.chainNamespace}:${parseInt(chain.chainId, 16)}`;
+  }
+  if (chain.chainNamespace === CHAIN_NAMESPACES.SOLANA) {
+    return `${chain.chainNamespace}:${SOLANA_CAIP_CHAIN_MAP[chain.chainId]}`;
+  }
+  return `${chain.chainNamespace}:${chain.chainId}`;
+};
+
+export const getWhitelabelAnalyticsProperties = (uiConfig?: WhiteLabelData) => {
+  return {
+    whitelabel_app_name: uiConfig?.appName,
+    whitelabel_app_url: uiConfig?.appUrl,
+    whitelabel_logo_light_enabled: Boolean(uiConfig?.logoLight),
+    whitelabel_logo_dark_enabled: Boolean(uiConfig?.logoDark),
+    whitelabel_default_language: uiConfig?.defaultLanguage,
+    whitelabel_theme_mode: uiConfig?.mode,
+    whitelabel_use_logo_loader: uiConfig?.useLogoLoader,
+    whitelabel_theme_primary: uiConfig?.theme?.primary,
+    whitelabel_theme_on_primary: uiConfig?.theme?.onPrimary,
+    whitelabel_tnc_link_enabled: Boolean(uiConfig?.tncLink),
+    whitelabel_privacy_policy_enabled: Boolean(uiConfig?.privacyPolicy),
+  };
+};
+
+export const getAaAnalyticsProperties = (accountAbstractionConfig?: AccountAbstractionMultiChainConfig | null) => {
+  const bundlerHostnames = Array.from(
+    new Set(accountAbstractionConfig?.chains?.map((chain) => getHostname(chain.bundlerConfig?.url)).filter(Boolean))
+  );
+  const paymasterHostnames = Array.from(
+    new Set(accountAbstractionConfig?.chains?.map((chain) => getHostname(chain.paymasterConfig?.url)).filter(Boolean))
+  );
+  return {
+    aa_smart_account_type: accountAbstractionConfig?.smartAccountType,
+    aa_chain_ids: accountAbstractionConfig?.chains?.map((chain) =>
+      getCaipChainId({ chainId: chain.chainId, chainNamespace: CHAIN_NAMESPACES.EIP155 })
+    ),
+    aa_bundler_urls: bundlerHostnames,
+    aa_paymaster_urls: paymasterHostnames,
+    aa_paymaster_enabled: paymasterHostnames.length > 0,
+    aa_paymaster_context_enabled: accountAbstractionConfig?.chains?.some((chain) => chain.bundlerConfig?.paymasterContext),
+    aa_erc20_paymaster_enabled: accountAbstractionConfig?.chains?.some(
+      (chain) => (chain.bundlerConfig?.paymasterContext as { token?: string } | undefined)?.token
+    ),
+  };
+};
+
+export const getWalletServicesAnalyticsProperties = (walletServicesConfig?: WalletServicesConfig) => {
+  return {
+    ws_confirmation_strategy: walletServicesConfig?.confirmationStrategy,
+    ws_enable_key_export: walletServicesConfig?.enableKeyExport,
+    ws_show_widget_button: walletServicesConfig?.whiteLabel?.showWidgetButton,
+    ws_button_position: walletServicesConfig?.whiteLabel?.buttonPosition,
+    ws_hide_nft_display: walletServicesConfig?.whiteLabel?.hideNftDisplay,
+    ws_hide_token_display: walletServicesConfig?.whiteLabel?.hideTokenDisplay,
+    ws_hide_transfers: walletServicesConfig?.whiteLabel?.hideTransfers,
+    ws_hide_topup: walletServicesConfig?.whiteLabel?.hideTopup,
+    ws_hide_receive: walletServicesConfig?.whiteLabel?.hideReceive,
+    ws_hide_swap: walletServicesConfig?.whiteLabel?.hideSwap,
+    ws_hide_show_all_tokens: walletServicesConfig?.whiteLabel?.hideShowAllTokens,
+    ws_hide_wallet_connect: walletServicesConfig?.whiteLabel?.hideWalletConnect,
+    ws_hide_defi_positions_display: walletServicesConfig?.whiteLabel?.hideDefiPositionsDisplay,
+    ws_default_portfolio: walletServicesConfig?.whiteLabel?.defaultPortfolio,
+  };
+};
+
+export const getErrorAnalyticsProperties = (error: unknown): { error_message?: string; error_code?: number } => {
+  try {
+    const code = error instanceof Web3authRNError ? error.code : (error as { code?: number } | null)?.code;
+    const message =
+      error instanceof Error
+        ? error.message
+        : (error as { message?: string } | null)?.message || (error as { toString?: () => string } | null)?.toString?.() || String(error);
+    return { error_message: message, error_code: code };
+  } catch {
+    return { error_message: "Unknown error", error_code: undefined };
+  }
+};
+
+export const getInitializationTrackData = (options: SdkInitParams): Record<string, unknown> => {
+  try {
+    const defaultChain = options.chains?.find((chain) => chain.chainId === options.defaultChainId);
+    const rpcHostnames = Array.from(new Set(options.chains?.map((chain) => getHostname(chain.rpcTarget)).filter(Boolean)));
+    return {
+      chain_ids: options.chains?.map((chain) => getCaipChainId(chain)),
+      chain_names: options.chains?.map((chain) => chain.displayName),
+      chain_rpc_targets: rpcHostnames,
+      default_chain_id: defaultChain ? getCaipChainId(defaultChain) : undefined,
+      default_chain_name: defaultChain?.displayName,
+      logging_enabled: options.enableLogging,
+      session_time: options.sessionTime,
+      sfa_key_enabled: options.useCoreKitKey,
+      auth_build_env: options.buildEnv,
+      auth_mfa_settings: Object.keys(options.mfaSettings || {}),
+      aa_enabled_for_external_wallets: options.accountAbstractionConfig ? options.useAAWithExternalWallet : undefined,
+      ...getWhitelabelAnalyticsProperties(options.whiteLabel),
+      ...getAaAnalyticsProperties(options.accountAbstractionConfig),
+      ...getWalletServicesAnalyticsProperties(options.walletServicesConfig),
+    };
+  } catch (error) {
+    log.error("Failed to get initialization track data", error);
+    return {};
   }
 };

@@ -61,7 +61,14 @@ import {
   WalletResult,
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
-import { constructURL, fetchProjectConfig, generateRecordId, getHashQueryParams } from "./utils";
+import {
+  constructURL,
+  fetchProjectConfig,
+  generateRecordId,
+  getErrorAnalyticsProperties,
+  getHashQueryParams,
+  getInitializationTrackData,
+} from "./utils";
 
 // Inlined from @web3auth/no-modal/base/utils to avoid loading the barrel file
 const isHexStrict = (hex: unknown): boolean => (typeof hex === "string" || typeof hex === "number") && /^(-)?0x[0-9a-f]*$/i.test(String(hex));
@@ -322,9 +329,7 @@ class Web3Auth implements IWeb3Auth {
               }
               this.analytics.track({
                 event: ANALYTICS_EVENTS.SDK_INITIALIZATION_KEYSTORE_CORRUPTED,
-                properties: {
-                  error_message: `SDK initialization keystore corrupted. ${e instanceof Error ? e.message : e}`,
-                },
+                properties: getErrorAnalyticsProperties(e),
               });
             }
             this.currentSessionId = null;
@@ -365,15 +370,7 @@ class Web3Auth implements IWeb3Auth {
       this.analytics.track({
         event: ANALYTICS_EVENTS.SDK_INITIALIZATION_COMPLETED,
         properties: {
-          default_chain_id: this.options.defaultChainId,
-          chain_ids: this.options.chains?.map((chain) => chain.chainId),
-          chain_nameSpaces: [CHAIN_NAMESPACES.EIP155, CHAIN_NAMESPACES.SOLANA, CHAIN_NAMESPACES.OTHER],
-          logging_enabled: this.options.enableLogging,
-          auth_build_env: this.options.buildEnv,
-          auth_mfa_settings: this.options.mfaSettings,
-          whitelabel_logo_light_enabled: this.options.whiteLabel.logoLight != null,
-          whitelabel_logo_dark_enabled: this.options.whiteLabel.logoDark != null,
-          whitelabel_theme_mode: this.options.whiteLabel.theme,
+          ...getInitializationTrackData(this.options),
           duration: Date.now() - startTime,
         },
       });
@@ -381,8 +378,8 @@ class Web3Auth implements IWeb3Auth {
       this.analytics.track({
         event: ANALYTICS_EVENTS.SDK_INITIALIZATION_FAILED,
         properties: {
+          ...getErrorAnalyticsProperties(e),
           duration: Date.now() - startTime,
-          error_message: `Fetch project config API error. ${e instanceof Error ? e.message : e}`,
         },
       });
       throw e;
@@ -415,9 +412,7 @@ class Web3Auth implements IWeb3Auth {
           }
           this.analytics.track({
             event: ANALYTICS_EVENTS.LOGOUT_KEYSTORE_CORRUPTED,
-            properties: {
-              error_message: `Logout keystore corrupted. ${e instanceof Error ? e.message : e}`,
-            },
+            properties: getErrorAnalyticsProperties(e),
           });
         }
       } else {
@@ -435,9 +430,7 @@ class Web3Auth implements IWeb3Auth {
         }
         this.analytics.track({
           event: ANALYTICS_EVENTS.LOGOUT_KEYSTORE_CORRUPTED,
-          properties: {
-            error_message: `Logout keystore corrupted. ${e instanceof Error ? e.message : e}`,
-          },
+          properties: getErrorAnalyticsProperties(e),
         });
       }
 
@@ -448,9 +441,7 @@ class Web3Auth implements IWeb3Auth {
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.LOGOUT_FAILED,
-        properties: {
-          error_message: `Logout failed. ${e instanceof Error ? e.message : e}`,
-        },
+        properties: getErrorAnalyticsProperties(e),
       });
       throw e;
     }
@@ -522,9 +513,7 @@ class Web3Auth implements IWeb3Auth {
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.WALLET_SERVICES_FAILED,
-        properties: {
-          error_message: `Wallet services failed. ${e instanceof Error ? e.message : e}`,
-        },
+        properties: getErrorAnalyticsProperties(e),
       });
       throw e;
     }
@@ -618,7 +607,7 @@ class Web3Auth implements IWeb3Auth {
       this.analytics.track({
         event: ANALYTICS_EVENTS.REQUEST_FUNCTION_FAILED,
         properties: {
-          error_message: `Request function failed. ${e instanceof Error ? e.message : e}`,
+          ...getErrorAnalyticsProperties(e),
           duration: Date.now() - startTime,
         },
       });
@@ -701,9 +690,7 @@ class Web3Auth implements IWeb3Auth {
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.MFA_ENABLEMENT_FAILED,
-        properties: {
-          error_message: `MFA enablement failed. ${e instanceof Error ? e.message : e}`,
-        },
+        properties: getErrorAnalyticsProperties(e),
       });
       throw e;
     }
@@ -790,9 +777,7 @@ class Web3Auth implements IWeb3Auth {
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.MFA_MANAGEMENT_FAILED,
-        properties: {
-          error_message: `MFA management failed. ${e instanceof Error ? e.message : e}`,
-        },
+        properties: getErrorAnalyticsProperties(e),
       });
       throw e;
     }
@@ -834,7 +819,7 @@ class Web3Auth implements IWeb3Auth {
         event: ANALYTICS_EVENTS.IDENTITY_TOKEN_FAILED,
         properties: {
           ...trackData,
-          error_message: `Identity token failed. ${e instanceof Error ? e.message : e}`,
+          ...getErrorAnalyticsProperties(e),
         },
       });
       throw e;
@@ -1222,7 +1207,7 @@ class Web3Auth implements IWeb3Auth {
         event: ANALYTICS_EVENTS.CONNECTION_FAILED,
         properties: {
           ...analyticsProperties,
-          error_message: `Connection failed. ${e instanceof Error ? e.message : e}`,
+          ...getErrorAnalyticsProperties(e),
         },
       });
       throw e;

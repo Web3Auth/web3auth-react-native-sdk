@@ -98,6 +98,41 @@ For example, the scheme mentioned is `web3authrnexample` and the `redirectUrl` m
 web3authrnexample://openlogin
 ```
 
+## 📊 Analytics
+
+The SDK sends anonymous usage events to Segment so Web3Auth can improve reliability and feature coverage.
+
+**What is tracked (SDK-observable events):**
+
+- SDK initialization (completed / failed / keystore corrupted)
+- Connection, logout, MFA enablement/management, identity token
+- Wallet UI open and wallet `request()` flows
+- Initialization properties include chain metadata (CAIP ids, display names, RPC hostnames), whitelabel flags, account abstraction config, and wallet services config
+
+**Not tracked from React Native today:**
+
+- Hosted auth/wallet UI interactions such as user consent accept/decline and Terms of Service / Privacy Policy clicks. Those live inside the auth/wallet webviews and will only be trackable if a redirect/event contract is added later.
+
+**Defaults and controls:**
+
+| Option | Default | Behavior |
+| --- | --- | --- |
+| _(none)_ | — | Analytics **enabled** in release builds; **skipped** in `__DEV__` |
+| `enableAnalyticsInDev: true` | `false` | Opt in for QA while developing; uses the development Segment write key |
+| `disableAnalytics: true` | `false` | Suppress all identify/track calls (**always wins** over `enableAnalyticsInDev`) |
+
+```js
+const web3auth = new Web3Auth(WebBrowser, SecureStore, {
+  clientId,
+  network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET,
+  redirectUrl: resolvedRedirectUrl,
+  // enableAnalyticsInDev: true, // QA only
+  // disableAnalytics: true,     // full opt-out
+});
+```
+
+When using `Web3AuthProvider`, `integration_type` is set to `"React Hooks"`. Direct `new Web3Auth(...)` usage reports `"Native SDK"`.
+
 ## 💥 Initialization & Usage
 
 In your sign-in activity', create an `Web3Auth` instance with your Web3Auth project's configurations and
