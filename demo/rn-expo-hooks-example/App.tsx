@@ -112,7 +112,10 @@ function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
         <Button title="Sign Message" onPress={signMessage} />
         <Button title="Get Access Token" onPress={() => getAccessToken().then(uiConsole)} />
         <Button title="Get Auth Token Info" onPress={() => getAuthTokenInfo().then(uiConsole)} />
-        <Button title="Refresh Session" onPress={() => refreshSession().then(() => uiConsole("session refreshed"))} />
+        <Button
+          title="Refresh Session"
+          onPress={() => refreshSession().then((ok) => uiConsole(ok ? "session refreshed" : "session refresh failed"))}
+        />
         <Button title="Show Wallet UI" onPress={() => showWalletUI()} />
         <Button title="Request Signature" onPress={() => request("personal_sign", ["Hello World", "0x"]).then(uiConsole)} />
         <Button title="Enable MFA" onPress={enableMFA} />

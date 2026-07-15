@@ -6,7 +6,7 @@ import { useWeb3AuthInner } from "./useWeb3AuthInner";
 export interface IUseRefreshSession {
   loading: boolean;
   error: Web3authRNError | null;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<boolean>;
 }
 
 export const useRefreshSession = (): IUseRefreshSession => {
@@ -21,9 +21,11 @@ export const useRefreshSession = (): IUseRefreshSession => {
     try {
       await web3Auth.refreshSession();
       await syncSessionState();
+      return true;
     } catch (error) {
       // Core clears local session + emits disconnected on refresh failure.
       setError(error as Web3authRNError);
+      return false;
     } finally {
       setLoading(false);
     }
