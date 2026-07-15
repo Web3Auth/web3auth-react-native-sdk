@@ -78,6 +78,10 @@ export type State = AuthSessionData & {
   currentChainId?: string;
 };
 
+export type AuthTokenInfo = {
+  idToken: string | null;
+};
+
 export interface IWeb3Auth {
   provider: IProvider | null;
   signer: Wallet | TransactionSigner | null;
@@ -87,6 +91,8 @@ export interface IWeb3Auth {
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
   getAccessToken: () => Promise<string>;
+  getAuthTokenInfo: () => Promise<AuthTokenInfo>;
+  /** @deprecated Use {@link getAuthTokenInfo} instead. */
   getIdentityToken: () => Promise<string | null>;
   refreshSession: () => Promise<void>;
   enableMFA: () => Promise<boolean>;

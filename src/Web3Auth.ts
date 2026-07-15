@@ -48,6 +48,7 @@ import { SecureStore } from "./types/IExpoSecureStore";
 import {
   AggregateVerifierParams,
   AuthSessionData,
+  type AuthTokenInfo,
   type ChainsConfig,
   IWeb3Auth,
   type ProjectConfig,
@@ -435,45 +436,7 @@ class Web3Auth implements IWeb3Auth {
         });
       }
 
-      this.currentSessionId = null;
-
-      // re-setup commonJRPCProvider
-      this.commonJRPCProvider.removeAllListeners();
-      this.setupCommonJRPCProvider();
-      this.signer = null;
-
-      this.updateState({
-        privKey: "",
-        coreKitKey: "",
-        coreKitEd25519PrivKey: "",
-        ed25519PrivKey: "",
-        walletKey: "",
-        oAuthPrivateKey: "",
-        tKey: "",
-        metadataNonce: "",
-        keyMode: undefined,
-        userInfo: {
-          name: "",
-          profileImage: "",
-          dappShare: "",
-          idToken: "",
-          oAuthIdToken: "",
-          oAuthAccessToken: "",
-          appState: "",
-          email: "",
-          userId: "",
-          authConnection: "",
-          authConnectionId: "",
-          groupedAuthConnectionId: "",
-          isMfaEnabled: false,
-        },
-        authToken: "",
-        sessionId: "",
-        signatures: [],
-        currentChainId: this.currentChainId,
-      });
-
-      this.emit("disconnected");
+      await this.clearLocalSessionState();
       this.analytics.track({
         event: ANALYTICS_EVENTS.LOGOUT_COMPLETED,
       });
@@ -749,7 +712,7 @@ class Web3Auth implements IWeb3Auth {
     }
 
     this.analytics.track({
-      event: ANALYTICS_EVENTS.MFA_MANAGEMENT_STARTED,
+      event: ANALYTICS_EVENTS.MFA_MANAGEMENT_SELECTED,
       properties: {
         connector: "auth",
       },
@@ -808,6 +771,13 @@ class Web3Auth implements IWeb3Auth {
         this.currentSessionId = sessionId;
         await this.refreshSession();
       }
+
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.MFA_MANAGEMENT_COMPLETED,
+        properties: {
+          connector: "auth",
+        },
+      });
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.MFA_MANAGEMENT_FAILED,
@@ -834,10 +804,38 @@ class Web3Auth implements IWeb3Auth {
     return token;
   }
 
-  public async getIdentityToken(): Promise<string | null> {
+  public async getAuthTokenInfo(): Promise<AuthTokenInfo> {
     if (!this.currentSessionId) throw LoginError.userNotLoggedIn();
-    // Citadel-stored idToken is authoritative; fall back to session state for SFA.
-    return (await this.sessionManager.getIdToken()) ?? this.state.userInfo?.idToken ?? null;
+
+    const trackData = { connector: "auth" };
+    try {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.IDENTITY_TOKEN_STARTED,
+        properties: trackData,
+      });
+      // Citadel-stored idToken is authoritative; fall back to session state for SFA.
+      const idToken = (await this.sessionManager.getIdToken()) ?? this.state.userInfo?.idToken ?? null;
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.IDENTITY_TOKEN_COMPLETED,
+        properties: trackData,
+      });
+      return { idToken };
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.IDENTITY_TOKEN_FAILED,
+        properties: {
+          ...trackData,
+          error_message: `Identity token failed. ${e instanceof Error ? e.message : e}`,
+        },
+      });
+      throw e;
+    }
+  }
+
+  /** @deprecated Use {@link getAuthTokenInfo} instead. */
+  public async getIdentityToken(): Promise<string | null> {
+    const { idToken } = await this.getAuthTokenInfo();
+    return idToken;
   }
 
   public async refreshSession(): Promise<void> {
@@ -849,8 +847,7 @@ class Web3Auth implements IWeb3Auth {
         // session may already be invalid on the server
         log.error("Error during session refresh: ", e);
       }
-      this.currentSessionId = null;
-      this.updateState({ currentChainId: this.currentChainId });
+      await this.clearLocalSessionState();
       throw LoginError.userNotLoggedIn();
     }
     this.updateState({ ...data, currentChainId: this.currentChainId });
@@ -1123,61 +1120,118 @@ class Web3Auth implements IWeb3Auth {
       properties: analyticsProperties,
     });
 
-    // check for share
-    if (this.options.authConnectionConfig) {
-      const authConnectionConfigItem = this.options.authConnectionConfig[0];
-      if (authConnectionConfigItem) {
-        const share = await this.keyStore.get(authConnectionConfigItem.authConnectionId);
-        if (share) {
-          loginParams.dappShare = share;
+    try {
+      // check for share
+      if (this.options.authConnectionConfig) {
+        const authConnectionConfigItem = this.options.authConnectionConfig[0];
+        if (authConnectionConfigItem) {
+          const share = await this.keyStore.get(authConnectionConfigItem.authConnectionId);
+          if (share) {
+            loginParams.dappShare = share;
+          }
         }
       }
+
+      const dataObject: AuthRequestPayload = {
+        actionType: AUTH_ACTIONS.LOGIN,
+        options: this.options,
+        params: loginParams,
+      };
+
+      const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+
+      if (result.type !== "success" || !result.url) {
+        log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
+        throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
+      }
+
+      // Persist citadel tokens from the v11 redirect; do not write a legacy KeyStore "sessionId".
+      const { sessionId, accessToken, refreshToken, idToken, error } = getHashQueryParams(result.url);
+      if (error || !sessionId) {
+        throw LoginError.loginFailed(error || "SessionId is missing");
+      }
+
+      await this.sessionManager.setTokens({
+        sessionId: add0x(sessionId),
+        accessToken: accessToken || "",
+        refreshToken: refreshToken || "",
+        idToken: idToken || "",
+      });
+      this.currentSessionId = sessionId;
+
+      await this.refreshSession();
+
+      const { userInfo } = this.state;
+      if (userInfo?.dappShare?.length > 0) {
+        await this.keyStore.set(userInfo.groupedAuthConnectionId || userInfo.authConnectionId, userInfo.dappShare);
+      }
+
+      const finalPrivKey = this.getFinalPrivKey();
+      if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
+      const walletResult = await this.getWallet(finalPrivKey);
+
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.CONNECTION_COMPLETED,
+        properties: analyticsProperties,
+      });
+
+      return walletResult;
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.CONNECTION_FAILED,
+        properties: {
+          ...analyticsProperties,
+          error_message: `Connection failed. ${e instanceof Error ? e.message : e}`,
+        },
+      });
+      throw e;
     }
+  }
 
-    const dataObject: AuthRequestPayload = {
-      actionType: AUTH_ACTIONS.LOGIN,
-      options: this.options,
-      params: loginParams,
-    };
+  /**
+   * Clears local session, provider, and signer state and notifies listeners.
+   * Used by logout and failed session refresh; does not perform remote logout.
+   */
+  private async clearLocalSessionState(): Promise<void> {
+    this.currentSessionId = null;
 
-    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+    // re-setup commonJRPCProvider
+    this.commonJRPCProvider.removeAllListeners();
+    await this.setupCommonJRPCProvider();
+    this.signer = null;
 
-    if (result.type !== "success" || !result.url) {
-      log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
-      throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
-    }
-
-    // Persist citadel tokens from the v11 redirect; do not write a legacy KeyStore "sessionId".
-    const { sessionId, accessToken, refreshToken, idToken, error } = getHashQueryParams(result.url);
-    if (error || !sessionId) {
-      throw LoginError.loginFailed(error || "SessionId is missing");
-    }
-
-    await this.sessionManager.setTokens({
-      sessionId: add0x(sessionId),
-      accessToken: accessToken || "",
-      refreshToken: refreshToken || "",
-      idToken: idToken || "",
+    this.updateState({
+      privKey: "",
+      coreKitKey: "",
+      coreKitEd25519PrivKey: "",
+      ed25519PrivKey: "",
+      walletKey: "",
+      oAuthPrivateKey: "",
+      tKey: "",
+      metadataNonce: "",
+      keyMode: undefined,
+      userInfo: {
+        name: "",
+        profileImage: "",
+        dappShare: "",
+        idToken: "",
+        oAuthIdToken: "",
+        oAuthAccessToken: "",
+        appState: "",
+        email: "",
+        userId: "",
+        authConnection: "",
+        authConnectionId: "",
+        groupedAuthConnectionId: "",
+        isMfaEnabled: false,
+      },
+      authToken: "",
+      sessionId: "",
+      signatures: [],
+      currentChainId: this.currentChainId,
     });
-    this.currentSessionId = sessionId;
 
-    await this.refreshSession();
-
-    const { userInfo } = this.state;
-    if (userInfo?.dappShare?.length > 0) {
-      await this.keyStore.set(userInfo.groupedAuthConnectionId || userInfo.authConnectionId, userInfo.dappShare);
-    }
-
-    const finalPrivKey = this.getFinalPrivKey();
-    if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
-    const walletResult = await this.getWallet(finalPrivKey);
-
-    this.analytics.track({
-      event: ANALYTICS_EVENTS.CONNECTION_COMPLETED,
-      properties: analyticsProperties,
-    });
-
-    return walletResult;
+    this.emit("disconnected");
   }
 
   /**
@@ -1408,7 +1462,8 @@ class Web3Auth implements IWeb3Auth {
 
       const data = await this.sessionManager.authorize();
       return data ?? {};
-    } catch {
+    } catch (e) {
+      log.error("Error during session authorize: ", e);
       return {};
     }
   }

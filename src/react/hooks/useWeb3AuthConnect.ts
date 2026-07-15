@@ -22,7 +22,11 @@ export const useWeb3AuthConnect = (): IUseWeb3AuthConnect => {
       setLoading(true);
       setError(null);
       try {
-        return await web3Auth.connectTo(params);
+        const loginParams: SdkLoginParams = {
+          ...params,
+          loginSource: params.loginSource ?? "web3auth-react-native",
+        };
+        return await web3Auth.connectTo(loginParams);
       } catch (error) {
         setError(error as Web3authRNError);
         return null;

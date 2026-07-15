@@ -106,6 +106,7 @@ export const ANALYTICS_EVENTS = {
   MFA_ENABLEMENT_COMPLETED: "MFA Enablement Completed",
   MFA_ENABLEMENT_FAILED: "MFA Enablement Failed",
   MFA_MANAGEMENT_STARTED: "MFA Management Started",
+  MFA_MANAGEMENT_SELECTED: "MFA Management Selected",
   MFA_MANAGEMENT_COMPLETED: "MFA Management Completed",
   MFA_MANAGEMENT_FAILED: "MFA Management Failed",
   // Login Modal

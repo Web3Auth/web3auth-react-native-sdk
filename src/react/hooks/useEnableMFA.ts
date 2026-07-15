@@ -10,7 +10,7 @@ export interface IUseEnableMFA {
 }
 
 export const useEnableMFA = (): IUseEnableMFA => {
-  const { web3Auth } = useWeb3AuthInner();
+  const { web3Auth, setIsMFAEnabled, syncSessionState } = useWeb3AuthInner();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Web3authRNError | null>(null);
@@ -19,13 +19,18 @@ export const useEnableMFA = (): IUseEnableMFA => {
     setLoading(true);
     setError(null);
     try {
-      await web3Auth.enableMFA();
+      const enabled = await web3Auth.enableMFA();
+      if (enabled) {
+        setIsMFAEnabled(true);
+      }
+      // Refresh rotated citadel tokens / MFA flags into the provider snapshot.
+      await syncSessionState();
     } catch (error) {
       setError(error as Web3authRNError);
     } finally {
       setLoading(false);
     }
-  }, [web3Auth]);
+  }, [web3Auth, setIsMFAEnabled, syncSessionState]);
 
   return { loading, error, enableMFA };
 };

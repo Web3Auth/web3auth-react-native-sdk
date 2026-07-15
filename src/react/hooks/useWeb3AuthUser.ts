@@ -23,30 +23,27 @@ export const useWeb3AuthUser = (): IUseWeb3AuthUser => {
     setLoading(true);
     setError(null);
     try {
-      const userInfo = web3Auth.userInfo();
-      setUserInfo(userInfo);
-      return userInfo;
+      const nextUserInfo = web3Auth.userInfo();
+      setUserInfo(nextUserInfo);
+      setIsMFAEnabled(Boolean(nextUserInfo?.isMfaEnabled));
+      return nextUserInfo;
     } catch (error) {
       setError(error as Web3authRNError);
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [web3Auth]);
+  }, [web3Auth, setIsMFAEnabled]);
 
   useEffect(() => {
-    const saveUserInfo = async () => {
-      const userInfo = await getUserInfo();
-      setUserInfo(userInfo);
-      setIsMFAEnabled(userInfo?.isMfaEnabled || false);
-    };
-
-    if (isConnected && !userInfo) saveUserInfo();
+    if (isConnected && !userInfo) {
+      void getUserInfo();
+    }
 
     if (!isConnected && userInfo) {
       setUserInfo(null);
-      setIsMFAEnabled(false);
     }
-  }, [isConnected, userInfo, getUserInfo, setIsMFAEnabled]);
+  }, [isConnected, userInfo, getUserInfo]);
 
   return { loading, error, userInfo, isMFAEnabled, getUserInfo };
 };
