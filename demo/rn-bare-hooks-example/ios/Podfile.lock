@@ -1776,6 +1776,28 @@ PODS:
     - React-utils (= 0.85.0)
     - ReactNativeDependencies
   - ReactNativeDependencies (0.85.0)
+  - RNCAsyncStorage (1.24.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -1855,6 +1877,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios/ReactCodegen`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
+  - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2013,12 +2036,14 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   ReactNativeDependencies:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
+  RNCAsyncStorage:
+    :path: "../node_modules/@react-native-async-storage/async-storage"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
   FBLazyVector: c00c20551d40126351a6783c47ce75f5b374851b
-  hermes-engine: a4eb8f76bc463800b2c69ce4b48e60168402f4f6
+  hermes-engine: 39fe3f52c479a3a71e3be39a0a0107bfcd4f9aae
   OpenSSL-Universal: 6082b0bf950e5636fe0d78def171184e2b3899c2
   RCTDeprecation: 3bb167081b134461cfeb875ff7ae1945f8635257
   RCTRequired: 74839f55d5058a133a0bc4569b0afec750957f64
@@ -2028,7 +2053,7 @@ SPEC CHECKSUMS:
   React: 1b1536b9099195944034e65b1830f463caaa8390
   React-callinvoker: 6dff6d17d1d6cc8fdf85468a649bafed473c65f5
   React-Core: 39ee05b5798296f433dd3c3624c57a187c1510e3
-  React-Core-prebuilt: 38a33f469828e987a98b4cad452eaed3bd13f32e
+  React-Core-prebuilt: 576a366bc8fdc567b6eb8c4c944c642f43567249
   React-CoreModules: e78bfd2617075bc0e50c689df4a29232bd72ad82
   React-cxxreact: 3fe21801d46097cf74c3dff6953677bebc4a3c2a
   React-debug: e1f00fcd2cef58a2897471a6d76a4ef5f5f90c74
@@ -2092,9 +2117,10 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 706b65371b90b5cc797b6639e8979f2e5cecd6da
   ReactCodegen: ab01ebfffac5cda9140204eb872ed97c15df225f
   ReactCommon: 47ef95b0920948a0b54d7439f7452501eeeac071
-  ReactNativeDependencies: d38acafec1aa239853d81a3a4103402e9993b731
-  Yoga: cc155241ea30670878e270d52d74cf29487c4bbb
+  ReactNativeDependencies: 2695a357562e38e0a4cb12ca61ec6dbe68dec8f7
+  RNCAsyncStorage: 802727dc24c0f03edee133422a3182d8e3dcad7e
+  Yoga: e83c3121d079541e69f3c5c623faaaf933fb5812
 
 PODFILE CHECKSUM: cc465d450b679c1ba453bd2721abfaf1457c4877
 
-COCOAPODS: 1.15.2
+COCOAPODS: 1.16.2

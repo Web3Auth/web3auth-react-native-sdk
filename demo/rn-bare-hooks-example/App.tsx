@@ -1,3 +1,5 @@
+// Web3Auth setup - must be imported first before any other imports
+import "@web3auth/react-native-sdk/setup";
 import "@ethersproject/shims";
 
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
