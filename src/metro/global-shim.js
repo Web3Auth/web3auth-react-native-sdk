@@ -110,4 +110,21 @@
     Event.prototype.stopPropagation = function () {};
     global.Event = Event;
   }
+
+  // Minimal MessageEvent polyfill for @web3auth/auth postMessageStream, which reads
+  // MessageEvent.prototype at module-load time (Hermes has no browser MessageEvent global).
+  if (typeof global.MessageEvent === "undefined") {
+    function MessageEvent(type, options) {
+      global.Event.call(this, type, options);
+      options = options || {};
+      this.data = options.data !== undefined ? options.data : null;
+      this.origin = options.origin || "";
+      this.lastEventId = options.lastEventId || "";
+      this.source = options.source || null;
+      this.ports = options.ports || [];
+    }
+    MessageEvent.prototype = Object.create(global.Event.prototype);
+    MessageEvent.prototype.constructor = MessageEvent;
+    global.MessageEvent = MessageEvent;
+  }
 })();
