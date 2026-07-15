@@ -1,6 +1,7 @@
 import { createKeyPairFromBytes } from "@solana/keys";
 import { createSignerFromKeyPair, type TransactionSigner } from "@solana/signers";
 import { CITADEL_SERVER_MAP, STORAGE_SERVER_MAP, STORAGE_SERVER_SOCKET_URL_MAP } from "@toruslabs/constants";
+import { EIP7702_SUPPORTED_SMART_ACCOUNT_TYPES, SMART_ACCOUNT_EIP_STANDARD } from "@toruslabs/ethereum-controllers";
 import { NodeDetailManager } from "@toruslabs/fetch-node-details";
 import { add0x, type Hex, remove0x } from "@toruslabs/metadata-helpers";
 import { AuthSessionManager, StorageManager } from "@toruslabs/session-manager";
@@ -29,8 +30,7 @@ import type {
   IProvider,
   SmartAccountsConfig,
 } from "@web3auth/no-modal";
-import { accountAbstractionProvider, CommonJRPCProvider } from "@web3auth/no-modal";
-import { WsEmbedParams } from "@web3auth/ws-embed";
+import { accountAbstractionProvider, CommonJRPCProvider, SMART_ACCOUNT_WALLET_SCOPE } from "@web3auth/no-modal";
 import deepmerge from "deepmerge";
 import { ethers, JsonRpcProvider, Wallet } from "ethers";
 import { jwtDecode, JwtPayload } from "jwt-decode";
@@ -143,7 +143,6 @@ class Web3Auth implements IWeb3Auth {
     if (!options.citadelServerUrl) options.citadelServerUrl = CITADEL_SERVER_MAP[options.buildEnv];
     if (!options.storageServerUrl) options.storageServerUrl = STORAGE_SERVER_MAP[options.buildEnv];
     if (!options.sessionSocketUrl) options.sessionSocketUrl = STORAGE_SERVER_SOCKET_URL_MAP[options.buildEnv];
-    if (!options.sessionTime) options.sessionTime = 86400;
     if (typeof options.enableLogging === "undefined") options.enableLogging = false;
     if (options.enableLogging) {
       log.setLevel("debug");
@@ -262,7 +261,12 @@ class Web3Auth implements IWeb3Auth {
       });
 
       try {
-        this.projectConfig = await fetchProjectConfig(this.options.clientId, this.options.network, this.options.buildEnv);
+        this.projectConfig = await fetchProjectConfig(
+          this.options.clientId,
+          this.options.network,
+          this.options.buildEnv,
+          this.options.accountAbstractionConfig?.smartAccountType
+        );
       } catch (e) {
         const error = await serializeError(e);
         log.error("Failed to fetch project configurations", error);
@@ -273,6 +277,7 @@ class Web3Auth implements IWeb3Auth {
       this.initChainsConfig(this.projectConfig);
       this.initCachedChainId();
       this.initWalletServicesConfig(this.projectConfig);
+      this.initSessionTimeConfig(this.projectConfig);
       this.options.originData = merge(clonedeep(this.projectConfig.whitelist.signed_urls), this.options.originData);
       this.options.authConnectionConfig = unionBy(
         this.projectConfig.embeddedWalletAuth ?? [],
@@ -471,6 +476,7 @@ class Web3Auth implements IWeb3Auth {
           chains: ChainsConfig;
           chainId: string;
           embeddedWalletAuth?: AuthConnectionConfig;
+          externalWalletAuth?: ProjectConfig["externalWalletAuth"];
           accountAbstractionConfig: AccountAbstractionMultiChainConfig;
         };
       } = {
@@ -482,6 +488,7 @@ class Web3Auth implements IWeb3Auth {
           chainId: this.options.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
           accountAbstractionConfig: this.options.accountAbstractionConfig ?? undefined,
           embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
+          externalWalletAuth: this.projectConfig.externalWalletAuth ?? undefined,
         },
         params: {},
       };
@@ -546,6 +553,7 @@ class Web3Auth implements IWeb3Auth {
           chainId: string;
           accountAbstractionConfig: AccountAbstractionMultiChainConfig;
           embeddedWalletAuth: AuthConnectionConfig;
+          externalWalletAuth?: ProjectConfig["externalWalletAuth"];
         };
       } = {
         actionType: AUTH_ACTIONS.LOGIN,
@@ -556,6 +564,7 @@ class Web3Auth implements IWeb3Auth {
           chainId: this.options.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
           accountAbstractionConfig: this.options.accountAbstractionConfig,
           embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
+          externalWalletAuth: this.projectConfig.externalWalletAuth ?? undefined,
         },
         params: {},
       };
@@ -942,8 +951,9 @@ class Web3Auth implements IWeb3Auth {
       }
     }
 
-    // if AA is enabled, filter out chains that are not AA-supported
-    if (this.options.accountAbstractionConfig) {
+    // if AA is enabled and smart account is not 7702, validate AA-supported chains/bundlers
+    const is7702SmartAccount = this.options.accountAbstractionConfig?.smartAccountEipStandard === SMART_ACCOUNT_EIP_STANDARD.EIP_7702;
+    if (this.options.accountAbstractionConfig && !is7702SmartAccount) {
       // write a for loop over accountAbstractionConfig.chains and check if the chainId is valid
       if (this.options.accountAbstractionConfig.chains.length === 0) {
         log.error("Please configure chains for smart accounts on dashboard at https://dashboard.web3auth.io");
@@ -989,9 +999,9 @@ class Web3Auth implements IWeb3Auth {
     if (!isAAEnabled) return;
 
     // merge smart account config from project config with core options, core options will take precedence over project config
-    const smartAccountsConfig = (projectConfig?.smartAccounts || {}) as SmartAccountsConfig;
-    const aaChainMap = new Map<string, WsEmbedParams["accountAbstractionConfig"]["chains"][number]>();
-    const allAaChains = [...(smartAccountsConfig?.chains || []), ...(this.options.accountAbstractionConfig?.chains || [])];
+    const { walletScope, eipStandard, ...configWithoutWalletScope } = (projectConfig?.smartAccounts || {}) as SmartAccountsConfig;
+    const aaChainMap = new Map<string, AccountAbstractionMultiChainConfig["chains"][number]>();
+    const allAaChains = [...(configWithoutWalletScope?.chains || []), ...(this.options.accountAbstractionConfig?.chains || [])];
     for (const chain of allAaChains) {
       const existingChain = aaChainMap.get(chain.chainId);
       if (!existingChain) aaChainMap.set(chain.chainId, chain);
@@ -1002,9 +1012,36 @@ class Web3Auth implements IWeb3Auth {
       this.options.accountAbstractionConfig === null
         ? undefined
         : {
-            ...deepmerge(smartAccountsConfig || {}, this.options.accountAbstractionConfig || {}),
+            smartAccountEipStandard: eipStandard,
+            ...deepmerge(configWithoutWalletScope || {}, this.options.accountAbstractionConfig || {}),
             chains: Array.from(aaChainMap.values()),
           };
+
+    // if eipStandard is 7702, validate smart account type
+    const { smartAccountEipStandard, smartAccountType } = (this.options.accountAbstractionConfig || {}) as {
+      smartAccountEipStandard?: string;
+      smartAccountType?: string;
+    };
+    const is7702SmartAccount = smartAccountEipStandard === SMART_ACCOUNT_EIP_STANDARD.EIP_7702;
+    if (is7702SmartAccount && smartAccountType && !(EIP7702_SUPPORTED_SMART_ACCOUNT_TYPES as readonly string[]).includes(smartAccountType)) {
+      throw InitializationError.invalidParams(
+        `Smart account type "${smartAccountType}" does not support EIP-7702. Supported: ${EIP7702_SUPPORTED_SMART_ACCOUNT_TYPES.join(", ")}`
+      );
+    }
+
+    // determine if we should use AA with external wallet
+    if (this.options.useAAWithExternalWallet === undefined) {
+      this.options.useAAWithExternalWallet = walletScope === SMART_ACCOUNT_WALLET_SCOPE.ALL;
+    }
+  }
+
+  protected initSessionTimeConfig(projectConfig: ProjectConfig) {
+    if (this.options.sessionTime) return;
+    if (projectConfig.sessionTime) {
+      this.options.sessionTime = projectConfig.sessionTime;
+      return;
+    }
+    this.options.sessionTime = 86400;
   }
 
   protected async getWallet(privateKey: string): Promise<WalletResult> {
@@ -1025,7 +1062,9 @@ class Web3Auth implements IWeb3Auth {
       const signer = ethersWallet.connect(new JsonRpcProvider(this.currentChain.rpcTarget));
 
       let aaProvider: AccountAbstractionProvider | null = null;
-      if (this.options.accountAbstractionConfig) {
+      const is7702SmartAccount = this.options.accountAbstractionConfig?.smartAccountEipStandard === SMART_ACCOUNT_EIP_STANDARD.EIP_7702;
+      // EIP-7702 uses EOA + 5792/7702 RPC only; skip ERC-4337 AA provider wrapping
+      if (this.options.accountAbstractionConfig && !is7702SmartAccount) {
         const aaChainIds = new Set(this.options.accountAbstractionConfig?.chains?.map((chain) => chain.chainId) || []);
         aaProvider = await accountAbstractionProvider({
           accountAbstractionConfig: this.options.accountAbstractionConfig,
@@ -1056,6 +1095,7 @@ class Web3Auth implements IWeb3Auth {
       enableReceiveButton = true,
       enableShowAllTokensButton = true,
       enableConfirmationModal = false,
+      enableDefiPositionsDisplay = true,
       portfolioWidgetPosition = "bottom-left",
       defaultPortfolio = "token",
     } = walletUi || {};
@@ -1069,6 +1109,7 @@ class Web3Auth implements IWeb3Auth {
       hideSwap: !enableSwapButton,
       hideShowAllTokens: !enableShowAllTokensButton,
       hideWalletConnect: !enableWalletConnect,
+      hideDefiPositionsDisplay: !enableDefiPositionsDisplay,
       buttonPosition: portfolioWidgetPosition,
       defaultPortfolio,
     };

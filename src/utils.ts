@@ -95,13 +95,15 @@ export function generateRecordId(): string {
 export const fetchProjectConfig = async (
   clientId: string,
   web3AuthNetwork: WEB3AUTH_NETWORK_TYPE,
-  buildEnv?: BUILD_ENV_TYPE
+  buildEnv?: BUILD_ENV_TYPE,
+  aaProvider?: string
 ): Promise<ProjectConfig> => {
   try {
     const url = new URL(`${DASHBOARD_PUBLIC_API_MAP[buildEnv ?? BUILD_ENV.PRODUCTION]}/api/v2/configuration`);
     url.searchParams.append("project_id", clientId);
     url.searchParams.append("network", web3AuthNetwork);
     if (buildEnv) url.searchParams.append("build_env", buildEnv);
+    if (aaProvider) url.searchParams.append("aa_provider", aaProvider);
     const res = await get<ProjectConfig>(url.href);
     return res;
   } catch (e) {

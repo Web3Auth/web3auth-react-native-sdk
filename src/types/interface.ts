@@ -43,6 +43,11 @@ type SdkInitParamsBase = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "r
 // property checks on object literals correctly recognise all members.
 export interface SdkInitParams extends SdkInitParamsBase {
   accountAbstractionConfig?: AccountAbstractionMultiChainConfig | null;
+  /**
+   * Whether to use AA with external wallet.
+   * When unset, derived from dashboard smartAccounts.walletScope (`all` becomes true).
+   */
+  useAAWithExternalWallet?: boolean;
   chains?: ChainsConfig;
   defaultChainId?: string;
   walletServicesConfig?: WalletServicesConfig;
@@ -146,8 +151,9 @@ export interface WalletUiConfig {
   enableSendButton?: boolean;
   enableSwapButton?: boolean;
   enableReceiveButton?: boolean;
+  enableDefiPositionsDisplay?: boolean;
   portfolioWidgetPosition?: BUTTON_POSITION_TYPE;
-  defaultPortfolio?: "token" | "nft";
+  defaultPortfolio?: "token" | "nft" | "defi";
 }
 
 export interface LoginModalConfig {
