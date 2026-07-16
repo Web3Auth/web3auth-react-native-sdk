@@ -4,7 +4,7 @@ import { type AccountAbstractionMultiChainConfig } from "@toruslabs/ethereum-con
 import { get } from "@toruslabs/http-helpers";
 import { decodeBase64Url } from "@toruslabs/metadata-helpers";
 import { BUILD_ENV, type BUILD_ENV_TYPE, type WEB3AUTH_NETWORK_TYPE, type WhiteLabelData } from "@web3auth/auth";
-import { type CustomChainConfig, SOLANA_CAIP_CHAIN_MAP } from "@web3auth/no-modal";
+import { getCaipChainId } from "@web3auth/no-modal";
 import log from "loglevel";
 import { URL, URLSearchParams } from "react-native-url-polyfill";
 
@@ -134,16 +134,6 @@ export const getHostname = (url?: string): string => {
   } catch {
     return "";
   }
-};
-
-export const getCaipChainId = (chain: Pick<CustomChainConfig, "chainNamespace" | "chainId">): string => {
-  if (chain.chainNamespace === CHAIN_NAMESPACES.EIP155) {
-    return `${chain.chainNamespace}:${parseInt(chain.chainId, 16)}`;
-  }
-  if (chain.chainNamespace === CHAIN_NAMESPACES.SOLANA) {
-    return `${chain.chainNamespace}:${SOLANA_CAIP_CHAIN_MAP[chain.chainId]}`;
-  }
-  return `${chain.chainNamespace}:${chain.chainId}`;
 };
 
 export const getWhitelabelAnalyticsProperties = (uiConfig?: WhiteLabelData) => {
