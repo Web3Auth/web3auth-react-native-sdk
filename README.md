@@ -203,19 +203,19 @@ The SDK sends anonymous usage events to Segment so Web3Auth can improve reliabil
 
 **Defaults and controls:**
 
-| Option                       | Default | Behavior                                                                        |
-| ---------------------------- | ------- | ------------------------------------------------------------------------------- |
-| _(none)_                     | —       | Analytics **enabled** in release builds; **skipped** in `__DEV__`               |
-| `enableAnalyticsInDev: true` | `false` | Opt in for QA while developing; uses the development Segment write key          |
-| `disableAnalytics: true`     | `false` | Suppress all identify/track calls (**always wins** over `enableAnalyticsInDev`) |
+| Option                   | Default      | Behavior                                                                 |
+| ------------------------ | ------------ | ------------------------------------------------------------------------ |
+| _(none)_                 | —            | Analytics **enabled**; uses the production Segment write key             |
+| `buildEnv: DEVELOPMENT`  | `PRODUCTION` | Uses the development Segment write key                                   |
+| `disableAnalytics: true` | `false`      | Suppress all identify/track calls                                        |
 
 ```js
 const web3auth = new Web3Auth(WebBrowser, EncryptedStorage, {
   clientId,
   network: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET,
   redirectUrl: "web3authrnexample://auth",
-  // enableAnalyticsInDev: true, // QA only
-  // disableAnalytics: true,     // full opt-out
+  // buildEnv: BUILD_ENV.DEVELOPMENT, // QA only; uses the development Segment write key
+  // disableAnalytics: true,          // full opt-out
 });
 ```
 

@@ -162,7 +162,8 @@ class Web3Auth implements IWeb3Auth {
     this.webBrowser = webBrowser;
     this.keyStore = new KeyStore(storage);
 
-    this.analytics = new Analytics();
+    this.analytics = new Analytics({ buildEnv: options.buildEnv });
+    if (options.disableAnalytics) this.analytics.disable();
     this.analytics.setGlobalProperties({ integration_type: ANALYTICS_INTEGRATION_TYPE.NATIVE_SDK });
 
     this.fetchNodeDetails = new NodeDetailManager({ network: this.options.network, buildEnv: this.options.buildEnv });

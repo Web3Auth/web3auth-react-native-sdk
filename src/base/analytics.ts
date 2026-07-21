@@ -1,3 +1,5 @@
+import { BUILD_ENV, type BUILD_ENV_TYPE } from "@web3auth/auth";
+
 import { log } from "./loglevel";
 import { SegmentHTTP, Traits } from "./segmentHttp";
 
@@ -6,10 +8,10 @@ const SEGMENT_WRITE_KEY_DEV = "rpE5pCcpA6ME2oFu2TbuVydhOXapjHs3";
 
 export type AnalyticsOptions = {
   /**
-   * When true, analytics are sent even in `__DEV__` builds using the development Segment write key.
-   * Has no effect when analytics are disabled via `disable()`.
+   * SDK build environment. `BUILD_ENV.DEVELOPMENT` uses the development Segment write key;
+   * all other values use the production Segment write key.
    */
-  enableAnalyticsInDev?: boolean;
+  buildEnv?: BUILD_ENV_TYPE;
 };
 
 export class Analytics {
@@ -19,24 +21,21 @@ export class Analytics {
 
   private enabled: boolean = true;
 
-  private enableAnalyticsInDev: boolean = false;
+  private buildEnv: BUILD_ENV_TYPE;
 
   constructor(options: AnalyticsOptions = {}) {
-    this.enableAnalyticsInDev = Boolean(options.enableAnalyticsInDev);
+    this.buildEnv = options.buildEnv ?? BUILD_ENV.PRODUCTION;
   }
 
   public init(): void {
     if (!this.enabled) {
       return;
     }
-    if (this.isSkipped()) {
-      return;
-    }
     if (this.segment) {
       throw new Error("Analytics already initialized");
     }
 
-    const writeKey = __DEV__ && this.enableAnalyticsInDev ? SEGMENT_WRITE_KEY_DEV : SEGMENT_WRITE_KEY;
+    const writeKey = this.buildEnv === BUILD_ENV.DEVELOPMENT ? SEGMENT_WRITE_KEY_DEV : SEGMENT_WRITE_KEY;
     this.segment = new SegmentHTTP(writeKey);
   }
 
@@ -54,7 +53,6 @@ export class Analytics {
 
   public async identify(params: { userId?: string; traits?: Traits }) {
     if (!this.enabled) return;
-    if (this.isSkipped()) return;
     try {
       this.getSegment().identify(params.userId, params.traits);
       this.setGlobalProperties({ userId: params.userId });
@@ -65,7 +63,6 @@ export class Analytics {
 
   public async track(params: { userId?: string; event: string; properties?: Record<string, unknown>; anonymousId?: string }) {
     if (!this.enabled) return;
-    if (this.isSkipped()) return;
     try {
       return this.getSegment().track(
         params.event,
@@ -87,15 +84,6 @@ export class Analytics {
       throw new Error("Analytics not initialized. Call Analytics.init() first.");
     }
     return this.segment;
-  }
-
-  private isSkipped() {
-    // Default: skip all analytics in React Native `__DEV__` builds.
-    // QA can opt in with `enableAnalyticsInDev` (uses the development Segment key).
-    if (__DEV__ && !this.enableAnalyticsInDev) {
-      return true;
-    }
-    return false;
   }
 }
 
