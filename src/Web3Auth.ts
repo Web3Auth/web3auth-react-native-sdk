@@ -1,6 +1,7 @@
 import { createKeyPairFromBytes } from "@solana/keys";
 import { createSignerFromKeyPair, type TransactionSigner } from "@solana/signers";
 import { CITADEL_SERVER_MAP, STORAGE_SERVER_MAP, STORAGE_SERVER_SOCKET_URL_MAP } from "@toruslabs/constants";
+import { EIP7702_SUPPORTED_SMART_ACCOUNT_TYPES, SMART_ACCOUNT_EIP_STANDARD } from "@toruslabs/ethereum-controllers";
 import { NodeDetailManager } from "@toruslabs/fetch-node-details";
 import { add0x, type Hex, remove0x } from "@toruslabs/metadata-helpers";
 import { AuthSessionManager, StorageManager } from "@toruslabs/session-manager";
@@ -29,8 +30,7 @@ import type {
   IProvider,
   SmartAccountsConfig,
 } from "@web3auth/no-modal";
-import { accountAbstractionProvider, CommonJRPCProvider } from "@web3auth/no-modal";
-import { WsEmbedParams } from "@web3auth/ws-embed";
+import { accountAbstractionProvider, CommonJRPCProvider, SMART_ACCOUNT_WALLET_SCOPE } from "@web3auth/no-modal";
 import deepmerge from "deepmerge";
 import { ethers, JsonRpcProvider, Wallet } from "ethers";
 import { jwtDecode, JwtPayload } from "jwt-decode";
@@ -48,6 +48,7 @@ import { SecureStore } from "./types/IExpoSecureStore";
 import {
   AggregateVerifierParams,
   AuthSessionData,
+  type AuthTokenInfo,
   type ChainsConfig,
   IWeb3Auth,
   type ProjectConfig,
@@ -60,7 +61,14 @@ import {
   WalletResult,
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
-import { constructURL, fetchProjectConfig, generateRecordId, getHashQueryParams } from "./utils";
+import {
+  constructURL,
+  fetchProjectConfig,
+  generateRecordId,
+  getErrorAnalyticsProperties,
+  getHashQueryParams,
+  getInitializationTrackData,
+} from "./utils";
 
 // Inlined from @web3auth/no-modal/base/utils to avoid loading the barrel file
 const isHexStrict = (hex: unknown): boolean => (typeof hex === "string" || typeof hex === "number") && /^(-)?0x[0-9a-f]*$/i.test(String(hex));
@@ -142,7 +150,6 @@ class Web3Auth implements IWeb3Auth {
     if (!options.citadelServerUrl) options.citadelServerUrl = CITADEL_SERVER_MAP[options.buildEnv];
     if (!options.storageServerUrl) options.storageServerUrl = STORAGE_SERVER_MAP[options.buildEnv];
     if (!options.sessionSocketUrl) options.sessionSocketUrl = STORAGE_SERVER_SOCKET_URL_MAP[options.buildEnv];
-    if (!options.sessionTime) options.sessionTime = 86400;
     if (typeof options.enableLogging === "undefined") options.enableLogging = false;
     if (options.enableLogging) {
       log.setLevel("debug");
@@ -155,7 +162,8 @@ class Web3Auth implements IWeb3Auth {
     this.webBrowser = webBrowser;
     this.keyStore = new KeyStore(storage);
 
-    this.analytics = new Analytics();
+    this.analytics = new Analytics({ buildEnv: options.buildEnv });
+    if (options.disableAnalytics) this.analytics.disable();
     this.analytics.setGlobalProperties({ integration_type: ANALYTICS_INTEGRATION_TYPE.NATIVE_SDK });
 
     this.fetchNodeDetails = new NodeDetailManager({ network: this.options.network, buildEnv: this.options.buildEnv });
@@ -261,7 +269,12 @@ class Web3Auth implements IWeb3Auth {
       });
 
       try {
-        this.projectConfig = await fetchProjectConfig(this.options.clientId, this.options.network, this.options.buildEnv);
+        this.projectConfig = await fetchProjectConfig(
+          this.options.clientId,
+          this.options.network,
+          this.options.buildEnv,
+          this.options.accountAbstractionConfig?.smartAccountType
+        );
       } catch (e) {
         const error = await serializeError(e);
         log.error("Failed to fetch project configurations", error);
@@ -272,6 +285,7 @@ class Web3Auth implements IWeb3Auth {
       this.initChainsConfig(this.projectConfig);
       this.initCachedChainId();
       this.initWalletServicesConfig(this.projectConfig);
+      this.initSessionTimeConfig(this.projectConfig);
       this.options.originData = merge(clonedeep(this.projectConfig.whitelist.signed_urls), this.options.originData);
       this.options.authConnectionConfig = unionBy(
         this.projectConfig.embeddedWalletAuth ?? [],
@@ -316,9 +330,7 @@ class Web3Auth implements IWeb3Auth {
               }
               this.analytics.track({
                 event: ANALYTICS_EVENTS.SDK_INITIALIZATION_KEYSTORE_CORRUPTED,
-                properties: {
-                  error_message: `SDK initialization keystore corrupted. ${e instanceof Error ? e.message : e}`,
-                },
+                properties: getErrorAnalyticsProperties(e),
               });
             }
             this.currentSessionId = null;
@@ -359,15 +371,7 @@ class Web3Auth implements IWeb3Auth {
       this.analytics.track({
         event: ANALYTICS_EVENTS.SDK_INITIALIZATION_COMPLETED,
         properties: {
-          default_chain_id: this.options.defaultChainId,
-          chain_ids: this.options.chains?.map((chain) => chain.chainId),
-          chain_nameSpaces: [CHAIN_NAMESPACES.EIP155, CHAIN_NAMESPACES.SOLANA, CHAIN_NAMESPACES.OTHER],
-          logging_enabled: this.options.enableLogging,
-          auth_build_env: this.options.buildEnv,
-          auth_mfa_settings: this.options.mfaSettings,
-          whitelabel_logo_light_enabled: this.options.whiteLabel.logoLight != null,
-          whitelabel_logo_dark_enabled: this.options.whiteLabel.logoDark != null,
-          whitelabel_theme_mode: this.options.whiteLabel.theme,
+          ...getInitializationTrackData(this.options),
           duration: Date.now() - startTime,
         },
       });
@@ -375,8 +379,8 @@ class Web3Auth implements IWeb3Auth {
       this.analytics.track({
         event: ANALYTICS_EVENTS.SDK_INITIALIZATION_FAILED,
         properties: {
+          ...getErrorAnalyticsProperties(e),
           duration: Date.now() - startTime,
-          error_message: `Fetch project config API error. ${e instanceof Error ? e.message : e}`,
         },
       });
       throw e;
@@ -409,9 +413,7 @@ class Web3Auth implements IWeb3Auth {
           }
           this.analytics.track({
             event: ANALYTICS_EVENTS.LOGOUT_KEYSTORE_CORRUPTED,
-            properties: {
-              error_message: `Logout keystore corrupted. ${e instanceof Error ? e.message : e}`,
-            },
+            properties: getErrorAnalyticsProperties(e),
           });
         }
       } else {
@@ -429,60 +431,18 @@ class Web3Auth implements IWeb3Auth {
         }
         this.analytics.track({
           event: ANALYTICS_EVENTS.LOGOUT_KEYSTORE_CORRUPTED,
-          properties: {
-            error_message: `Logout keystore corrupted. ${e instanceof Error ? e.message : e}`,
-          },
+          properties: getErrorAnalyticsProperties(e),
         });
       }
 
-      this.currentSessionId = null;
-
-      // re-setup commonJRPCProvider
-      this.commonJRPCProvider.removeAllListeners();
-      this.setupCommonJRPCProvider();
-      this.signer = null;
-
-      this.updateState({
-        privKey: "",
-        coreKitKey: "",
-        coreKitEd25519PrivKey: "",
-        ed25519PrivKey: "",
-        walletKey: "",
-        oAuthPrivateKey: "",
-        tKey: "",
-        metadataNonce: "",
-        keyMode: undefined,
-        userInfo: {
-          name: "",
-          profileImage: "",
-          dappShare: "",
-          idToken: "",
-          oAuthIdToken: "",
-          oAuthAccessToken: "",
-          appState: "",
-          email: "",
-          userId: "",
-          authConnection: "",
-          authConnectionId: "",
-          groupedAuthConnectionId: "",
-          isMfaEnabled: false,
-        },
-        authToken: "",
-        sessionId: "",
-        signatures: [],
-        currentChainId: this.currentChainId,
-      });
-
-      this.emit("disconnected");
+      await this.clearLocalSessionState();
       this.analytics.track({
         event: ANALYTICS_EVENTS.LOGOUT_COMPLETED,
       });
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.LOGOUT_FAILED,
-        properties: {
-          error_message: `Logout failed. ${e instanceof Error ? e.message : e}`,
-        },
+        properties: getErrorAnalyticsProperties(e),
       });
       throw e;
     }
@@ -508,6 +468,7 @@ class Web3Auth implements IWeb3Auth {
           chains: ChainsConfig;
           chainId: string;
           embeddedWalletAuth?: AuthConnectionConfig;
+          externalWalletAuth?: ProjectConfig["externalWalletAuth"];
           accountAbstractionConfig: AccountAbstractionMultiChainConfig;
         };
       } = {
@@ -519,6 +480,7 @@ class Web3Auth implements IWeb3Auth {
           chainId: this.options.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
           accountAbstractionConfig: this.options.accountAbstractionConfig ?? undefined,
           embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
+          externalWalletAuth: this.projectConfig.externalWalletAuth ?? undefined,
         },
         params: {},
       };
@@ -552,9 +514,7 @@ class Web3Auth implements IWeb3Auth {
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.WALLET_SERVICES_FAILED,
-        properties: {
-          error_message: `Wallet services failed. ${e instanceof Error ? e.message : e}`,
-        },
+        properties: getErrorAnalyticsProperties(e),
       });
       throw e;
     }
@@ -583,6 +543,7 @@ class Web3Auth implements IWeb3Auth {
           chainId: string;
           accountAbstractionConfig: AccountAbstractionMultiChainConfig;
           embeddedWalletAuth: AuthConnectionConfig;
+          externalWalletAuth?: ProjectConfig["externalWalletAuth"];
         };
       } = {
         actionType: AUTH_ACTIONS.LOGIN,
@@ -593,6 +554,7 @@ class Web3Auth implements IWeb3Auth {
           chainId: this.options.chains?.[0]?.chainId ?? this.options.defaultChainId ?? "0x1",
           accountAbstractionConfig: this.options.accountAbstractionConfig,
           embeddedWalletAuth: this.projectConfig.embeddedWalletAuth ?? undefined,
+          externalWalletAuth: this.projectConfig.externalWalletAuth ?? undefined,
         },
         params: {},
       };
@@ -646,7 +608,7 @@ class Web3Auth implements IWeb3Auth {
       this.analytics.track({
         event: ANALYTICS_EVENTS.REQUEST_FUNCTION_FAILED,
         properties: {
-          error_message: `Request function failed. ${e instanceof Error ? e.message : e}`,
+          ...getErrorAnalyticsProperties(e),
           duration: Date.now() - startTime,
         },
       });
@@ -729,9 +691,7 @@ class Web3Auth implements IWeb3Auth {
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.MFA_ENABLEMENT_FAILED,
-        properties: {
-          error_message: `MFA enablement failed. ${e instanceof Error ? e.message : e}`,
-        },
+        properties: getErrorAnalyticsProperties(e),
       });
       throw e;
     }
@@ -749,7 +709,7 @@ class Web3Auth implements IWeb3Auth {
     }
 
     this.analytics.track({
-      event: ANALYTICS_EVENTS.MFA_MANAGEMENT_STARTED,
+      event: ANALYTICS_EVENTS.MFA_MANAGEMENT_SELECTED,
       properties: {
         connector: "auth",
       },
@@ -808,12 +768,17 @@ class Web3Auth implements IWeb3Auth {
         this.currentSessionId = sessionId;
         await this.refreshSession();
       }
+
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.MFA_MANAGEMENT_COMPLETED,
+        properties: {
+          connector: "auth",
+        },
+      });
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.MFA_MANAGEMENT_FAILED,
-        properties: {
-          error_message: `MFA management failed. ${e instanceof Error ? e.message : e}`,
-        },
+        properties: getErrorAnalyticsProperties(e),
       });
       throw e;
     }
@@ -834,10 +799,38 @@ class Web3Auth implements IWeb3Auth {
     return token;
   }
 
-  public async getIdentityToken(): Promise<string | null> {
+  public async getAuthTokenInfo(): Promise<AuthTokenInfo> {
     if (!this.currentSessionId) throw LoginError.userNotLoggedIn();
-    // Citadel-stored idToken is authoritative; fall back to session state for SFA.
-    return (await this.sessionManager.getIdToken()) ?? this.state.userInfo?.idToken ?? null;
+
+    const trackData = { connector: "auth" };
+    try {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.IDENTITY_TOKEN_STARTED,
+        properties: trackData,
+      });
+      // Citadel-stored idToken is authoritative; fall back to session state for SFA.
+      const idToken = (await this.sessionManager.getIdToken()) ?? this.state.userInfo?.idToken ?? null;
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.IDENTITY_TOKEN_COMPLETED,
+        properties: trackData,
+      });
+      return { idToken };
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.IDENTITY_TOKEN_FAILED,
+        properties: {
+          ...trackData,
+          ...getErrorAnalyticsProperties(e),
+        },
+      });
+      throw e;
+    }
+  }
+
+  /** @deprecated Use {@link getAuthTokenInfo} instead. */
+  public async getIdentityToken(): Promise<string | null> {
+    const { idToken } = await this.getAuthTokenInfo();
+    return idToken;
   }
 
   public async refreshSession(): Promise<void> {
@@ -849,8 +842,7 @@ class Web3Auth implements IWeb3Auth {
         // session may already be invalid on the server
         log.error("Error during session refresh: ", e);
       }
-      this.currentSessionId = null;
-      this.updateState({ currentChainId: this.currentChainId });
+      await this.clearLocalSessionState();
       throw LoginError.userNotLoggedIn();
     }
     this.updateState({ ...data, currentChainId: this.currentChainId });
@@ -945,8 +937,9 @@ class Web3Auth implements IWeb3Auth {
       }
     }
 
-    // if AA is enabled, filter out chains that are not AA-supported
-    if (this.options.accountAbstractionConfig) {
+    // if AA is enabled and smart account is not 7702, validate AA-supported chains/bundlers
+    const is7702SmartAccount = this.options.accountAbstractionConfig?.smartAccountEipStandard === SMART_ACCOUNT_EIP_STANDARD.EIP_7702;
+    if (this.options.accountAbstractionConfig && !is7702SmartAccount) {
       // write a for loop over accountAbstractionConfig.chains and check if the chainId is valid
       if (this.options.accountAbstractionConfig.chains.length === 0) {
         log.error("Please configure chains for smart accounts on dashboard at https://dashboard.web3auth.io");
@@ -992,9 +985,9 @@ class Web3Auth implements IWeb3Auth {
     if (!isAAEnabled) return;
 
     // merge smart account config from project config with core options, core options will take precedence over project config
-    const smartAccountsConfig = (projectConfig?.smartAccounts || {}) as SmartAccountsConfig;
-    const aaChainMap = new Map<string, WsEmbedParams["accountAbstractionConfig"]["chains"][number]>();
-    const allAaChains = [...(smartAccountsConfig?.chains || []), ...(this.options.accountAbstractionConfig?.chains || [])];
+    const { walletScope, eipStandard, ...configWithoutWalletScope } = (projectConfig?.smartAccounts || {}) as SmartAccountsConfig;
+    const aaChainMap = new Map<string, AccountAbstractionMultiChainConfig["chains"][number]>();
+    const allAaChains = [...(configWithoutWalletScope?.chains || []), ...(this.options.accountAbstractionConfig?.chains || [])];
     for (const chain of allAaChains) {
       const existingChain = aaChainMap.get(chain.chainId);
       if (!existingChain) aaChainMap.set(chain.chainId, chain);
@@ -1005,9 +998,36 @@ class Web3Auth implements IWeb3Auth {
       this.options.accountAbstractionConfig === null
         ? undefined
         : {
-            ...deepmerge(smartAccountsConfig || {}, this.options.accountAbstractionConfig || {}),
+            smartAccountEipStandard: eipStandard,
+            ...deepmerge(configWithoutWalletScope || {}, this.options.accountAbstractionConfig || {}),
             chains: Array.from(aaChainMap.values()),
           };
+
+    // if eipStandard is 7702, validate smart account type
+    const { smartAccountEipStandard, smartAccountType } = (this.options.accountAbstractionConfig || {}) as {
+      smartAccountEipStandard?: string;
+      smartAccountType?: string;
+    };
+    const is7702SmartAccount = smartAccountEipStandard === SMART_ACCOUNT_EIP_STANDARD.EIP_7702;
+    if (is7702SmartAccount && smartAccountType && !(EIP7702_SUPPORTED_SMART_ACCOUNT_TYPES as readonly string[]).includes(smartAccountType)) {
+      throw InitializationError.invalidParams(
+        `Smart account type "${smartAccountType}" does not support EIP-7702. Supported: ${EIP7702_SUPPORTED_SMART_ACCOUNT_TYPES.join(", ")}`
+      );
+    }
+
+    // determine if we should use AA with external wallet
+    if (this.options.useAAWithExternalWallet === undefined) {
+      this.options.useAAWithExternalWallet = walletScope === SMART_ACCOUNT_WALLET_SCOPE.ALL;
+    }
+  }
+
+  protected initSessionTimeConfig(projectConfig: ProjectConfig) {
+    if (this.options.sessionTime) return;
+    if (projectConfig.sessionTime) {
+      this.options.sessionTime = projectConfig.sessionTime;
+      return;
+    }
+    this.options.sessionTime = 86400;
   }
 
   protected async getWallet(privateKey: string): Promise<WalletResult> {
@@ -1028,7 +1048,9 @@ class Web3Auth implements IWeb3Auth {
       const signer = ethersWallet.connect(new JsonRpcProvider(this.currentChain.rpcTarget));
 
       let aaProvider: AccountAbstractionProvider | null = null;
-      if (this.options.accountAbstractionConfig) {
+      const is7702SmartAccount = this.options.accountAbstractionConfig?.smartAccountEipStandard === SMART_ACCOUNT_EIP_STANDARD.EIP_7702;
+      // EIP-7702 uses EOA + 5792/7702 RPC only; skip ERC-4337 AA provider wrapping
+      if (this.options.accountAbstractionConfig && !is7702SmartAccount) {
         const aaChainIds = new Set(this.options.accountAbstractionConfig?.chains?.map((chain) => chain.chainId) || []);
         aaProvider = await accountAbstractionProvider({
           accountAbstractionConfig: this.options.accountAbstractionConfig,
@@ -1059,6 +1081,7 @@ class Web3Auth implements IWeb3Auth {
       enableReceiveButton = true,
       enableShowAllTokensButton = true,
       enableConfirmationModal = false,
+      enableDefiPositionsDisplay = true,
       portfolioWidgetPosition = "bottom-left",
       defaultPortfolio = "token",
     } = walletUi || {};
@@ -1072,6 +1095,7 @@ class Web3Auth implements IWeb3Auth {
       hideSwap: !enableSwapButton,
       hideShowAllTokens: !enableShowAllTokensButton,
       hideWalletConnect: !enableWalletConnect,
+      hideDefiPositionsDisplay: !enableDefiPositionsDisplay,
       buttonPosition: portfolioWidgetPosition,
       defaultPortfolio,
     };
@@ -1123,61 +1147,118 @@ class Web3Auth implements IWeb3Auth {
       properties: analyticsProperties,
     });
 
-    // check for share
-    if (this.options.authConnectionConfig) {
-      const authConnectionConfigItem = this.options.authConnectionConfig[0];
-      if (authConnectionConfigItem) {
-        const share = await this.keyStore.get(authConnectionConfigItem.authConnectionId);
-        if (share) {
-          loginParams.dappShare = share;
+    try {
+      // check for share
+      if (this.options.authConnectionConfig) {
+        const authConnectionConfigItem = this.options.authConnectionConfig[0];
+        if (authConnectionConfigItem) {
+          const share = await this.keyStore.get(authConnectionConfigItem.authConnectionId);
+          if (share) {
+            loginParams.dappShare = share;
+          }
         }
       }
+
+      const dataObject: AuthRequestPayload = {
+        actionType: AUTH_ACTIONS.LOGIN,
+        options: this.options,
+        params: loginParams,
+      };
+
+      const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+
+      if (result.type !== "success" || !result.url) {
+        log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
+        throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
+      }
+
+      // Persist citadel tokens from the v11 redirect; do not write a legacy KeyStore "sessionId".
+      const { sessionId, accessToken, refreshToken, idToken, error } = getHashQueryParams(result.url);
+      if (error || !sessionId) {
+        throw LoginError.loginFailed(error || "SessionId is missing");
+      }
+
+      await this.sessionManager.setTokens({
+        sessionId: add0x(sessionId),
+        accessToken: accessToken || "",
+        refreshToken: refreshToken || "",
+        idToken: idToken || "",
+      });
+      this.currentSessionId = sessionId;
+
+      await this.refreshSession();
+
+      const { userInfo } = this.state;
+      if (userInfo?.dappShare?.length > 0) {
+        await this.keyStore.set(userInfo.groupedAuthConnectionId || userInfo.authConnectionId, userInfo.dappShare);
+      }
+
+      const finalPrivKey = this.getFinalPrivKey();
+      if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
+      const walletResult = await this.getWallet(finalPrivKey);
+
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.CONNECTION_COMPLETED,
+        properties: analyticsProperties,
+      });
+
+      return walletResult;
+    } catch (e) {
+      this.analytics.track({
+        event: ANALYTICS_EVENTS.CONNECTION_FAILED,
+        properties: {
+          ...analyticsProperties,
+          ...getErrorAnalyticsProperties(e),
+        },
+      });
+      throw e;
     }
+  }
 
-    const dataObject: AuthRequestPayload = {
-      actionType: AUTH_ACTIONS.LOGIN,
-      options: this.options,
-      params: loginParams,
-    };
+  /**
+   * Clears local session, provider, and signer state and notifies listeners.
+   * Used by logout and failed session refresh; does not perform remote logout.
+   */
+  private async clearLocalSessionState(): Promise<void> {
+    this.currentSessionId = null;
 
-    const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
+    // re-setup commonJRPCProvider
+    this.commonJRPCProvider.removeAllListeners();
+    await this.setupCommonJRPCProvider();
+    this.signer = null;
 
-    if (result.type !== "success" || !result.url) {
-      log.error(`[Web3Auth] login flow failed with error type ${result.type}`);
-      throw LoginError.loginFailed(`login flow failed with error type ${result.type}`);
-    }
-
-    // Persist citadel tokens from the v11 redirect; do not write a legacy KeyStore "sessionId".
-    const { sessionId, accessToken, refreshToken, idToken, error } = getHashQueryParams(result.url);
-    if (error || !sessionId) {
-      throw LoginError.loginFailed(error || "SessionId is missing");
-    }
-
-    await this.sessionManager.setTokens({
-      sessionId: add0x(sessionId),
-      accessToken: accessToken || "",
-      refreshToken: refreshToken || "",
-      idToken: idToken || "",
+    this.updateState({
+      privKey: "",
+      coreKitKey: "",
+      coreKitEd25519PrivKey: "",
+      ed25519PrivKey: "",
+      walletKey: "",
+      oAuthPrivateKey: "",
+      tKey: "",
+      metadataNonce: "",
+      keyMode: undefined,
+      userInfo: {
+        name: "",
+        profileImage: "",
+        dappShare: "",
+        idToken: "",
+        oAuthIdToken: "",
+        oAuthAccessToken: "",
+        appState: "",
+        email: "",
+        userId: "",
+        authConnection: "",
+        authConnectionId: "",
+        groupedAuthConnectionId: "",
+        isMfaEnabled: false,
+      },
+      authToken: "",
+      sessionId: "",
+      signatures: [],
+      currentChainId: this.currentChainId,
     });
-    this.currentSessionId = sessionId;
 
-    await this.refreshSession();
-
-    const { userInfo } = this.state;
-    if (userInfo?.dappShare?.length > 0) {
-      await this.keyStore.set(userInfo.groupedAuthConnectionId || userInfo.authConnectionId, userInfo.dappShare);
-    }
-
-    const finalPrivKey = this.getFinalPrivKey();
-    if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
-    const walletResult = await this.getWallet(finalPrivKey);
-
-    this.analytics.track({
-      event: ANALYTICS_EVENTS.CONNECTION_COMPLETED,
-      properties: analyticsProperties,
-    });
-
-    return walletResult;
+    this.emit("disconnected");
   }
 
   /**
@@ -1408,7 +1489,8 @@ class Web3Auth implements IWeb3Auth {
 
       const data = await this.sessionManager.authorize();
       return data ?? {};
-    } catch {
+    } catch (e) {
+      log.error("Error during session authorize: ", e);
       return {};
     }
   }

@@ -1,11 +1,15 @@
+// Web3Auth setup - must be imported first before any other imports
+import "@web3auth/react-native-sdk/setup";
 import "@ethersproject/shims";
 
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
 import {
   AUTH_CONNECTION,
+  useAccessToken,
+  useAuthTokenInfo,
   useEnableMFA,
-  useIdentityToken,
   useManageMFA,
+  useRefreshSession,
   useSignatureRequest,
   useWalletUI,
   useWeb3Auth,
@@ -28,13 +32,15 @@ interface HomeScreenProps {
 
 // IMP START - SDK Initialization
 function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
-  const { isConnected, isInitializing, provider } = useWeb3Auth();
+  const { isConnected, isAuthorized, accessToken, isInitializing, provider } = useWeb3Auth();
   const { connectTo, loading: connectLoading } = useWeb3AuthConnect();
   const { disconnect } = useWeb3AuthDisconnect();
   const { userInfo } = useWeb3AuthUser();
   const { showWalletUI } = useWalletUI();
   const { request } = useSignatureRequest();
-  const { getIdentityToken } = useIdentityToken();
+  const { getAccessToken } = useAccessToken();
+  const { getAuthTokenInfo } = useAuthTokenInfo();
+  const { refreshSession } = useRefreshSession();
   const { enableMFA } = useEnableMFA();
   const { manageMFA } = useManageMFA();
   // IMP END - SDK Initialization
@@ -94,11 +100,16 @@ function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.buttonArea}>
-        <Button title="Get User Info" onPress={() => uiConsole(userInfo)} />
+        <Button title="Get User Info" onPress={() => uiConsole({ userInfo, isAuthorized, accessToken })} />
         <Button title="Get Accounts" onPress={getAccounts} />
         <Button title="Get Balance" onPress={getBalance} />
         <Button title="Sign Message" onPress={signMessage} />
-        <Button title="Get Identity Token" onPress={() => getIdentityToken().then(uiConsole)} />
+        <Button title="Get Access Token" onPress={() => getAccessToken().then(uiConsole)} />
+        <Button title="Get Auth Token Info" onPress={() => getAuthTokenInfo().then(uiConsole)} />
+        <Button
+          title="Refresh Session"
+          onPress={() => refreshSession().then((ok) => uiConsole(ok ? "session refreshed" : "session refresh failed"))}
+        />
         <Button title="Show Wallet UI" onPress={() => showWalletUI()} />
         <Button title="Request Signature" onPress={() => request("personal_sign", ["Hello World", "0x"]).then(uiConsole)} />
         <Button title="Enable MFA" onPress={enableMFA} />

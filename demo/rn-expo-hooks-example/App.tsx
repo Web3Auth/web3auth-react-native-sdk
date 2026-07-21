@@ -1,13 +1,14 @@
 // Web3Auth setup - must be imported first before any other imports
-import '@web3auth/react-native-sdk/setup';
-
-import '@ethersproject/shims';
+import "@web3auth/react-native-sdk/setup";
+import "@ethersproject/shims";
 
 import {
   AUTH_CONNECTION,
+  useAccessToken,
+  useAuthTokenInfo,
   useEnableMFA,
-  useIdentityToken,
   useManageMFA,
+  useRefreshSession,
   useSignatureRequest,
   useWalletUI,
   useWeb3Auth,
@@ -15,14 +16,14 @@ import {
   useWeb3AuthDisconnect,
   useWeb3AuthUser,
   Web3AuthProvider,
-} from '@web3auth/react-native-sdk';
-import { ethers } from 'ethers';
-import * as SecureStore from 'expo-secure-store';
-import * as WebBrowser from 'expo-web-browser';
-import React, { useState } from 'react';
-import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+} from "@web3auth/react-native-sdk";
+import { ethers } from "ethers";
+import * as SecureStore from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
+import React, { useState } from "react";
+import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
-import { getWeb3AuthConfig } from './web3authConfig';
+import { getWeb3AuthConfig } from "./web3authConfig";
 
 interface HomeScreenProps {
   useAccountAbstraction: boolean;
@@ -31,26 +32,28 @@ interface HomeScreenProps {
 
 // IMP START - SDK Initialization
 function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
-  const { isConnected, isInitializing, provider } = useWeb3Auth();
+  const { isConnected, isAuthorized, accessToken, isInitializing, provider } = useWeb3Auth();
   const { connectTo, loading: connectLoading } = useWeb3AuthConnect();
   const { disconnect } = useWeb3AuthDisconnect();
   const { userInfo } = useWeb3AuthUser();
   const { showWalletUI } = useWalletUI();
   const { request } = useSignatureRequest();
-  const { getIdentityToken } = useIdentityToken();
+  const { getAccessToken } = useAccessToken();
+  const { getAuthTokenInfo } = useAuthTokenInfo();
+  const { refreshSession } = useRefreshSession();
   const { enableMFA } = useEnableMFA();
   const { manageMFA } = useManageMFA();
   // IMP END - SDK Initialization
 
-  const [email, setEmail] = useState('');
-  const [consoleOutput, setConsoleOutput] = useState('');
+  const [email, setEmail] = useState("");
+  const [consoleOutput, setConsoleOutput] = useState("");
 
   const uiConsole = (...args: unknown[]) => setConsoleOutput(JSON.stringify(args, null, 2));
 
   // IMP START - Login
   const login = async () => {
     if (!email) {
-      uiConsole('Please enter your email first');
+      uiConsole("Please enter your email first");
       return;
     }
     await connectTo({
@@ -70,16 +73,14 @@ function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
   const getBalance = async () => {
     const ethersProvider = new ethers.BrowserProvider(provider!);
     const signer = await ethersProvider.getSigner();
-    const balance = ethers.formatEther(
-      await ethersProvider.getBalance(await signer.getAddress()),
-    );
+    const balance = ethers.formatEther(await ethersProvider.getBalance(await signer.getAddress()));
     uiConsole(balance);
   };
 
   const signMessage = async () => {
     const ethersProvider = new ethers.BrowserProvider(provider!);
     const signer = await ethersProvider.getSigner();
-    uiConsole(await signer.signMessage('Hello Web3Auth!'));
+    uiConsole(await signer.signMessage("Hello Web3Auth!"));
   };
   // IMP END - Blockchain Calls
 
@@ -95,14 +96,8 @@ function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
           <Text style={{ paddingRight: 6 }}>Use Account Abstraction:</Text>
           <Switch onValueChange={onToggleAA} value={useAccountAbstraction} />
         </View>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter your email"
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <Button title={connectLoading ? 'Logging in...' : 'Login with Web3Auth'} onPress={login} />
+        <TextInput style={styles.input} placeholder="Enter your email" onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <Button title={connectLoading ? "Logging in..." : "Login with Web3Auth"} onPress={login} />
       </View>
       // IMP END - Login
     );
@@ -111,16 +106,18 @@ function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.buttonArea}>
-        <Button title="Get User Info" onPress={() => uiConsole(userInfo)} />
+        <Button title="Get User Info" onPress={() => uiConsole({ userInfo, isAuthorized, accessToken })} />
         <Button title="Get Accounts" onPress={getAccounts} />
         <Button title="Get Balance" onPress={getBalance} />
         <Button title="Sign Message" onPress={signMessage} />
-        <Button title="Get Identity Token" onPress={() => getIdentityToken().then(uiConsole)} />
-        <Button title="Show Wallet UI" onPress={() => showWalletUI()} />
+        <Button title="Get Access Token" onPress={() => getAccessToken().then(uiConsole)} />
+        <Button title="Get Auth Token Info" onPress={() => getAuthTokenInfo().then(uiConsole)} />
         <Button
-          title="Request Signature"
-          onPress={() => request('personal_sign', ['Hello World', '0x']).then(uiConsole)}
+          title="Refresh Session"
+          onPress={() => refreshSession().then((ok) => uiConsole(ok ? "session refreshed" : "session refresh failed"))}
         />
+        <Button title="Show Wallet UI" onPress={() => showWalletUI()} />
+        <Button title="Request Signature" onPress={() => request("personal_sign", ["Hello World", "0x"]).then(uiConsole)} />
         <Button title="Enable MFA" onPress={enableMFA} />
         <Button title="Manage MFA" onPress={manageMFA} />
         {/* IMP START - Logout */}
@@ -159,31 +156,31 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 50,
     paddingBottom: 30,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   loginArea: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 16,
   },
   aaToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   input: {
     height: 44,
     width: 300,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
   },
   buttonArea: {
     flex: 2,
-    alignItems: 'center',
-    justifyContent: 'space-around',
+    alignItems: "center",
+    justifyContent: "space-around",
     paddingHorizontal: 20,
   },
   consoleArea: {
@@ -193,19 +190,19 @@ const styles = StyleSheet.create({
   },
   consoleLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
+    fontWeight: "600",
+    color: "#666",
     marginBottom: 4,
   },
   console: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     borderRadius: 8,
     padding: 10,
-    width: Dimensions.get('window').width - 40,
+    width: Dimensions.get("window").width - 40,
   },
   status: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 60,
   },
 });

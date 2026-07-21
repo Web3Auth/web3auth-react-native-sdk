@@ -65,7 +65,7 @@
     "@toruslabs/metadata-helpers": "^8.2.0",
     "@toruslabs/session-manager": "^5.6.0",
     "@toruslabs/torus.js": "^17.2.3",
-    "@web3auth/auth": "^11.8.1",
+    "@web3auth/auth": "^11.8.2",
     "@web3auth/ethereum-provider": "^9.7.0",
     "@web3auth/no-modal": "^11.3.0",
     "@web3auth/ws-embed": "^6.1.0",
@@ -123,7 +123,7 @@
     "vue": "^3.x"
   },
   "engines": {
-    "node": ">=18.x",
-    "npm": ">=9.x"
+    "node": ">=22.x",
+    "npm": ">=10.x"
   }
 }

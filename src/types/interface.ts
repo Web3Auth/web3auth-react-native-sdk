@@ -34,6 +34,12 @@ type SdkSpecificInitParams = {
   enableLogging?: boolean;
   useCoreKitKey?: boolean;
   walletSdkURL?: string;
+  /**
+   * Disable all Segment analytics (identify/track).
+   * When enabled, analytics use the production Segment write key unless
+   * {@link buildEnv} is `BUILD_ENV.DEVELOPMENT`, which uses the development key.
+   */
+  disableAnalytics?: boolean;
 };
 
 type SdkInitParamsBase = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "replaceUrlOnRedirect" | "storageKey" | "sessionNamespace"> &
@@ -43,6 +49,11 @@ type SdkInitParamsBase = Omit<AuthOptions & SdkSpecificInitParams, "uxMode" | "r
 // property checks on object literals correctly recognise all members.
 export interface SdkInitParams extends SdkInitParamsBase {
   accountAbstractionConfig?: AccountAbstractionMultiChainConfig | null;
+  /**
+   * Whether to use AA with external wallet.
+   * When unset, derived from dashboard smartAccounts.walletScope (`all` becomes true).
+   */
+  useAAWithExternalWallet?: boolean;
   chains?: ChainsConfig;
   defaultChainId?: string;
   walletServicesConfig?: WalletServicesConfig;
@@ -78,6 +89,10 @@ export type State = AuthSessionData & {
   currentChainId?: string;
 };
 
+export type AuthTokenInfo = {
+  idToken: string | null;
+};
+
 export interface IWeb3Auth {
   provider: IProvider | null;
   signer: Wallet | TransactionSigner | null;
@@ -87,6 +102,8 @@ export interface IWeb3Auth {
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
   getAccessToken: () => Promise<string>;
+  getAuthTokenInfo: () => Promise<AuthTokenInfo>;
+  /** @deprecated Use {@link getAuthTokenInfo} instead. */
   getIdentityToken: () => Promise<string | null>;
   refreshSession: () => Promise<void>;
   enableMFA: () => Promise<boolean>;
@@ -140,8 +157,9 @@ export interface WalletUiConfig {
   enableSendButton?: boolean;
   enableSwapButton?: boolean;
   enableReceiveButton?: boolean;
+  enableDefiPositionsDisplay?: boolean;
   portfolioWidgetPosition?: BUTTON_POSITION_TYPE;
-  defaultPortfolio?: "token" | "nft";
+  defaultPortfolio?: "token" | "nft" | "defi";
 }
 
 export interface LoginModalConfig {

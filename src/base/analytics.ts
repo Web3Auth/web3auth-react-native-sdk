@@ -1,8 +1,18 @@
+import { BUILD_ENV, type BUILD_ENV_TYPE } from "@web3auth/auth";
+
 import { log } from "./loglevel";
 import { SegmentHTTP, Traits } from "./segmentHttp";
 
 const SEGMENT_WRITE_KEY = "f6LbNqCeVRf512ggdME4b6CyflhF1tsX";
-// const SEGMENT_WRITE_KEY_DEV = "rpE5pCcpA6ME2oFu2TbuVydhOXapjHs3";
+const SEGMENT_WRITE_KEY_DEV = "rpE5pCcpA6ME2oFu2TbuVydhOXapjHs3";
+
+export type AnalyticsOptions = {
+  /**
+   * SDK build environment. `BUILD_ENV.DEVELOPMENT` uses the development Segment write key;
+   * all other values use the production Segment write key.
+   */
+  buildEnv?: BUILD_ENV_TYPE;
+};
 
 export class Analytics {
   private segment: SegmentHTTP;
@@ -11,15 +21,22 @@ export class Analytics {
 
   private enabled: boolean = true;
 
+  private buildEnv: BUILD_ENV_TYPE;
+
+  constructor(options: AnalyticsOptions = {}) {
+    this.buildEnv = options.buildEnv ?? BUILD_ENV.PRODUCTION;
+  }
+
   public init(): void {
-    if (this.isSkipped()) {
+    if (!this.enabled) {
       return;
     }
     if (this.segment) {
       throw new Error("Analytics already initialized");
     }
 
-    this.segment = new SegmentHTTP(SEGMENT_WRITE_KEY);
+    const writeKey = this.buildEnv === BUILD_ENV.DEVELOPMENT ? SEGMENT_WRITE_KEY_DEV : SEGMENT_WRITE_KEY;
+    this.segment = new SegmentHTTP(writeKey);
   }
 
   public enable(): void {
@@ -36,7 +53,6 @@ export class Analytics {
 
   public async identify(params: { userId?: string; traits?: Traits }) {
     if (!this.enabled) return;
-    if (this.isSkipped()) return;
     try {
       this.getSegment().identify(params.userId, params.traits);
       this.setGlobalProperties({ userId: params.userId });
@@ -47,7 +63,6 @@ export class Analytics {
 
   public async track(params: { userId?: string; event: string; properties?: Record<string, unknown>; anonymousId?: string }) {
     if (!this.enabled) return;
-    if (this.isSkipped()) return;
     try {
       return this.getSegment().track(
         params.event,
@@ -70,22 +85,6 @@ export class Analytics {
     }
     return this.segment;
   }
-
-  private isSkipped() {
-    // const dappOrigin = window.location.origin;
-
-    // // skip if the protocol is not http or https
-    // if (dappOrigin.startsWith("http://")) {
-    //   return true;
-    // }
-    // // skip if dapp contains localhost
-    // if (dappOrigin.includes("localhost")) {
-    //   return true;
-    // }
-
-    // return false;
-    return __DEV__;
-  }
 }
 
 export const ANALYTICS_EVENTS = {
@@ -106,6 +105,7 @@ export const ANALYTICS_EVENTS = {
   MFA_ENABLEMENT_COMPLETED: "MFA Enablement Completed",
   MFA_ENABLEMENT_FAILED: "MFA Enablement Failed",
   MFA_MANAGEMENT_STARTED: "MFA Management Started",
+  MFA_MANAGEMENT_SELECTED: "MFA Management Selected",
   MFA_MANAGEMENT_COMPLETED: "MFA Management Completed",
   MFA_MANAGEMENT_FAILED: "MFA Management Failed",
   // Login Modal

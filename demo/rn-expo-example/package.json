@@ -13,7 +13,7 @@
     "@react-native-async-storage/async-storage": "^1.24.0",
     "@web3auth/account-abstraction-provider": "^9.7.0",
     "@web3auth/ethereum-provider": "^9.7.0",
-    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-8.1.0.tgz",
+    "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-10.0.0.tgz",
     "ethers": "^6.13.4",
     "expo": "~51.0.28",
     "ox": "^0.9.17",
