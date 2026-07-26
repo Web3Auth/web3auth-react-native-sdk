@@ -75,6 +75,8 @@ import { createNativeSolanaWallet } from "./wallets";
 // Inlined from @web3auth/no-modal/base/utils to avoid loading the barrel file
 const isHexStrict = (hex: unknown): boolean => (typeof hex === "string" || typeof hex === "number") && /^(-)?0x[0-9a-f]*$/i.test(String(hex));
 
+const WEB3AUTH_REACT_NATIVE_SOURCE = "web3auth-react-native";
+
 // import WebViewComponent from "./WebViewComponent";
 
 class Web3Auth implements IWeb3Auth {
@@ -175,6 +177,7 @@ class Web3Auth implements IWeb3Auth {
       buildEnv: this.options.buildEnv,
       serverTimeOffset: 0,
       enableOneKey: true,
+      source: WEB3AUTH_REACT_NATIVE_SOURCE,
     });
     this.state = {};
   }
@@ -507,7 +510,7 @@ class Web3Auth implements IWeb3Auth {
         platform: "react-native",
         sessionNamespace: isSFA ? "sfa" : undefined,
         recordId: generateRecordId(),
-        loginSource: "web3auth-react-native",
+        loginSource: WEB3AUTH_REACT_NATIVE_SOURCE,
       };
 
       const loginUrl = constructURL({
@@ -582,7 +585,7 @@ class Web3Auth implements IWeb3Auth {
         platform: "react-native",
         sessionNamespace: isSFA ? "sfa" : undefined,
         recordId: generateRecordId(),
-        loginSource: "web3auth-react-native",
+        loginSource: WEB3AUTH_REACT_NATIVE_SOURCE,
       };
 
       const loginUrl = constructURL({
@@ -1490,8 +1493,7 @@ class Web3Auth implements IWeb3Auth {
 
   /** Read id token from KeyStore (with SFA/userInfo fallbacks) and mirror into sync getter state. */
   private async readAndCacheIdToken(): Promise<string | null> {
-    const idToken =
-      (await this.sessionManager.getIdToken()) || this.state.userInfo?.idToken || this.state.userInfo?.oAuthIdToken || null;
+    const idToken = (await this.sessionManager.getIdToken()) || this.state.userInfo?.idToken || this.state.userInfo?.oAuthIdToken || null;
     if (this.state.idToken !== idToken) {
       this.updateState({ ...this.state, idToken });
     }
@@ -1530,7 +1532,7 @@ class Web3Auth implements IWeb3Auth {
       recordId,
       sessionNamespace: isSFA ? "sfa" : undefined,
       storageServerUrl: this.options.storageServerUrl,
-      loginSource: "web3auth-react-native",
+      loginSource: WEB3AUTH_REACT_NATIVE_SOURCE,
     };
 
     const loginUrl = constructURL({
