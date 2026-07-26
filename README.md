@@ -221,6 +221,75 @@ const web3auth = new Web3Auth(WebBrowser, EncryptedStorage, {
 
 When using `Web3AuthProvider`, `integration_type` is set to `"React Hooks"`. Direct `new Web3Auth(...)` usage reports `"Native SDK"`.
 
+## 🪝 Wagmi (EVM)
+
+Optional Wagmi 3 integration is available from `@web3auth/react-native-sdk/react/wagmi`. It derives EIP-155 chains from your Web3Auth config and bridges `connection.ethereumProvider` into Wagmi through a React Native-safe connector (no `window` / injected discovery).
+
+Install peers:
+
+```sh
+npm install wagmi@^3 viem@^2 @tanstack/react-query@^5
+```
+
+Nest providers in this order. Keep your own `QueryClientProvider`; the SDK does not create one:
+
+```tsx
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Web3AuthProvider } from "@web3auth/react-native-sdk";
+import { WagmiProvider } from "@web3auth/react-native-sdk/react/wagmi";
+import { createStorage } from "wagmi";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const queryClient = new QueryClient();
+const storage = createStorage({
+  storage: {
+    getItem: async (key) => AsyncStorage.getItem(key),
+    setItem: async (key, value) => {
+      await AsyncStorage.setItem(key, value);
+    },
+    removeItem: async (key) => {
+      await AsyncStorage.removeItem(key);
+    },
+  },
+});
+
+<QueryClientProvider client={queryClient}>
+  <Web3AuthProvider webBrowser={...} storage={...} config={...}>
+    <WagmiProvider config={{ storage }}>
+      <App />
+    </WagmiProvider>
+  </Web3AuthProvider>
+</QueryClientProvider>
+```
+
+Notes:
+
+- EVM only. Solana sessions are not bound into Wagmi.
+- After Web3Auth EVM login, standard Wagmi hooks (`useAccount`, `useBalance`, `useSignMessage`, …) work against the Web3Auth provider.
+- A user-triggered Wagmi disconnect awaits `web3Auth.logout()`. A Web3Auth logout clears Wagmi without recursion.
+- Pass only safe Wagmi overrides through `config` (for example `storage`, polling, batching). Chains, transports, and the Web3Auth connector are owned by the SDK.
+- Expo/Hermes apps should force the legacy Hermes Babel profile and enable `import.meta` transforms. The default `hermes-stable` profile assumes native `#private` support, but Hermes in Expo 54 / RN 0.81 still throws `private properties are not supported` for `ethers` (and related packages):
+
+```js
+// babel.config.js
+module.exports = function (api) {
+  api.cache(true);
+  return {
+    presets: [
+      [
+        "babel-preset-expo",
+        {
+          unstable_transformProfile: "hermes-v0",
+          unstable_transformImportMeta: true,
+        },
+      ],
+    ],
+  };
+};
+```
+
+See `demo/rn-expo-hooks-example` for a complete Expo example.
+
 ## 💥 Initialization & Usage
 
 Create a `Web3Auth` instance with your browser adapter, secure storage adapter, and project options. Call `init()` before `connectTo()`.

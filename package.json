@@ -9,9 +9,14 @@
   "types": "dist/lib.cjs/types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/lib.cjs/types/index.d.ts",
       "import": "./dist/lib.esm/index.js",
-      "require": "./dist/lib.cjs/index.js",
-      "types": "./dist/lib.cjs/types/index.d.ts"
+      "require": "./dist/lib.cjs/index.js"
+    },
+    "./react/wagmi": {
+      "types": "./dist/lib.cjs/types/react/wagmi/index.d.ts",
+      "import": "./dist/lib.esm/react/wagmi/index.js",
+      "require": "./dist/lib.cjs/react/wagmi/index.js"
     },
     "./metro-config": {
       "require": "./src/metro/metro-config.js"
@@ -92,21 +97,38 @@
   },
   "peerDependencies": {
     "@babel/runtime": "^7.x",
+    "@tanstack/react-query": ">=5.0.0",
+    "@wagmi/core": ">=3.0.0",
     "react": ">=18",
     "react-native": "*",
     "react-native-quick-crypto": ">=0.7.0",
-    "vue": ">=3.x"
+    "viem": ">=2.45.0",
+    "vue": ">=3.x",
+    "wagmi": ">=3.0.0"
   },
   "peerDependenciesMeta": {
+    "@tanstack/react-query": {
+      "optional": true
+    },
+    "@wagmi/core": {
+      "optional": true
+    },
+    "viem": {
+      "optional": true
+    },
     "vue": {
       "optional": true
     },
     "react-native-quick-crypto": {
       "optional": true
+    },
+    "wagmi": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@babel/runtime": "^7.27.6",
+    "@tanstack/react-query": "^5.90.2",
     "@toruslabs/config": "^3.1.0",
     "@toruslabs/eslint-config-typescript": "4.1.4",
     "@toruslabs/torus-scripts": "^7.1.6",
@@ -116,18 +138,30 @@
     "@types/node": "^22",
     "@types/react": "^19.1.10",
     "@types/react-native": "^0.73.0",
+    "@types/react-test-renderer": "^19.1.0",
     "@types/urijs": "^1.19.25",
+    "@wagmi/core": "^3.4.7",
     "eslint": "^9.29.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
     "prettier": "^3.6.1",
     "react": "^19.1.1",
     "react-native": "~0.80.0",
+    "react-test-renderer": "^19.1.1",
     "rimraf": "^6.0.1",
     "tsx": "^4.23.1",
     "typescript": "^5.8.3",
+    "viem": "^2.55.8",
     "vitest": "^3.2.7",
-    "vue": "^3.x"
+    "vue": "^3.x",
+    "wagmi": "^3.6.8"
+  },
+  "typesVersions": {
+    "*": {
+      "react/wagmi": [
+        "./dist/lib.cjs/types/react/wagmi/index.d.ts"
+      ]
+    }
   },
   "engines": {
     "node": ">=22.x",

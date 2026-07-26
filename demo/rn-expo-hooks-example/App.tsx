@@ -1,6 +1,8 @@
 // Web3Auth setup - must be imported first before any other imports
 import "@web3auth/react-native-sdk/setup";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   AUTH_CONNECTION,
   useAccessToken,
@@ -16,11 +18,13 @@ import {
   useWeb3AuthUser,
   Web3AuthProvider,
 } from "@web3auth/react-native-sdk";
+import { WagmiProvider } from "@web3auth/react-native-sdk/react/wagmi";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Button, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
-import { createPublicClient, createWalletClient, custom, formatEther } from "viem";
+import { formatUnits } from "viem";
+import { createStorage, useAccount, useBalance, useDisconnect, useSignMessage } from "wagmi";
 
 import { getWeb3AuthConfig } from "./web3authConfig";
 
@@ -31,9 +35,9 @@ interface HomeScreenProps {
 
 // IMP START - SDK Initialization
 function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
-  const { isConnected, isAuthorized, accessToken, isInitializing, connection } = useWeb3Auth();
+  const { isConnected, isAuthorized, accessToken, isInitializing } = useWeb3Auth();
   const { connectTo, loading: connectLoading } = useWeb3AuthConnect();
-  const { disconnect } = useWeb3AuthDisconnect();
+  const { disconnect: disconnectWeb3Auth } = useWeb3AuthDisconnect();
   const { userInfo } = useWeb3AuthUser();
   const { showWalletUI } = useWalletUI();
   const { request } = useSignatureRequest();
@@ -42,6 +46,10 @@ function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
   const { refreshSession } = useRefreshSession();
   const { enableMFA } = useEnableMFA();
   const { manageMFA } = useManageMFA();
+  const { address, isConnected: isWagmiConnected } = useAccount();
+  const { data: balance } = useBalance({ address });
+  const { signMessageAsync } = useSignMessage();
+  const { disconnectAsync } = useDisconnect();
   // IMP END - SDK Initialization
 
   const [email, setEmail] = useState("");
@@ -64,38 +72,32 @@ function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
 
   // IMP START - Blockchain Calls
   const getAccounts = async () => {
-    const provider = connection?.ethereumProvider;
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!address) {
+      uiConsole("wagmi account not connected");
       return;
     }
-    const walletClient = createWalletClient({ transport: custom(provider) });
-    const [address] = await walletClient.getAddresses();
     uiConsole(address);
   };
 
   const getBalance = async () => {
-    const provider = connection?.ethereumProvider;
-    if (!provider) {
-      uiConsole("provider not set");
+    if (!balance) {
+      uiConsole("balance unavailable");
       return;
     }
-    const publicClient = createPublicClient({ transport: custom(provider) });
-    const walletClient = createWalletClient({ transport: custom(provider) });
-    const [address] = await walletClient.getAddresses();
-    const balance = formatEther(await publicClient.getBalance({ address }));
-    uiConsole(balance);
+    uiConsole(`${formatUnits(balance.value, balance.decimals)} ${balance.symbol}`);
   };
 
   const signMessage = async () => {
-    const provider = connection?.ethereumProvider;
-    if (!provider) {
-      uiConsole("provider not set");
+    uiConsole(await signMessageAsync({ message: "Hello Web3Auth!" }));
+  };
+
+  const logout = async () => {
+    // Wagmi disconnect awaits Web3Auth logout through the SDK bridge.
+    if (isWagmiConnected) {
+      await disconnectAsync();
       return;
     }
-    const walletClient = createWalletClient({ transport: custom(provider) });
-    const [account] = await walletClient.getAddresses();
-    uiConsole(await walletClient.signMessage({ account, message: "Hello Web3Auth!" }));
+    await disconnectWeb3Auth();
   };
   // IMP END - Blockchain Calls
 
@@ -136,7 +138,7 @@ function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
         <Button title="Enable MFA" onPress={enableMFA} />
         <Button title="Manage MFA" onPress={manageMFA} />
         {/* IMP START - Logout */}
-        <Button title="Log Out" onPress={disconnect} />
+        <Button title="Log Out" onPress={logout} />
         {/* IMP END - Logout */}
       </View>
       <View style={styles.consoleArea}>
@@ -149,19 +151,40 @@ function HomeScreen({ useAccountAbstraction, onToggleAA }: HomeScreenProps) {
   );
 }
 
+const queryClient = new QueryClient();
+
 export default function App() {
   const [useAccountAbstraction, setUseAccountAbstraction] = useState(false);
+  const wagmiStorage = useMemo(
+    () =>
+      createStorage({
+        storage: {
+          getItem: async (key) => AsyncStorage.getItem(key),
+          setItem: async (key, value) => {
+            await AsyncStorage.setItem(key, value);
+          },
+          removeItem: async (key) => {
+            await AsyncStorage.removeItem(key);
+          },
+        },
+      }),
+    []
+  );
 
   return (
     // IMP START - Setup Web3Auth Provider
-    <Web3AuthProvider
-      key={String(useAccountAbstraction)}
-      webBrowser={WebBrowser}
-      storage={SecureStore}
-      config={getWeb3AuthConfig(useAccountAbstraction)}
-    >
-      <HomeScreen useAccountAbstraction={useAccountAbstraction} onToggleAA={setUseAccountAbstraction} />
-    </Web3AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <Web3AuthProvider
+        key={String(useAccountAbstraction)}
+        webBrowser={WebBrowser}
+        storage={SecureStore}
+        config={getWeb3AuthConfig(useAccountAbstraction)}
+      >
+        <WagmiProvider config={{ storage: wagmiStorage }}>
+          <HomeScreen useAccountAbstraction={useAccountAbstraction} onToggleAA={setUseAccountAbstraction} />
+        </WagmiProvider>
+      </Web3AuthProvider>
+    </QueryClientProvider>
     // IMP END - Setup Web3Auth Provider
   );
 }

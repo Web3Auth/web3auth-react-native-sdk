@@ -100,6 +100,8 @@ export interface IWeb3Auth {
   connected: boolean;
   currentChainId: string | null;
   currentChain: CustomChainConfig | undefined;
+  /** Final chain list after init merges dashboard + constructor options. */
+  configuredChains: CustomChainConfig[];
   idToken: string | null;
   accessToken: string | null;
   refreshToken: string | null;

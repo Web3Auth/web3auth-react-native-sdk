@@ -197,6 +197,10 @@ class Web3Auth implements IWeb3Auth {
     return this.options.chains?.find((chain) => chain.chainId === this.currentChainId);
   }
 
+  get configuredChains(): ProviderConfig[] {
+    return this.options.chains || [];
+  }
+
   get idToken(): string | null {
     return this.state.idToken || this.state.userInfo?.idToken || this.state.userInfo?.oAuthIdToken || null;
   }
