@@ -33,6 +33,7 @@
     "start": "torus-scripts start",
     "build": "torus-scripts build",
     "lint:ts": "eslint --fix 'src/**/*.ts'",
+    "test": "vitest run",
     "prepack": "npm run build",
     "prepare": "husky"
   },
@@ -55,7 +56,8 @@
   ],
   "dependencies": {
     "@solana/keys": "^2.3.0",
-    "@solana/signers": "^2.3.0",
+    "@solana/kit": "^6.10.0",
+    "@solana/wallet-standard-features": "^1.4.0",
     "@toruslabs/base-controllers": "^9.10.0",
     "@toruslabs/constants": "^16.1.1",
     "@toruslabs/ethereum-controllers": "^9.11.0",
@@ -65,7 +67,11 @@
     "@toruslabs/metadata-helpers": "^8.2.0",
     "@toruslabs/session-manager": "^5.6.0",
     "@toruslabs/torus.js": "^17.2.3",
+    "@wallet-standard/base": "^1.1.1",
+    "@wallet-standard/features": "^1.1.1",
     "@web3auth/auth": "^11.8.2",
+    "@web3auth/base": "^9.7.0",
+    "@web3auth/base-provider": "^9.7.0",
     "@web3auth/ethereum-provider": "^9.7.0",
     "@web3auth/no-modal": "^11.3.0",
     "@web3auth/ws-embed": "^6.1.0",
@@ -73,7 +79,6 @@
     "crypto-browserify": "^3.12.1",
     "deepmerge": "^4.3.1",
     "empty-module": "^0.0.2",
-    "ethers": "^6.16.0",
     "events": "^3.3.0",
     "fast-text-encoding": "^1.0.6",
     "jwt-decode": "^4.0.0",
@@ -119,7 +124,9 @@
     "react": "^19.1.1",
     "react-native": "~0.80.0",
     "rimraf": "^6.0.1",
+    "tsx": "^4.23.1",
     "typescript": "^5.8.3",
+    "vitest": "^3.2.7",
     "vue": "^3.x"
   },
   "engines": {

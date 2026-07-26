@@ -4,7 +4,7 @@ import { useWeb3AuthInner } from "./useWeb3AuthInner";
 export type IUseWeb3Auth = Omit<IWeb3AuthInnerContext, "isMFAEnabled" | "setIsMFAEnabled" | "setAccessTokenState" | "syncSessionState">;
 
 export const useWeb3Auth = (): IUseWeb3Auth => {
-  const { initError, isConnected, isAuthorized, accessToken, isInitialized, isInitializing, provider, web3Auth } = useWeb3AuthInner();
+  const { initError, isConnected, isAuthorized, accessToken, isInitialized, isInitializing, connection, web3Auth } = useWeb3AuthInner();
   return {
     initError,
     isConnected,
@@ -12,7 +12,7 @@ export const useWeb3Auth = (): IUseWeb3Auth => {
     accessToken,
     isInitialized,
     isInitializing,
-    provider,
+    connection,
     web3Auth,
   };
 };

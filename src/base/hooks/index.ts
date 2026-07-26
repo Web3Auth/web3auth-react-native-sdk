@@ -1,4 +1,4 @@
-import { type IProvider } from "@web3auth/no-modal";
+import { type Connection } from "@web3auth/no-modal";
 
 export interface IBaseWeb3AuthHookContext {
   isInitialized: boolean;
@@ -8,7 +8,7 @@ export interface IBaseWeb3AuthHookContext {
   isAuthorized: boolean;
   accessToken: string | null;
   isMFAEnabled: boolean;
-  provider: IProvider | null;
+  connection: Connection | null;
   setIsMFAEnabled(isMFAEnabled: boolean): void;
   /** Update citadel access token + authorization without a full session resync. */
   setAccessTokenState(token: string | null): void;

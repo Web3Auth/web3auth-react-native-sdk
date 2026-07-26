@@ -1,8 +1,10 @@
 {
   "extends": "@toruslabs/config/tsconfig.default.json",
   "compilerOptions": {
-    "moduleResolution": "Node16",
-    "module": "Node16",
+    // Keep the toruslabs defaults (module: esnext, moduleResolution: bundler) so
+    // source can import ESM-only packages (wallet-standard). torus-scripts still
+    // dual-publishes dist/lib.cjs + dist/lib.esm; do not set package.json "type":"module"
+    // or metro require entrypoints break.
     "paths": {
       "@web3auth/no-modal/dist/lib.esm/providers/account-abstraction-provider/index.js": ["./src/types/no-modal-shims.d.ts"],
       "@web3auth/no-modal/dist/lib.esm/providers/base-provider/CommonJRPCProvider.js": ["./src/types/no-modal-shims.d.ts"]

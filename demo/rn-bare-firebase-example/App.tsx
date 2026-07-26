@@ -1,12 +1,10 @@
-import "@ethersproject/shims";
-
 import firebaseAuth from "@react-native-firebase/auth";
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
-import Web3Auth, { AUTH_CONNECTION, BUILD_ENV, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
-import { ethers, Wallet } from "ethers";
+import Web3Auth, { AUTH_CONNECTION, BUILD_ENV, type Connection, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
 import React, { useEffect, useState } from "react";
 import { Button, Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
 import EncryptedStorage from "react-native-encrypted-storage";
+import { createPublicClient, createWalletClient, custom, formatEther } from "viem";
 
 const scheme = "web3authrnbarefirebase"; // Or your desired app redirection scheme
 const redirectUrl = `${scheme}://auth`;
@@ -24,7 +22,7 @@ async function signInWithEmailPassword() {
 export default function App() {
   const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [signer, setSigner] = useState<Wallet | null>(null);
+  const [connection, setConnection] = useState<Connection | null>(null);
   const [console, setConsole] = useState<string>("");
 
   useEffect(() => {
@@ -64,7 +62,7 @@ export default function App() {
 
       if (web3auth.connected) {
         // IMP END - SDK Initialization
-        setSigner(web3auth.signer as Wallet);
+        setConnection(web3auth.connection);
         setLoggedIn(true);
       }
     };
@@ -98,7 +96,7 @@ export default function App() {
 
       if (web3auth.connected) {
         // IMP END - Login
-        setSigner(web3auth.signer as Wallet);
+        setConnection(web3auth.connection);
         uiConsole("Logged In");
         setLoggedIn(true);
       }
@@ -119,7 +117,7 @@ export default function App() {
     // IMP END - Logout
 
     if (!web3auth.connected) {
-      setSigner(null);
+      setConnection(null);
       uiConsole("Logged out");
       setLoggedIn(false);
     }
@@ -127,43 +125,45 @@ export default function App() {
 
   // IMP START - Blockchain Calls
   const getAccounts = async (): Promise<string> => {
-    if (!signer) {
-      uiConsole("signer not set");
+    const provider = connection?.ethereumProvider;
+    if (!provider) {
+      uiConsole("provider not set");
       return "";
     }
     setConsole("Getting account");
-
-    // Get user's Ethereum public address
-    const address = signer.getAddress();
+    const walletClient = createWalletClient({ transport: custom(provider) });
+    const [address] = await walletClient.getAddresses();
     uiConsole(address);
     return address;
   };
 
   const getBalance = async () => {
-    if (!signer) {
-      uiConsole("signer not set");
+    const provider = connection?.ethereumProvider;
+    if (!provider) {
+      uiConsole("provider not set");
       return;
     }
     setConsole("Fetching balance");
-    // Get user's Ethereum public address
-    const address = signer.getAddress();
-
-    // Get user's balance in ether
-    const b = await signer.provider?.getBalance(address);
-    const balance = ethers.formatEther(b?.toString() ?? "0");
+    const publicClient = createPublicClient({ transport: custom(provider) });
+    const walletClient = createWalletClient({ transport: custom(provider) });
+    const [address] = await walletClient.getAddresses();
+    const balance = formatEther(await publicClient.getBalance({ address }));
     uiConsole(balance);
   };
 
   const signMessage = async () => {
-    if (!signer) {
-      uiConsole("signer not set");
+    const provider = connection?.ethereumProvider;
+    if (!provider) {
+      uiConsole("provider not set");
       return;
     }
     setConsole("Signing message");
-    const originalMessage = "YOUR_MESSAGE";
-
-    // Sign the message
-    const signedMessage = await signer.signMessage(originalMessage);
+    const walletClient = createWalletClient({ transport: custom(provider) });
+    const [account] = await walletClient.getAddresses();
+    const signedMessage = await walletClient.signMessage({
+      account,
+      message: "YOUR_MESSAGE",
+    });
     uiConsole(signedMessage);
   };
   // IMP END - Blockchain Calls

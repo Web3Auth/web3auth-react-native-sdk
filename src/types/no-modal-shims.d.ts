@@ -3,7 +3,7 @@
  *
  * The no-modal barrel (index.js) eagerly requires @metamask/sdk which has multiple
  * incompatibilities in React Native. We import directly from internal dist paths to
- * skip the barrel. These declarations satisfy TypeScript's Node16 module resolver
+ * skip the barrel. These declarations satisfy TypeScript's module resolver
  * while the runtime (Rollup / Metro) resolves the paths directly.
  */
 

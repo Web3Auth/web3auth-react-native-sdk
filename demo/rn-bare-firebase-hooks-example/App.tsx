@@ -1,5 +1,3 @@
-import '@ethersproject/shims';
-
 import firebaseAuth from '@react-native-firebase/auth';
 import * as WebBrowser from '@toruslabs/react-native-web-browser';
 import {
@@ -15,10 +13,10 @@ import {
   useWeb3AuthUser,
   Web3AuthProvider,
 } from '@web3auth/react-native-sdk';
-import { ethers } from 'ethers';
 import React, { useState } from 'react';
 import { Button, Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
 import EncryptedStorage from 'react-native-encrypted-storage';
+import { createPublicClient, createWalletClient, custom, formatEther } from 'viem';
 
 import web3AuthContextConfig from './web3authConfig';
 
@@ -33,7 +31,7 @@ async function signInWithFirebase() {
 
 // IMP START - SDK Initialization
 function HomeScreen() {
-  const { isConnected, isInitializing, provider } = useWeb3Auth();
+  const { isConnected, isInitializing, connection } = useWeb3Auth();
   const { connectTo, loading: connectLoading } = useWeb3AuthConnect();
   const { disconnect } = useWeb3AuthDisconnect();
   const { userInfo } = useWeb3AuthUser();
@@ -73,24 +71,38 @@ function HomeScreen() {
 
   // IMP START - Blockchain Calls
   const getAccounts = async () => {
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-    const signer = await ethersProvider.getSigner();
-    uiConsole(await signer.getAddress());
+    const provider = connection?.ethereumProvider;
+    if (!provider) {
+      uiConsole('provider not set');
+      return;
+    }
+    const walletClient = createWalletClient({ transport: custom(provider) });
+    const [address] = await walletClient.getAddresses();
+    uiConsole(address);
   };
 
   const getBalance = async () => {
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-    const signer = await ethersProvider.getSigner();
-    const balance = ethers.formatEther(
-      await ethersProvider.getBalance(await signer.getAddress()),
-    );
+    const provider = connection?.ethereumProvider;
+    if (!provider) {
+      uiConsole('provider not set');
+      return;
+    }
+    const publicClient = createPublicClient({ transport: custom(provider) });
+    const walletClient = createWalletClient({ transport: custom(provider) });
+    const [address] = await walletClient.getAddresses();
+    const balance = formatEther(await publicClient.getBalance({ address }));
     uiConsole(balance);
   };
 
   const signMessage = async () => {
-    const ethersProvider = new ethers.BrowserProvider(provider!);
-    const signer = await ethersProvider.getSigner();
-    uiConsole(await signer.signMessage('Hello Web3Auth!'));
+    const provider = connection?.ethereumProvider;
+    if (!provider) {
+      uiConsole('provider not set');
+      return;
+    }
+    const walletClient = createWalletClient({ transport: custom(provider) });
+    const [account] = await walletClient.getAddresses();
+    uiConsole(await walletClient.signMessage({ account, message: 'Hello Web3Auth!' }));
   };
   // IMP END - Blockchain Calls
 

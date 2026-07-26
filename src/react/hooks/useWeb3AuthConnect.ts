@@ -1,14 +1,14 @@
 import { useCallback, useState } from "react";
 
 import { Web3authRNError } from "../../errors";
-import { SdkLoginParams, WalletResult } from "../../types/interface";
+import { type Connection, SdkLoginParams } from "../../types/interface";
 import { useWeb3AuthInner } from "../hooks/useWeb3AuthInner";
 
 export interface IUseWeb3AuthConnect {
   isConnected: boolean;
   loading: boolean;
   error: Web3authRNError | null;
-  connectTo: (params: SdkLoginParams) => Promise<WalletResult | null>;
+  connectTo: (params: SdkLoginParams) => Promise<Connection | null>;
 }
 
 export const useWeb3AuthConnect = (): IUseWeb3AuthConnect => {
