@@ -77,8 +77,6 @@ const isHexStrict = (hex: unknown): boolean => (typeof hex === "string" || typeo
 
 const WEB3AUTH_REACT_NATIVE_SOURCE = "web3auth-react-native";
 
-// import WebViewComponent from "./WebViewComponent";
-
 class Web3Auth implements IWeb3Auth {
   public ready = false;
 
