@@ -53,8 +53,11 @@ export type NativeSolanaWalletOptions = {
   /** Hex-encoded ed25519 private key seed (or secp256k1-derived seed accepted by {@link getED25519Key}). */
   privateKey: string;
   solanaChainConfigs: CustomChainConfig[];
-  /** Resolves the RPC URL used by `signAndSendTransaction`. */
-  getRpcUrl: () => string | undefined;
+  /**
+   * Fallback RPC when `signAndSendTransaction` omits `chain`
+   * (typically the SDK's current chain `rpcTarget`).
+   */
+  getRpcUrl?: () => string | undefined;
 };
 
 /**
@@ -82,10 +85,13 @@ export class NativeSolanaWallet implements Wallet {
 
   private readonly addressPromise: Promise<string>;
 
-  private readonly getRpcUrl: () => string | undefined;
+  private readonly solanaChainConfigs: CustomChainConfig[];
+
+  private readonly getRpcUrl?: () => string | undefined;
 
   constructor(options: NativeSolanaWalletOptions) {
     const { privateKey, solanaChainConfigs, getRpcUrl } = options;
+    this.solanaChainConfigs = solanaChainConfigs;
     this.getRpcUrl = getRpcUrl;
     this.chains = solanaWalletChainsFromConfigs(solanaChainConfigs);
 
@@ -121,13 +127,13 @@ export class NativeSolanaWallet implements Wallet {
         supportedTransactionVersions: ["legacy", 0],
         signAndSendTransaction: async (...inputs) => {
           await this.ensureAccountsLoaded();
+          const address = await this.addressPromise;
           return Promise.all(
             inputs.map(async (input) => {
+              this.assertAccount(input.account.address, address);
+              this.assertSupportedChain(input.chain);
               const { signedBase64 } = await this.signTransactionBytes(input.transaction);
-              const rpcUrl = this.getRpcUrl();
-              if (!rpcUrl) {
-                throw new Error("Solana RPC URL is not configured for the current chain.");
-              }
+              const rpcUrl = this.resolveRpcUrl(input.chain);
               const signatureBase58 = await this.sendRawTransaction(rpcUrl, signedBase64);
               return { signature: new Uint8Array(base58Encoder.encode(signatureBase58)) };
             })
@@ -142,9 +148,7 @@ export class NativeSolanaWallet implements Wallet {
           const address = await this.addressPromise;
           return Promise.all(
             inputs.map(async (input) => {
-              if (input.account.address !== address) {
-                throw new Error("Account not found in wallet.");
-              }
+              this.assertAccount(input.account.address, address);
               const signature = await signBytes(keyPair.privateKey, input.message);
               return {
                 signedMessage: new Uint8Array(input.message),
@@ -162,9 +166,8 @@ export class NativeSolanaWallet implements Wallet {
           const address = await this.addressPromise;
           return Promise.all(
             inputs.map(async (input) => {
-              if (input.account.address !== address) {
-                throw new Error("Account not found in wallet.");
-              }
+              this.assertAccount(input.account.address, address);
+              this.assertSupportedChain(input.chain);
               const { signedTransaction } = await this.signTransactionBytes(input.transaction);
               return { signedTransaction };
             })
@@ -182,6 +185,10 @@ export class NativeSolanaWallet implements Wallet {
   }
 
   private async ensureAccountsLoaded(): Promise<void> {
+    if (this.chains.length === 0) {
+      throw new Error("Solana wallet operations require at least one configured Solana network.");
+    }
+
     if (this._accounts !== null) return;
 
     const address = await this.addressPromise;
@@ -190,11 +197,41 @@ export class NativeSolanaWallet implements Wallet {
       {
         address,
         publicKey: this.publicKeyBytes,
-        chains: accountChains.length ? accountChains : ([] as unknown as IdentifierArray),
+        chains: accountChains,
         features: ACCOUNT_FEATURES,
       },
     ];
     this.emitChange({ accounts: this.accounts });
+  }
+
+  private assertAccount(accountAddress: string, walletAddress: string): void {
+    if (accountAddress !== walletAddress) {
+      throw new Error("Account not found in wallet.");
+    }
+  }
+
+  private assertSupportedChain(chain: string | undefined): void {
+    if (chain == null) return;
+    if (!(this.chains as readonly string[]).includes(chain)) {
+      throw new Error(`Solana chain ${chain} is not supported by this wallet.`);
+    }
+  }
+
+  private resolveRpcUrl(chain: string | undefined): string {
+    if (chain != null) {
+      const config = this.solanaChainConfigs.find((entry) => getSolanaChainByChainConfig(entry) === chain);
+      const rpcUrl = config?.rpcTarget;
+      if (!rpcUrl) {
+        throw new Error(`Solana RPC URL is not configured for chain ${chain}.`);
+      }
+      return rpcUrl;
+    }
+
+    const rpcUrl = this.getRpcUrl?.();
+    if (!rpcUrl) {
+      throw new Error("Solana RPC URL is not configured for the current chain.");
+    }
+    return rpcUrl;
   }
 
   private async signTransactionBytes(transactionBytes: Uint8Array): Promise<{ signedTransaction: Uint8Array; signedBase64: string }> {

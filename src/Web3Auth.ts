@@ -1028,6 +1028,7 @@ class Web3Auth implements IWeb3Auth {
       const solanaWallet = await createNativeSolanaWallet({
         privateKey,
         solanaChainConfigs,
+        // Fallback when Wallet Standard callers omit `chain`; preferred path uses chain config rpcTarget.
         getRpcUrl: () => this.currentChain?.rpcTarget,
       });
       return {

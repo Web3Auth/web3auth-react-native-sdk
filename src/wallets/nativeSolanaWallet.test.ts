@@ -32,6 +32,18 @@ const solanaMainnetConfig: CustomChainConfig = {
   logo: "https://images.web3auth.io/solana.svg",
 };
 
+const solanaDevnetConfig: CustomChainConfig = {
+  chainNamespace: CHAIN_NAMESPACES.SOLANA,
+  chainId: "0x67",
+  rpcTarget: "https://api.devnet.solana.com",
+  displayName: "Solana Devnet",
+  ticker: "SOL",
+  tickerName: "Solana",
+  decimals: 9,
+  blockExplorerUrl: "https://explorer.solana.com/?cluster=devnet",
+  logo: "https://images.web3auth.io/solana.svg",
+};
+
 async function buildUnsignedTransactionBytes(privateKey: string): Promise<Uint8Array> {
   const { sk } = getED25519Key(privateKey);
   const keyPair = await createKeyPairFromBytes(new Uint8Array(sk));
@@ -137,8 +149,8 @@ describe("NativeSolanaWallet", () => {
 
     const wallet = await createNativeSolanaWallet({
       privateKey: DETERMINISTIC_SEED,
-      solanaChainConfigs: [solanaMainnetConfig],
-      getRpcUrl: () => "https://example-solana-rpc.test",
+      solanaChainConfigs: [{ ...solanaMainnetConfig, rpcTarget: "https://example-solana-rpc.test" }],
+      getRpcUrl: () => "https://should-not-be-used.test",
     });
 
     const unsignedBytes = await buildUnsignedTransactionBytes(DETERMINISTIC_SEED);
@@ -188,7 +200,7 @@ describe("NativeSolanaWallet", () => {
   it("throws when RPC URL is missing for signAndSendTransaction", async () => {
     const wallet = await createNativeSolanaWallet({
       privateKey: DETERMINISTIC_SEED,
-      solanaChainConfigs: [solanaMainnetConfig],
+      solanaChainConfigs: [{ ...solanaMainnetConfig, rpcTarget: "" }],
       getRpcUrl: () => undefined,
     });
 
@@ -200,6 +212,89 @@ describe("NativeSolanaWallet", () => {
         transaction: unsignedBytes,
         chain: "solana:mainnet",
       })
-    ).rejects.toThrow("Solana RPC URL is not configured for the current chain.");
+    ).rejects.toThrow("Solana RPC URL is not configured");
+  });
+
+  it("rejects signAndSendTransaction for an unknown account", async () => {
+    const wallet = await createNativeSolanaWallet({
+      privateKey: DETERMINISTIC_SEED,
+      solanaChainConfigs: [solanaMainnetConfig],
+      getRpcUrl: () => solanaMainnetConfig.rpcTarget,
+    });
+
+    const unsignedBytes = await buildUnsignedTransactionBytes(DETERMINISTIC_SEED);
+
+    await expect(
+      wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
+        account: {
+          ...wallet.accounts[0]!,
+          address: "DRpbCBMxVnDK7maPM5tGv6MvB3v1sRMC86PZ8okm21hy",
+        },
+        transaction: unsignedBytes,
+        chain: "solana:mainnet",
+      })
+    ).rejects.toThrow("Account not found in wallet.");
+  });
+
+  it("routes signAndSendTransaction to the RPC for input.chain", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ result: "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wallet = await createNativeSolanaWallet({
+      privateKey: DETERMINISTIC_SEED,
+      solanaChainConfigs: [solanaMainnetConfig, solanaDevnetConfig],
+      // current-chain fallback would send to mainnet if chain were ignored
+      getRpcUrl: () => solanaMainnetConfig.rpcTarget,
+    });
+
+    const unsignedBytes = await buildUnsignedTransactionBytes(DETERMINISTIC_SEED);
+
+    await wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
+      account: wallet.accounts[0]!,
+      transaction: unsignedBytes,
+      chain: "solana:devnet",
+    });
+
+    const [fetchUrl] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(fetchUrl).toBe("https://api.devnet.solana.com");
+  });
+
+  it("rejects unsupported chains on sign and send", async () => {
+    const wallet = await createNativeSolanaWallet({
+      privateKey: DETERMINISTIC_SEED,
+      solanaChainConfigs: [solanaMainnetConfig],
+      getRpcUrl: () => solanaMainnetConfig.rpcTarget,
+    });
+
+    const unsignedBytes = await buildUnsignedTransactionBytes(DETERMINISTIC_SEED);
+
+    await expect(
+      wallet.features[SolanaSignTransaction].signTransaction({
+        account: wallet.accounts[0]!,
+        transaction: unsignedBytes,
+        chain: "solana:devnet",
+      })
+    ).rejects.toThrow(/not supported/i);
+
+    await expect(
+      wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
+        account: wallet.accounts[0]!,
+        transaction: unsignedBytes,
+        chain: "solana:devnet",
+      })
+    ).rejects.toThrow(/not supported/i);
+  });
+
+  it("refuses to load accounts when no Solana chains are configured", async () => {
+    const wallet = new NativeSolanaWallet({
+      privateKey: DETERMINISTIC_SEED,
+      solanaChainConfigs: [],
+      getRpcUrl: () => undefined,
+    });
+
+    await expect(wallet.features[StandardConnect].connect()).rejects.toThrow(/Solana network/i);
   });
 });
