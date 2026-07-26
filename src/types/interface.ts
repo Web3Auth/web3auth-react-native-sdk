@@ -85,7 +85,10 @@ export type {
 export type { Connection } from "@web3auth/no-modal";
 
 export type State = AuthSessionData & {
-  currentChainId?: string;
+  currentChainId?: string | null;
+  idToken?: string | null;
+  accessToken?: string | null;
+  refreshToken?: string | null;
 };
 
 export type AuthTokenInfo = {
@@ -95,6 +98,11 @@ export type AuthTokenInfo = {
 export interface IWeb3Auth {
   connection: Connection | null;
   connected: boolean;
+  currentChainId: string | null;
+  currentChain: CustomChainConfig | undefined;
+  idToken: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   init: () => Promise<void>;
   connectTo: (params: SdkLoginParams) => Promise<Connection | null>;
   logout: () => Promise<void>;

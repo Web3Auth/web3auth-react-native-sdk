@@ -187,13 +187,25 @@ class Web3Auth implements IWeb3Auth {
     return this._connection;
   }
 
-  get currentChainId(): string | undefined {
-    return this.state.currentChainId;
+  get currentChainId(): string | null {
+    return this.state.currentChainId || this.options.defaultChainId || this.options.chains?.[0]?.chainId || null;
   }
 
   get currentChain(): ProviderConfig | undefined {
     if (!this.currentChainId) return undefined;
     return this.options.chains?.find((chain) => chain.chainId === this.currentChainId);
+  }
+
+  get idToken(): string | null {
+    return this.state.idToken || this.state.userInfo?.idToken || this.state.userInfo?.oAuthIdToken || null;
+  }
+
+  get accessToken(): string | null {
+    return this.state.accessToken || null;
+  }
+
+  get refreshToken(): string | null {
+    return this.state.refreshToken || null;
   }
 
   get currentChainNamespace(): ChainNamespaceType {
@@ -308,10 +320,7 @@ class Web3Auth implements IWeb3Auth {
           this.currentSessionId = sessionId;
           const data = await this.authorizeSession();
           if (Object.keys(data).length > 0) {
-            this.updateState({
-              ...data,
-              currentChainId: this.currentChainId,
-            });
+            await this.applyAuthorizedSessionData(data);
             const finalPrivKey = this.getFinalPrivKey();
             if (!finalPrivKey) return;
             this._connection = await this.getWallet(finalPrivKey);
@@ -331,6 +340,9 @@ class Web3Auth implements IWeb3Auth {
             this.currentSessionId = null;
             this.updateState({
               currentChainId: this.currentChainId,
+              idToken: null,
+              accessToken: null,
+              refreshToken: null,
             });
             this._connection = null;
           }
@@ -341,10 +353,7 @@ class Web3Auth implements IWeb3Auth {
           this.currentSessionId = sessionId;
           const data = await this.authorizeSession();
           if (Object.keys(data).length > 0) {
-            this.updateState({
-              ...data,
-              currentChainId: this.currentChainId,
-            });
+            await this.applyAuthorizedSessionData(data);
             const finalPrivKey = this.getFinalPrivKey();
             if (!finalPrivKey) return;
             this._connection = await this.getWallet(finalPrivKey);
@@ -353,6 +362,9 @@ class Web3Auth implements IWeb3Auth {
             this.currentSessionId = null;
             this.updateState({
               currentChainId: this.currentChainId,
+              idToken: null,
+              accessToken: null,
+              refreshToken: null,
             });
             this._connection = null;
           }
@@ -491,7 +503,7 @@ class Web3Auth implements IWeb3Auth {
         loginId: remove0x(loginId),
         sessionId: remove0x(sessionId),
         // SFA has no citadel token; wallet falls back to session-service auth.
-        accessToken: isSFA ? undefined : ((await this.sessionManager.getAccessToken()) ?? undefined),
+        accessToken: isSFA ? undefined : ((await this.readAndCacheAccessToken()) ?? undefined),
         platform: "react-native",
         sessionNamespace: isSFA ? "sfa" : undefined,
         recordId: generateRecordId(),
@@ -562,7 +574,7 @@ class Web3Auth implements IWeb3Auth {
       const configParams: WalletLoginParams = {
         loginId: remove0x(loginId),
         sessionId: remove0x(sessionId),
-        accessToken: isSFA ? undefined : ((await this.sessionManager.getAccessToken()) ?? undefined),
+        accessToken: isSFA ? undefined : ((await this.readAndCacheAccessToken()) ?? undefined),
         request: {
           method,
           params,
@@ -643,7 +655,7 @@ class Web3Auth implements IWeb3Auth {
           mfaLevel: "mandatory",
         },
         sessionId: this.currentSessionId,
-        accessToken: (await this.sessionManager.getAccessToken()) ?? undefined,
+        accessToken: (await this.readAndCacheAccessToken()) ?? undefined,
       };
 
       const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
@@ -658,7 +670,7 @@ class Web3Auth implements IWeb3Auth {
         throw LoginError.loginFailed(error || "SessionId is missing");
       }
 
-      await this.sessionManager.setTokens({
+      await this.setCitadelTokens({
         sessionId: add0x(sessionId),
         accessToken: accessToken || "",
         refreshToken: refreshToken || "",
@@ -734,7 +746,7 @@ class Web3Auth implements IWeb3Auth {
           appState: jsonToBase64({ loginId, recordId }),
         },
         sessionId: this.currentSessionId,
-        accessToken: (await this.sessionManager.getAccessToken()) ?? undefined,
+        accessToken: (await this.readAndCacheAccessToken()) ?? undefined,
       };
 
       const result = await this.openAuthSession(`${this.baseUrl}/start`, dataObject, {
@@ -752,7 +764,7 @@ class Web3Auth implements IWeb3Auth {
         throw LoginError.loginFailed(error);
       }
       if (sessionId) {
-        await this.sessionManager.setTokens({
+        await this.setCitadelTokens({
           sessionId: add0x(sessionId),
           accessToken: accessToken || "",
           refreshToken: refreshToken || "",
@@ -786,7 +798,8 @@ class Web3Auth implements IWeb3Auth {
 
   public async getAccessToken(): Promise<string> {
     if (!this.currentSessionId) throw LoginError.userNotLoggedIn();
-    const token = await this.sessionManager.getAccessToken();
+    // May come from KeyStore or a custom accessTokenProvider — keep sync getter in sync.
+    const token = await this.readAndCacheAccessToken();
     // SFA sessions live on session-service and have no citadel access token.
     if (!token) throw LoginError.userNotLoggedIn();
     return token;
@@ -802,7 +815,7 @@ class Web3Auth implements IWeb3Auth {
         properties: trackData,
       });
       // Citadel-stored idToken is authoritative; fall back to session state for SFA.
-      const idToken = (await this.sessionManager.getIdToken()) ?? this.state.userInfo?.idToken ?? null;
+      const idToken = await this.readAndCacheIdToken();
       this.analytics.track({
         event: ANALYTICS_EVENTS.IDENTITY_TOKEN_COMPLETED,
         properties: trackData,
@@ -839,6 +852,7 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.userNotLoggedIn();
     }
     this.updateState({ ...data, currentChainId: this.currentChainId });
+    await this.syncSessionTokensToState();
   }
 
   public async connectTo(loginParams: SdkLoginParams): Promise<Connection | null> {
@@ -1195,7 +1209,7 @@ class Web3Auth implements IWeb3Auth {
         throw LoginError.loginFailed(error || "SessionId is missing");
       }
 
-      await this.sessionManager.setTokens({
+      await this.setCitadelTokens({
         sessionId: add0x(sessionId),
         accessToken: accessToken || "",
         refreshToken: refreshToken || "",
@@ -1273,6 +1287,9 @@ class Web3Auth implements IWeb3Auth {
       sessionId: "",
       signatures: [],
       currentChainId: this.currentChainId,
+      idToken: null,
+      accessToken: null,
+      refreshToken: null,
     });
 
     this.emit("disconnected");
@@ -1318,6 +1335,9 @@ class Web3Auth implements IWeb3Auth {
     this.updateState({
       ...authSessionData,
       currentChainId: this.currentChainId,
+      idToken: loginParams.idToken || null,
+      accessToken: null,
+      refreshToken: null,
     });
 
     const result = await this.getWallet(privateKey);
@@ -1413,6 +1433,69 @@ class Web3Auth implements IWeb3Auth {
 
   private updateState(newState: State) {
     this.state = { ...newState };
+  }
+
+  private async applyAuthorizedSessionData(data: AuthSessionData): Promise<void> {
+    this.updateState({
+      ...data,
+      currentChainId: this.currentChainId,
+    });
+    await this.syncSessionTokensToState();
+  }
+
+  private async setCitadelTokens(tokens: { sessionId: Hex; accessToken: string; refreshToken: string; idToken: string }): Promise<void> {
+    await this.sessionManager.setTokens(tokens);
+    this.updateState({
+      ...this.state,
+      accessToken: tokens.accessToken || null,
+      refreshToken: tokens.refreshToken || null,
+      idToken: tokens.idToken || this.state.userInfo?.idToken || null,
+    });
+  }
+
+  private async syncSessionTokensToState(): Promise<void> {
+    const isSFA = await this.checkIsSFAFromStorage();
+    if (isSFA) {
+      this.updateState({
+        ...this.state,
+        idToken: this.state.userInfo?.oAuthIdToken || this.state.userInfo?.idToken || null,
+        accessToken: null,
+        refreshToken: null,
+      });
+      return;
+    }
+
+    const [accessToken, refreshToken, idToken] = await Promise.all([
+      this.sessionManager.getAccessToken(),
+      this.sessionManager.getRefreshToken(),
+      this.sessionManager.getIdToken(),
+    ]);
+
+    this.updateState({
+      ...this.state,
+      accessToken: accessToken || null,
+      refreshToken: refreshToken || null,
+      idToken: idToken || this.state.userInfo?.idToken || null,
+    });
+  }
+
+  /** Read access token from KeyStore/provider and mirror into sync getter state. */
+  private async readAndCacheAccessToken(): Promise<string | null> {
+    const token = (await this.sessionManager.getAccessToken()) || null;
+    if (this.state.accessToken !== token) {
+      this.updateState({ ...this.state, accessToken: token });
+    }
+    return token;
+  }
+
+  /** Read id token from KeyStore (with SFA/userInfo fallbacks) and mirror into sync getter state. */
+  private async readAndCacheIdToken(): Promise<string | null> {
+    const idToken =
+      (await this.sessionManager.getIdToken()) || this.state.userInfo?.idToken || this.state.userInfo?.oAuthIdToken || null;
+    if (this.state.idToken !== idToken) {
+      this.updateState({ ...this.state, idToken });
+    }
+    return idToken;
   }
 
   private async createLoginSession(loginId: Hex, data: AuthRequestPayload, timeout = 600): Promise<Hex> {
