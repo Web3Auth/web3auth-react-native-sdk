@@ -119,11 +119,16 @@ export function createWeb3AuthConnector(params: Web3AuthConnectorParams): Create
       setDisconnectOrigin?.("wagmi");
       try {
         if (onWagmiDisconnect) await onWagmiDisconnect();
-      } finally {
+        // Only tear down listeners after logout succeeds. Wagmi clears its
+        // connection only when disconnect() resolves; a rejected logout must
+        // leave listeners intact so the still-connected session stays live.
         removeProviderListeners();
         queueMicrotask(() => {
           if (getDisconnectOrigin?.() === "wagmi") setDisconnectOrigin?.(null);
         });
+      } catch (error) {
+        setDisconnectOrigin?.(null);
+        throw error;
       }
     },
     async switchChain({ chainId }) {

@@ -182,6 +182,36 @@ describe("createWeb3AuthConnector", () => {
     expect(onWagmiDisconnect).toHaveBeenCalledTimes(1);
   });
 
+  it("preserves provider listeners when explicit logout fails", async () => {
+    let origin: "web3auth" | "wagmi" | null = null;
+    const onWagmiDisconnect = vi.fn(async () => {
+      throw new Error("logout failed");
+    });
+    const provider = new FakeProvider();
+    const config = createTestConfig(() => provider, {
+      onWagmiDisconnect,
+      getDisconnectOrigin: () => origin,
+      setDisconnectOrigin: (next) => {
+        origin = next;
+      },
+    });
+    const connector = config.connectors[0]!;
+    await connector.connect();
+
+    const changeSpy = vi.fn();
+    connector.emitter.on("change", changeSpy);
+
+    await expect(connector.disconnect()).rejects.toThrow(/logout failed/);
+
+    provider.emit("accountsChanged", ["0x2222222222222222222222222222222222222222"]);
+    expect(changeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accounts: ["0x2222222222222222222222222222222222222222"],
+      })
+    );
+    expect(origin).toBeNull();
+  });
+
   it("reports unauthorized when provider is missing or empty", async () => {
     const missingConfig = createTestConfig(() => null);
     await expect(missingConfig.connectors[0]!.isAuthorized()).resolves.toBe(false);
