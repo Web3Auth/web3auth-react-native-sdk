@@ -5,6 +5,7 @@ import type { EIP1193Provider } from "viem";
 import { buildEvmWagmiChains } from "./chains";
 import { createWeb3AuthConnector, type DisconnectOrigin } from "./connector";
 import type { WagmiProviderProps } from "./interface";
+import { createBridgeSafeStorage } from "./storage";
 
 export type CreateWeb3AuthWagmiConfigParams = {
   chains: CustomChainConfig[];
@@ -27,9 +28,11 @@ export function createWeb3AuthWagmiConfig(params: CreateWeb3AuthWagmiConfigParam
     onWagmiDisconnect,
   } = params;
   const { chains, transports } = buildEvmWagmiChains(sourceChains, preferredChainId);
+  const { storage: storageOverride, ...restOverrides } = configOverrides ?? {};
 
   const finalConfig: CreateConfigParameters = {
-    ...configOverrides,
+    ...restOverrides,
+    ...(storageOverride !== undefined ? { storage: storageOverride === null ? null : createBridgeSafeStorage(storageOverride) } : {}),
     chains,
     transports,
     connectors: [

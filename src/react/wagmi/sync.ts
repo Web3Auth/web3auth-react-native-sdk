@@ -3,6 +3,7 @@ import type { EIP1193Provider } from "viem";
 
 import { log } from "../../base/loglevel";
 import { type DisconnectOrigin, WEB3AUTH_CONNECTOR_ID } from "./connector";
+import { awaitWagmiStorageHydration } from "./storage";
 
 export type BridgeBinding = {
   provider: EIP1193Provider | null;
@@ -51,6 +52,11 @@ export function createWagmiBridgeController(config: Config, originRef?: Disconne
     },
     sync: ({ shouldBind, provider, connectorName }) =>
       enqueue(async (token) => {
+        if (disposed || token !== generation) return;
+
+        // Finish storage hydration before bind/disconnect so async RN storage
+        // cannot install connector stubs mid-synchronization.
+        await awaitWagmiStorageHydration(config);
         if (disposed || token !== generation) return;
 
         if (shouldBind && provider) {
