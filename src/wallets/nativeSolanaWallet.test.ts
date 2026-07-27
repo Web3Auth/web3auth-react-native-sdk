@@ -262,6 +262,73 @@ describe("NativeSolanaWallet", () => {
     expect(fetchUrl).toBe("https://api.devnet.solana.com");
   });
 
+  it("forwards Wallet Standard send options to sendTransaction and confirms when requested", async () => {
+    const signature = "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW";
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { method: string };
+      if (body.method === "sendTransaction") {
+        return { ok: true, json: async () => ({ result: signature }) };
+      }
+      if (body.method === "getSignatureStatuses") {
+        return {
+          ok: true,
+          json: async () => ({
+            result: { value: [{ confirmationStatus: "finalized", err: null }] },
+          }),
+        };
+      }
+      throw new Error(`Unexpected RPC method: ${body.method}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wallet = await createNativeSolanaWallet({
+      privateKey: DETERMINISTIC_SEED,
+      solanaChainConfigs: [solanaMainnetConfig],
+      getRpcUrl: () => solanaMainnetConfig.rpcTarget,
+    });
+
+    const unsignedBytes = await buildUnsignedTransactionBytes(DETERMINISTIC_SEED);
+
+    await wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
+      account: wallet.accounts[0]!,
+      transaction: unsignedBytes,
+      chain: "solana:mainnet",
+      options: {
+        preflightCommitment: "processed",
+        minContextSlot: 42,
+        skipPreflight: true,
+        maxRetries: 3,
+        commitment: "finalized",
+      },
+    });
+
+    const sendCall = fetchMock.mock.calls.find((call) => {
+      const body = JSON.parse(String((call[1] as RequestInit | undefined)?.body)) as { method: string };
+      return body.method === "sendTransaction";
+    });
+    expect(sendCall).toBeDefined();
+    const sendBody = JSON.parse(String((sendCall![1] as RequestInit).body)) as {
+      params: [string, Record<string, unknown>];
+    };
+    expect(sendBody.params[1]).toEqual({
+      encoding: "base64",
+      preflightCommitment: "processed",
+      minContextSlot: 42,
+      skipPreflight: true,
+      maxRetries: 3,
+    });
+
+    const confirmCall = fetchMock.mock.calls.find((call) => {
+      const body = JSON.parse(String((call[1] as RequestInit | undefined)?.body)) as { method: string };
+      return body.method === "getSignatureStatuses";
+    });
+    expect(confirmCall).toBeDefined();
+    const confirmBody = JSON.parse(String((confirmCall![1] as RequestInit).body)) as {
+      params: [string[], Record<string, unknown>?];
+    };
+    expect(confirmBody.params[0]).toEqual([signature]);
+  });
+
   it("rejects unsupported chains on sign and send", async () => {
     const wallet = await createNativeSolanaWallet({
       privateKey: DETERMINISTIC_SEED,

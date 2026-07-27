@@ -10,10 +10,12 @@ import {
 import {
   SolanaSignAndSendTransaction,
   type SolanaSignAndSendTransactionFeature,
+  type SolanaSignAndSendTransactionOptions,
   SolanaSignMessage,
   type SolanaSignMessageFeature,
   SolanaSignTransaction,
   type SolanaSignTransactionFeature,
+  type SolanaTransactionCommitment,
 } from "@solana/wallet-standard-features";
 import { type IdentifierArray, type Wallet, type WalletAccount, type WalletIcon, type WalletVersion } from "@wallet-standard/base";
 import {
@@ -36,6 +38,16 @@ const base64Encoder = getBase64Encoder();
 const transactionDecoder = getTransactionDecoder();
 
 const ACCOUNT_FEATURES: IdentifierArray = [SolanaSignAndSendTransaction, SolanaSignMessage, SolanaSignTransaction] as IdentifierArray;
+
+const COMMITMENT_RANK: Record<SolanaTransactionCommitment, number> = {
+  processed: 0,
+  confirmed: 1,
+  finalized: 2,
+};
+
+function commitmentSatisfied(current: SolanaTransactionCommitment, required: SolanaTransactionCommitment): boolean {
+  return COMMITMENT_RANK[current] >= COMMITMENT_RANK[required];
+}
 
 type NativeSolanaFeatures = StandardConnectFeature &
   StandardDisconnectFeature &
@@ -134,7 +146,10 @@ export class NativeSolanaWallet implements Wallet {
               this.assertSupportedChain(input.chain);
               const { signedBase64 } = await this.signTransactionBytes(input.transaction);
               const rpcUrl = this.resolveRpcUrl(input.chain);
-              const signatureBase58 = await this.sendRawTransaction(rpcUrl, signedBase64);
+              const signatureBase58 = await this.sendRawTransaction(rpcUrl, signedBase64, input.options);
+              if (input.options?.commitment) {
+                await this.confirmSignature(rpcUrl, signatureBase58, input.options.commitment);
+              }
               return { signature: new Uint8Array(base58Encoder.encode(signatureBase58)) };
             })
           );
@@ -249,26 +264,16 @@ export class NativeSolanaWallet implements Wallet {
     };
   }
 
-  private async sendRawTransaction(rpcUrl: string, signedBase64: string): Promise<string> {
-    const response = await fetch(rpcUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "sendTransaction",
-        params: [signedBase64, { encoding: "base64", preflightCommitment: "confirmed" }],
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Solana RPC request failed with status ${response.status}`);
-    }
-
-    const payload = (await response.json()) as {
-      result?: string;
-      error?: { message?: string };
+  private async sendRawTransaction(rpcUrl: string, signedBase64: string, options?: SolanaSignAndSendTransactionOptions): Promise<string> {
+    const config: Record<string, unknown> = {
+      encoding: "base64",
+      preflightCommitment: options?.preflightCommitment ?? "confirmed",
     };
+    if (options?.skipPreflight != null) config.skipPreflight = options.skipPreflight;
+    if (options?.maxRetries != null) config.maxRetries = options.maxRetries;
+    if (options?.minContextSlot != null) config.minContextSlot = options.minContextSlot;
+
+    const payload = await this.rpcRequest<{ result?: string; error?: { message?: string } }>(rpcUrl, "sendTransaction", [signedBase64, config]);
 
     if (payload.error?.message) {
       throw new Error(payload.error.message);
@@ -280,6 +285,52 @@ export class NativeSolanaWallet implements Wallet {
     // Validate base58 signature shape early.
     base58Encoder.encode(payload.result);
     return payload.result;
+  }
+
+  private async confirmSignature(rpcUrl: string, signature: string, commitment: SolanaTransactionCommitment): Promise<void> {
+    const deadline = Date.now() + 30_000;
+
+    while (Date.now() < deadline) {
+      const payload = await this.rpcRequest<{
+        result?: { value?: Array<{ confirmationStatus?: SolanaTransactionCommitment | null; err?: unknown } | null> };
+        error?: { message?: string };
+      }>(rpcUrl, "getSignatureStatuses", [[signature], { searchTransactionHistory: true }]);
+
+      if (payload.error?.message) {
+        throw new Error(payload.error.message);
+      }
+
+      const status = payload.result?.value?.[0];
+      if (status?.err) {
+        throw new Error(`Solana transaction failed confirmation: ${JSON.stringify(status.err)}`);
+      }
+      if (status?.confirmationStatus && commitmentSatisfied(status.confirmationStatus, commitment)) {
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+
+    throw new Error(`Solana transaction did not reach ${commitment} commitment.`);
+  }
+
+  private async rpcRequest<T>(rpcUrl: string, method: string, params: unknown[]): Promise<T> {
+    const response = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method,
+        params,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Solana RPC request failed with status ${response.status}`);
+    }
+
+    return (await response.json()) as T;
   }
 
   private emitChange(properties: StandardEventsChangeProperties): void {
