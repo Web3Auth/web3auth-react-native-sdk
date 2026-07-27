@@ -142,6 +142,46 @@ describe("createWagmiBridgeController", () => {
     stop();
   });
 
+  it("restores wagmi when spontaneous logout after accountsChanged:[] fails", async () => {
+    const provider = new FakeProvider();
+    const { config, bridge } = createBridgeFixture(provider);
+    const spontaneousLogout = vi.fn(async () => {
+      throw new Error("logout failed");
+    });
+
+    await bridge.sync({
+      shouldBind: true,
+      provider: provider as never,
+      connectorName: "auth",
+    });
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+
+    try {
+      const stop = bridge.watchSpontaneousDisconnect(spontaneousLogout);
+      provider.emit("accountsChanged", []);
+
+      await vi.waitFor(() => {
+        expect(spontaneousLogout).toHaveBeenCalledTimes(1);
+      });
+      await vi.waitFor(() => {
+        expect(getConnections(config)).toHaveLength(1);
+        expect(config.state.status).toBe("connected");
+      });
+      // Flush rejection microtasks that would otherwise surface as unhandled.
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(unhandled).toHaveLength(0);
+      stop();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
   it("replaces the binding when the provider identity changes", async () => {
     const first = new FakeProvider(["0x1111111111111111111111111111111111111111"]);
     const second = new FakeProvider(["0x2222222222222222222222222222222222222222"]);

@@ -109,21 +109,40 @@ export function createWagmiBridgeController(config: Config, originRef?: Disconne
       }),
     watchSpontaneousDisconnect: (onSpontaneousDisconnect) => {
       return watchConnections(config, {
-        onChange: async (connections, previousConnections) => {
+        onChange: (connections, previousConnections) => {
           if (disposed) return;
           // Connector-driven disconnects already handled logout (or intentionally skipped it).
           if (disconnectOriginRef.current) return;
 
           const hadWeb3Auth = previousConnections.some((connection) => connection.connector.id === WEB3AUTH_CONNECTOR_ID);
           const hasWeb3Auth = connections.some((connection) => connection.connector.id === WEB3AUTH_CONNECTOR_ID);
-          if (hadWeb3Auth && !hasWeb3Auth) {
+          if (!(hadWeb3Auth && !hasWeb3Auth)) return;
+
+          // watchConnections does not await onChange; keep the logout work
+          // inside a voided task so rejections never become unhandled.
+          void (async () => {
             disconnectOriginRef.current = "wagmi";
             try {
               await onSpontaneousDisconnect();
+            } catch (error) {
+              // Wagmi already dropped the connection for accountsChanged:[] /
+              // provider disconnect. If Web3Auth logout fails, re-adopt the
+              // prior binding so both sides stay aligned.
+              log.error("Failed to log out Web3Auth after spontaneous wagmi disconnect", error);
+              if (!disposed && lastBinding.provider) {
+                const connector = getWeb3AuthConnector(config);
+                if (connector) {
+                  try {
+                    await connect(config, { connector });
+                  } catch (reconnectError) {
+                    log.error("Failed to restore wagmi connection after spontaneous logout failure", reconnectError);
+                  }
+                }
+              }
             } finally {
               disconnectOriginRef.current = null;
             }
-          }
+          })();
         },
       });
     },
