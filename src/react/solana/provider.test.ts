@@ -259,6 +259,36 @@ describe("SolanaProvider", () => {
     expect(lastConfig.walletConnectors).toEqual([]);
   });
 
+  it("disposes the wired client when connectWallet fails", async () => {
+    const web3Auth = createFakeWeb3Auth({});
+    useWeb3AuthMock.mockImplementation(
+      (): Partial<IUseWeb3Auth> => ({
+        web3Auth: web3Auth as never,
+        isInitialized: true,
+        isConnected: true,
+        connection: web3Auth.connection as never,
+      })
+    );
+    connectWalletMock.mockRejectedValueOnce(new Error("connect failed"));
+
+    await act(async () => {
+      TestRenderer.create(createElement(SolanaProvider, null, null));
+    });
+
+    await vi.waitFor(() => {
+      const wiredClientIds = createClientMock.mock.results
+        .map((result) => (result.value as { id: string }).id)
+        .filter((_, index) => {
+          const config = createClientMock.mock.calls[index]?.[0] as { walletConnectors: unknown[] };
+          return config.walletConnectors.length > 0;
+        });
+      expect(wiredClientIds.length).toBeGreaterThan(0);
+      for (const id of wiredClientIds) {
+        expect(destroyMock).toHaveBeenCalledWith(id);
+      }
+    });
+  });
+
   it("disposes the active client on unmount without double destroy", async () => {
     useWeb3AuthMock.mockImplementation(
       (): Partial<IUseWeb3Auth> => ({

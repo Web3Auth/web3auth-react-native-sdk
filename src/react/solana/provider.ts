@@ -131,6 +131,7 @@ function useFrameworkKitSolanaClient(): SolanaClient {
         return;
       }
 
+      let wired: SolanaClient | undefined;
       try {
         const connectorName = connection.connectorName;
         const solanaWalletId = `wallet-standard:${connectorName}`;
@@ -140,7 +141,7 @@ function useFrameworkKitSolanaClient(): SolanaClient {
           name: connectorName,
           defaultChain,
         });
-        const wired = createClient({
+        wired = createClient({
           endpoint: currentChain.rpcTarget,
           websocketEndpoint: currentChain.wsTarget,
           walletConnectors: [connector],
@@ -154,6 +155,9 @@ function useFrameworkKitSolanaClient(): SolanaClient {
         adopt(wired);
       } catch (e) {
         log.error("Failed to create or connect Solana client", e);
+        // createClient may have succeeded before connectWallet rejected; dispose that
+        // instance explicitly — adopt() only tears down solClientRef, not this orphan.
+        dispose(wired);
         adopt(makePlaceholder(rpc));
       }
     })();
