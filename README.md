@@ -228,7 +228,7 @@ Optional Wagmi 3 integration is available from `@web3auth/react-native-sdk/react
 Install peers:
 
 ```sh
-npm install wagmi@^3 viem@^2 @tanstack/react-query@^5
+npm install wagmi@^3 @wagmi/core@^3 viem@^2 @tanstack/react-query@^5
 ```
 
 Nest providers in this order. Keep your own `QueryClientProvider`; the SDK does not create one:
