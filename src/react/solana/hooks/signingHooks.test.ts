@@ -1,3 +1,12 @@
+import {
+  address,
+  blockhash,
+  compileTransaction,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+} from "@solana/kit";
+import { SolanaSignAndSendTransaction } from "@solana/wallet-standard-features";
 import { CHAIN_NAMESPACES, WalletInitializationError } from "@web3auth/no-modal";
 import { createElement, useEffect } from "react";
 import TestRenderer, { act } from "react-test-renderer";
@@ -5,10 +14,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { IUseWeb3Auth } from "../../hooks/useWeb3Auth";
 
+const FEE_PAYER = address("So11111111111111111111111111111111111111112");
+
+function buildCompiledTransaction() {
+  const message = setTransactionMessageLifetimeUsingBlockhash(
+    {
+      blockhash: blockhash("EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N"),
+      lastValidBlockHeight: 100n,
+    },
+    setTransactionMessageFeePayer(FEE_PAYER, createTransactionMessage({ version: 0 }))
+  );
+  return compileTransaction(message);
+}
+
 const useWeb3AuthMock = vi.hoisted(() => vi.fn());
 const walletSignMessageMock = vi.hoisted(() => vi.fn());
 const walletSignTransactionMock = vi.hoisted(() => vi.fn());
-const walletSignAndSendTransactionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../hooks/useWeb3Auth", () => ({
   useWeb3Auth: () => useWeb3AuthMock(),
@@ -20,7 +41,6 @@ vi.mock("@web3auth/no-modal", async () => {
     ...actual,
     walletSignMessage: walletSignMessageMock,
     walletSignTransaction: walletSignTransactionMock,
-    walletSignAndSendTransaction: walletSignAndSendTransactionMock,
   };
 });
 
@@ -56,7 +76,16 @@ function SignAndSendProbe({ onState }: { onState: (state: SignAndSendState) => v
   return null;
 }
 
-function mockConnectedSolanaWallet(wallet: { accounts: { address: string }[] } | null) {
+function mockConnectedSolanaWallet(
+  wallet: { accounts: { address: string }[]; chains?: string[]; features?: Record<string, unknown> } | null,
+  currentChainId: "0x65" | "0x66" | "0x67" = "0x67"
+) {
+  const rpcByChainId = {
+    "0x65": "https://api.mainnet-beta.solana.com",
+    "0x66": "https://api.testnet.solana.com",
+    "0x67": "https://api.devnet.solana.com",
+  } as const;
+
   useWeb3AuthMock.mockImplementation(
     (): Partial<IUseWeb3Auth> => ({
       connection: wallet
@@ -71,8 +100,8 @@ function mockConnectedSolanaWallet(wallet: { accounts: { address: string }[] } |
         currentChainNamespace: CHAIN_NAMESPACES.SOLANA,
         currentChain: {
           chainNamespace: CHAIN_NAMESPACES.SOLANA,
-          chainId: "0x67",
-          rpcTarget: "https://api.devnet.solana.com",
+          chainId: currentChainId,
+          rpcTarget: rpcByChainId[currentChainId],
         },
       } as never,
     })
@@ -85,7 +114,6 @@ describe("Solana signing hooks", () => {
     useWeb3AuthMock.mockReset();
     walletSignMessageMock.mockReset();
     walletSignTransactionMock.mockReset();
-    walletSignAndSendTransactionMock.mockReset();
   });
 
   it("signs a message and updates loading/data state", async () => {
@@ -172,10 +200,26 @@ describe("Solana signing hooks", () => {
     expect(latest!.loading).toBe(false);
   });
 
-  it("signs and sends a transaction", async () => {
-    const wallet = { accounts: [{ address: "So11111111111111111111111111111111111111112" }] };
-    mockConnectedSolanaWallet(wallet);
-    walletSignAndSendTransactionMock.mockResolvedValue("sig-send");
+  it("signs and sends a transaction on the active chain, not wallet.chains[0]", async () => {
+    const signAndSendTransactionMock = vi.fn().mockResolvedValue([
+      {
+        signature: new Uint8Array([1, 2, 3]),
+      },
+    ]);
+    const account = { address: FEE_PAYER };
+    const wallet = {
+      accounts: [account],
+      // mainnet is first; active chain below is deliberately devnet
+      chains: ["solana:mainnet", "solana:devnet"],
+      features: {
+        [SolanaSignAndSendTransaction]: {
+          version: "1.0.0",
+          supportedTransactionVersions: ["legacy", 0],
+          signAndSendTransaction: signAndSendTransactionMock,
+        },
+      },
+    };
+    mockConnectedSolanaWallet(wallet, "0x67");
 
     let latest: SignAndSendState | null = null;
     await act(async () => {
@@ -188,15 +232,17 @@ describe("Solana signing hooks", () => {
       );
     });
 
-    const fakeTx = { messageBytes: new Uint8Array([1]) } as never;
-    let result = "";
     await act(async () => {
-      result = await latest!.signAndSendTransaction(fakeTx);
+      await latest!.signAndSendTransaction(buildCompiledTransaction());
     });
 
-    expect(result).toBe("sig-send");
-    expect(walletSignAndSendTransactionMock).toHaveBeenCalledWith(wallet, fakeTx);
-    expect(latest!.data).toBe("sig-send");
+    expect(signAndSendTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account,
+        chain: "solana:devnet",
+      })
+    );
+    expect(signAndSendTransactionMock.mock.calls[0]?.[0]?.chain).not.toBe("solana:mainnet");
     expect(latest!.error).toBeNull();
   });
 });
