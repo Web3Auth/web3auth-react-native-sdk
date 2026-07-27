@@ -12,6 +12,47 @@ import { useWeb3Auth } from "../hooks/useWeb3Auth";
 
 const DEVNET_ENDPOINT = "https://api.devnet.solana.com";
 
+type WalletDisconnectSuppression = {
+  originalDisconnect: () => Promise<void>;
+  activeCount: number;
+};
+
+const walletDisconnectSuppressions = new WeakMap<Wallet, WalletDisconnectSuppression>();
+
+/**
+ * Suppresses StandardDisconnect for overlapping client disposes that share one Auth wallet.
+ * Restores the real handler only after every in-flight dispose finishes.
+ */
+function acquireDisconnectSuppression(wallet: Wallet): () => void {
+  const feature = wallet.features?.[StandardDisconnect] as { disconnect?: () => Promise<void> } | undefined;
+  const disconnect = feature?.disconnect;
+  if (!feature || !disconnect) {
+    return () => undefined;
+  }
+
+  let state = walletDisconnectSuppressions.get(wallet);
+  if (!state) {
+    state = { originalDisconnect: disconnect, activeCount: 0 };
+    walletDisconnectSuppressions.set(wallet, state);
+  }
+
+  if (state.activeCount === 0) {
+    feature.disconnect = async () => undefined;
+  }
+  state.activeCount += 1;
+
+  return () => {
+    const current = walletDisconnectSuppressions.get(wallet);
+    if (!current) return;
+
+    current.activeCount -= 1;
+    if (current.activeCount === 0) {
+      feature.disconnect = current.originalDisconnect;
+      walletDisconnectSuppressions.delete(wallet);
+    }
+  };
+}
+
 /**
  * Releases the onAccountsChanged listener registered by connectWallet.
  * destroy() alone resets store state and leaves that listener attached to the
@@ -21,11 +62,7 @@ const DEVNET_ENDPOINT = "https://api.devnet.solana.com";
  * not clear Auth wallet accounts (unlike a real user disconnect).
  */
 function releaseConnectWalletAccountListener(client: SolanaClient, wallet: Wallet | null | undefined): void {
-  const feature = wallet?.features?.[StandardDisconnect] as { disconnect?: () => Promise<void> } | undefined;
-  const originalDisconnect = feature?.disconnect;
-  if (feature && originalDisconnect) {
-    feature.disconnect = async () => undefined;
-  }
+  const releaseDisconnectSuppression = wallet ? acquireDisconnectSuppression(wallet) : (): void => undefined;
   // disconnectWallet unsubscribes onAccountsChanged synchronously before its first await.
   // Keep StandardDisconnect suppressed until that async work finishes.
   void client.actions
@@ -33,11 +70,7 @@ function releaseConnectWalletAccountListener(client: SolanaClient, wallet: Walle
     .catch((error) => {
       log.error("Failed to disconnect Solana client wallet on dispose", error);
     })
-    .finally(() => {
-      if (feature && originalDisconnect) {
-        feature.disconnect = originalDisconnect;
-      }
-    });
+    .finally(releaseDisconnectSuppression);
 }
 
 function placeholderRpc(

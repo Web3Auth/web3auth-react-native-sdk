@@ -12,6 +12,7 @@ const connectWalletMock = vi.hoisted(() => vi.fn());
 const disconnectWalletMock = vi.hoisted(() => vi.fn());
 const destroyMock = vi.hoisted(() => vi.fn());
 const accountListenerCount = vi.hoisted(() => ({ value: 0 }));
+const wiredDisconnectGate = vi.hoisted(() => ({ current: undefined as (() => Promise<void>) | undefined }));
 const solanaProviderBaseMock = vi.hoisted(() => vi.fn(({ children }: { children?: unknown }) => children ?? null));
 
 vi.mock("../hooks/useWeb3Auth", () => ({
@@ -42,7 +43,8 @@ const solanaDevnet = {
   logo: "https://images.web3auth.io/solana.svg",
 };
 
-function createFakeClient(id: string) {
+function createFakeClient(id: string, config?: { walletConnectors?: unknown[] }) {
+  const isWired = (config?.walletConnectors?.length ?? 0) > 0;
   let releaseAccountListener: (() => void) | undefined;
   return {
     id,
@@ -66,6 +68,9 @@ function createFakeClient(id: string) {
       },
       disconnectWallet: async () => {
         releaseAccountListener?.();
+        if (isWired) {
+          await wiredDisconnectGate.current?.();
+        }
         await disconnectWalletMock();
       },
     },
@@ -124,10 +129,11 @@ describe("SolanaProvider", () => {
     disconnectWalletMock.mockReset();
     destroyMock.mockReset();
     accountListenerCount.value = 0;
+    wiredDisconnectGate.current = undefined;
     solanaProviderBaseMock.mockClear();
 
     let counter = 0;
-    createClientMock.mockImplementation(() => createFakeClient(`client-${++counter}`));
+    createClientMock.mockImplementation((config) => createFakeClient(`client-${++counter}`, config as { walletConnectors?: unknown[] }));
     createWalletStandardConnectorMock.mockReturnValue({ id: "wallet-standard:auth" });
     connectWalletMock.mockResolvedValue(undefined);
     disconnectWalletMock.mockResolvedValue(undefined);
@@ -422,6 +428,119 @@ describe("SolanaProvider", () => {
     await vi.waitFor(() => {
       expect(accountListenerCount.value).toBe(0);
     });
+    expect(wallet.accounts).toHaveLength(1);
+  });
+
+  it("keeps StandardDisconnect suppressed until all overlapping disposes finish", async () => {
+    let resolveFirstDisconnect: (() => void) | undefined;
+    const firstDisconnect = new Promise<void>((resolve) => {
+      resolveFirstDisconnect = resolve;
+    });
+    let wiredDisconnectCount = 0;
+    wiredDisconnectGate.current = async () => {
+      wiredDisconnectCount += 1;
+      if (wiredDisconnectCount === 1) {
+        await firstDisconnect;
+      }
+    };
+
+    const wallet = {
+      accounts: [{ address: "So11111111111111111111111111111111111111112" }],
+      features: {
+        "standard:disconnect": {
+          disconnect: vi.fn(async () => {
+            wallet.accounts = [];
+          }),
+        },
+      },
+    };
+    const originalDisconnect = wallet.features["standard:disconnect"].disconnect;
+
+    const solanaMainnet = {
+      ...solanaDevnet,
+      chainId: "0x65",
+      rpcTarget: "https://api.mainnet-beta.solana.com",
+      wsTarget: "wss://api.mainnet-beta.solana.com",
+      displayName: "Solana Mainnet",
+      blockExplorerUrl: "https://explorer.solana.com",
+    };
+    const web3Auth = createFakeWeb3Auth({ solanaWallet: wallet, currentChain: solanaDevnet });
+    web3Auth.configuredChains = [solanaDevnet, solanaMainnet];
+    useWeb3AuthMock.mockImplementation(
+      (): Partial<IUseWeb3Auth> => ({
+        web3Auth: web3Auth as never,
+        isInitialized: true,
+        isConnected: true,
+        connection: web3Auth.connection as never,
+      })
+    );
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(createElement(SolanaProvider, null, null));
+    });
+
+    await vi.waitFor(() => {
+      expect(accountListenerCount.value).toBe(1);
+    });
+
+    web3Auth.currentChain = solanaMainnet;
+    web3Auth.currentChainId = solanaMainnet.chainId;
+    useWeb3AuthMock.mockImplementation(
+      (): Partial<IUseWeb3Auth> => ({
+        web3Auth: web3Auth as never,
+        isInitialized: true,
+        isConnected: true,
+        connection: web3Auth.connection as never,
+      })
+    );
+
+    await act(async () => {
+      renderer!.update(createElement(SolanaProvider, null, null));
+    });
+
+    await vi.waitFor(() => {
+      expect(connectWalletMock).toHaveBeenCalledTimes(2);
+      expect(wiredDisconnectCount).toBe(1);
+    });
+
+    expect(wallet.features["standard:disconnect"].disconnect).not.toBe(originalDisconnect);
+    expect(originalDisconnect).not.toHaveBeenCalled();
+    expect(wallet.accounts).toHaveLength(1);
+
+    web3Auth.currentChain = solanaDevnet;
+    web3Auth.currentChainId = solanaDevnet.chainId;
+    useWeb3AuthMock.mockImplementation(
+      (): Partial<IUseWeb3Auth> => ({
+        web3Auth: web3Auth as never,
+        isInitialized: true,
+        isConnected: true,
+        connection: web3Auth.connection as never,
+      })
+    );
+
+    await act(async () => {
+      renderer!.update(createElement(SolanaProvider, null, null));
+    });
+
+    await vi.waitFor(() => {
+      expect(connectWalletMock).toHaveBeenCalledTimes(3);
+      expect(wiredDisconnectCount).toBe(2);
+    });
+
+    expect(wallet.features["standard:disconnect"].disconnect).not.toBe(originalDisconnect);
+    expect(originalDisconnect).not.toHaveBeenCalled();
+    expect(wallet.accounts).toHaveLength(1);
+
+    await act(async () => {
+      resolveFirstDisconnect?.();
+    });
+
+    await vi.waitFor(() => {
+      expect(accountListenerCount.value).toBe(1);
+      expect(wallet.features["standard:disconnect"].disconnect).toBe(originalDisconnect);
+    });
+    expect(originalDisconnect).not.toHaveBeenCalled();
     expect(wallet.accounts).toHaveLength(1);
   });
 });
