@@ -9,7 +9,9 @@ const useWeb3AuthMock = vi.hoisted(() => vi.fn());
 const createClientMock = vi.hoisted(() => vi.fn());
 const createWalletStandardConnectorMock = vi.hoisted(() => vi.fn());
 const connectWalletMock = vi.hoisted(() => vi.fn());
+const disconnectWalletMock = vi.hoisted(() => vi.fn());
 const destroyMock = vi.hoisted(() => vi.fn());
+const accountListenerCount = vi.hoisted(() => ({ value: 0 }));
 const solanaProviderBaseMock = vi.hoisted(() => vi.fn(({ children }: { children?: unknown }) => children ?? null));
 
 vi.mock("../hooks/useWeb3Auth", () => ({
@@ -41,11 +43,31 @@ const solanaDevnet = {
 };
 
 function createFakeClient(id: string) {
+  let releaseAccountListener: (() => void) | undefined;
   return {
     id,
     destroy: () => destroyMock(id),
+    store: {
+      getState: () => ({
+        wallet: releaseAccountListener ? { status: "connected", connectorId: "wallet-standard:auth" } : { status: "disconnected" },
+      }),
+    },
     actions: {
-      connectWallet: connectWalletMock,
+      connectWallet: async (...args: unknown[]) => {
+        await connectWalletMock(...args);
+        // Mirrors @solana/client: connectWallet registers onAccountsChanged; destroy() does not release it.
+        if (!releaseAccountListener) {
+          accountListenerCount.value += 1;
+          releaseAccountListener = () => {
+            accountListenerCount.value -= 1;
+            releaseAccountListener = undefined;
+          };
+        }
+      },
+      disconnectWallet: async () => {
+        releaseAccountListener?.();
+        await disconnectWalletMock();
+      },
     },
   };
 }
@@ -99,13 +121,16 @@ describe("SolanaProvider", () => {
     createClientMock.mockReset();
     createWalletStandardConnectorMock.mockReset();
     connectWalletMock.mockReset();
+    disconnectWalletMock.mockReset();
     destroyMock.mockReset();
+    accountListenerCount.value = 0;
     solanaProviderBaseMock.mockClear();
 
     let counter = 0;
     createClientMock.mockImplementation(() => createFakeClient(`client-${++counter}`));
     createWalletStandardConnectorMock.mockReturnValue({ id: "wallet-standard:auth" });
     connectWalletMock.mockResolvedValue(undefined);
+    disconnectWalletMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -307,5 +332,66 @@ describe("SolanaProvider", () => {
     await vi.waitFor(() => {
       expect(destroyMock).toHaveBeenCalledWith(firstWired);
     });
+  });
+
+  it("releases account listeners when disposing wired clients across remounts", async () => {
+    const wallet = {
+      accounts: [{ address: "So11111111111111111111111111111111111111112" }],
+      features: {
+        "standard:disconnect": {
+          disconnect: vi.fn(async () => {
+            wallet.accounts = [];
+          }),
+        },
+      },
+    };
+    const web3Auth = createFakeWeb3Auth({ solanaWallet: wallet });
+    useWeb3AuthMock.mockImplementation(
+      (): Partial<IUseWeb3Auth> => ({
+        web3Auth: web3Auth as never,
+        isInitialized: true,
+        isConnected: true,
+        connection: web3Auth.connection as never,
+      })
+    );
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(createElement(SolanaProvider, null, null));
+    });
+
+    await vi.waitFor(() => {
+      expect(accountListenerCount.value).toBe(1);
+    });
+
+    await act(async () => {
+      renderer!.unmount();
+    });
+
+    await vi.waitFor(() => {
+      expect(disconnectWalletMock).toHaveBeenCalled();
+      expect(accountListenerCount.value).toBe(0);
+    });
+
+    // Disposing a Framework Kit client must not clear the shared Auth wallet accounts.
+    expect(wallet.accounts).toHaveLength(1);
+    expect(wallet.features["standard:disconnect"].disconnect).not.toHaveBeenCalled();
+
+    await act(async () => {
+      renderer = TestRenderer.create(createElement(SolanaProvider, null, null));
+    });
+
+    await vi.waitFor(() => {
+      expect(accountListenerCount.value).toBe(1);
+    });
+
+    await act(async () => {
+      renderer!.unmount();
+    });
+
+    await vi.waitFor(() => {
+      expect(accountListenerCount.value).toBe(0);
+    });
+    expect(wallet.accounts).toHaveLength(1);
   });
 });

@@ -1,6 +1,8 @@
 import type { SolanaClient } from "@solana/client";
 import { createClient, createWalletStandardConnector } from "@solana/client";
 import { SolanaProvider as SolanaProviderBase } from "@solana/react-hooks";
+import type { Wallet } from "@wallet-standard/base";
+import { StandardDisconnect } from "@wallet-standard/features";
 import type { CustomChainConfig } from "@web3auth/no-modal";
 import { CHAIN_NAMESPACES, getSolanaChainByChainConfig, WALLET_CONNECTORS } from "@web3auth/no-modal";
 import { type ComponentProps, createElement, type PropsWithChildren, useEffect, useRef, useState } from "react";
@@ -9,6 +11,34 @@ import { log } from "../../base/loglevel";
 import { useWeb3Auth } from "../hooks/useWeb3Auth";
 
 const DEVNET_ENDPOINT = "https://api.devnet.solana.com";
+
+/**
+ * Releases the onAccountsChanged listener registered by connectWallet.
+ * destroy() alone resets store state and leaves that listener attached to the
+ * shared Auth wallet, so chain changes / remounts accumulate stale handlers.
+ *
+ * StandardDisconnect is suppressed for dispose so Framework Kit teardown does
+ * not clear Auth wallet accounts (unlike a real user disconnect).
+ */
+function releaseConnectWalletAccountListener(client: SolanaClient, wallet: Wallet | null | undefined): void {
+  const feature = wallet?.features?.[StandardDisconnect] as { disconnect?: () => Promise<void> } | undefined;
+  const originalDisconnect = feature?.disconnect;
+  if (feature && originalDisconnect) {
+    feature.disconnect = async () => undefined;
+  }
+  // disconnectWallet unsubscribes onAccountsChanged synchronously before its first await.
+  // Keep StandardDisconnect suppressed until that async work finishes.
+  void client.actions
+    .disconnectWallet()
+    .catch((error) => {
+      log.error("Failed to disconnect Solana client wallet on dispose", error);
+    })
+    .finally(() => {
+      if (feature && originalDisconnect) {
+        feature.disconnect = originalDisconnect;
+      }
+    });
+}
 
 function placeholderRpc(
   isInitialized: boolean,
@@ -40,9 +70,12 @@ function useFrameworkKitSolanaClient(): SolanaClient {
   const { isConnected, connection, web3Auth, isInitialized } = useWeb3Auth();
   const solClientRef = useRef<SolanaClient | null>(null);
   const disposedClientsRef = useRef(new WeakSet<SolanaClient>());
+  const clientWalletsRef = useRef(new WeakMap<SolanaClient, Wallet>());
   const disposeRef = useRef((client: SolanaClient | null | undefined) => {
     if (!client || disposedClientsRef.current.has(client)) return;
     disposedClientsRef.current.add(client);
+    releaseConnectWalletAccountListener(client, clientWalletsRef.current.get(client));
+    clientWalletsRef.current.delete(client);
     client.destroy();
   });
 
@@ -112,6 +145,7 @@ function useFrameworkKitSolanaClient(): SolanaClient {
           websocketEndpoint: currentChain.wsTarget,
           walletConnectors: [connector],
         });
+        clientWalletsRef.current.set(wired, solanaWallet);
         await wired.actions.connectWallet(solanaWalletId, { autoConnect: true });
         if (stale) {
           dispose(wired);
