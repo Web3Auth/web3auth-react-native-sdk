@@ -290,6 +290,36 @@ module.exports = function (api) {
 
 See `demo/rn-expo-hooks-example` for a complete Expo example.
 
+## Solana
+
+Optional Solana Framework Kit integration is available from `@web3auth/react-native-sdk/react/solana`. It bridges the Auth Solana wallet into `@solana/react-hooks` through `SolanaProvider`.
+
+Install peers:
+
+```sh
+npm install @solana/react-hooks@^1.4.0
+```
+
+Nest `SolanaProvider` under `Web3AuthProvider`:
+
+```tsx
+import { Web3AuthProvider } from "@web3auth/react-native-sdk";
+import { SolanaProvider } from "@web3auth/react-native-sdk/react/solana";
+
+<Web3AuthProvider webBrowser={...} storage={...} config={...}>
+  <SolanaProvider>
+    <App />
+  </SolanaProvider>
+</Web3AuthProvider>
+```
+
+Notes:
+
+- Solana only. Required when importing `@web3auth/react-native-sdk/react/solana` (the peer is optional for the core SDK).
+- After Web3Auth Solana login, SDK hooks (`useSolanaWallet`, `useSignMessage`, `useSignTransaction`, `useSignAndSendTransaction`) work against the Auth wallet.
+- `SolanaProvider` also enables Framework Kit hooks from `@solana/react-hooks`.
+- Client wiring is owned by the SDK (`walletPersistence: false`). Nest under `Web3AuthProvider`.
+
 ## 💥 Initialization & Usage
 
 Create a `Web3Auth` instance with your browser adapter, secure storage adapter, and project options. Call `init()` before `connectTo()`.
