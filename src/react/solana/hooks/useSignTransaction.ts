@@ -2,6 +2,7 @@ import type { Transaction } from "@solana/kit";
 import { WalletInitializationError, walletSignTransaction, Web3AuthError } from "@web3auth/no-modal";
 import { useCallback, useState } from "react";
 
+import { toWeb3AuthError } from "./toWeb3AuthError";
 import { useSolanaWallet } from "./useSolanaWallet";
 
 export type IUseSignTransaction = {
@@ -32,8 +33,9 @@ export const useSignTransaction = (): IUseSignTransaction => {
         setData(signedTransaction);
         return signedTransaction;
       } catch (err) {
-        setError(err as Web3AuthError);
-        throw err;
+        const web3AuthError = toWeb3AuthError(err);
+        setError(web3AuthError);
+        throw web3AuthError;
       } finally {
         setLoading(false);
       }

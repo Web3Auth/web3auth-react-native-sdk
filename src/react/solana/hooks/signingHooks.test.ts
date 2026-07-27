@@ -7,7 +7,7 @@ import {
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
 import { SolanaSignAndSendTransaction } from "@solana/wallet-standard-features";
-import { CHAIN_NAMESPACES, WalletInitializationError } from "@web3auth/no-modal";
+import { CHAIN_NAMESPACES, WalletInitializationError, WalletOperationsError, Web3AuthError } from "@web3auth/no-modal";
 import { createElement, useEffect } from "react";
 import TestRenderer, { act } from "react-test-renderer";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -194,10 +194,69 @@ describe("Solana signing hooks", () => {
     const failure = new Error("sign failed");
     walletSignTransactionMock.mockRejectedValue(failure);
     await act(async () => {
-      await expect(latest!.signTransaction(fakeTx)).rejects.toThrow("sign failed");
+      await expect(latest!.signTransaction(fakeTx)).rejects.toBeInstanceOf(Web3AuthError);
     });
-    expect(latest!.error).toBe(failure);
+    expect(latest!.error).toBeInstanceOf(Web3AuthError);
+    expect(latest!.error).toBeInstanceOf(WalletOperationsError);
+    expect(latest!.error?.code).toBe(5000);
+    expect(latest!.error?.message).toContain("sign failed");
+    expect(latest!.error?.cause).toBe(failure);
     expect(latest!.loading).toBe(false);
+  });
+
+  it("wraps plain signMessage failures as Web3AuthError", async () => {
+    const wallet = { accounts: [{ address: "So11111111111111111111111111111111111111112" }] };
+    mockConnectedSolanaWallet(wallet);
+    const failure = new Error("message sign failed");
+    walletSignMessageMock.mockRejectedValue(failure);
+
+    let latest: SignMessageState | null = null;
+    await act(async () => {
+      TestRenderer.create(
+        createElement(SignMessageProbe, {
+          onState: (state) => {
+            latest = state;
+          },
+        })
+      );
+    });
+
+    await act(async () => {
+      await expect(latest!.signMessage("hello")).rejects.toBeInstanceOf(Web3AuthError);
+    });
+
+    expect(latest!.error).toBeInstanceOf(WalletOperationsError);
+    expect(latest!.error?.code).toBe(5000);
+    expect(latest!.error?.message).toContain("message sign failed");
+    expect(latest!.error?.cause).toBe(failure);
+  });
+
+  it("wraps plain signAndSendTransaction failures as Web3AuthError", async () => {
+    const wallet = {
+      accounts: [{ address: FEE_PAYER }],
+      chains: ["solana:devnet"],
+      features: {},
+    };
+    mockConnectedSolanaWallet(wallet);
+
+    let latest: SignAndSendState | null = null;
+    await act(async () => {
+      TestRenderer.create(
+        createElement(SignAndSendProbe, {
+          onState: (state) => {
+            latest = state;
+          },
+        })
+      );
+    });
+
+    await act(async () => {
+      await expect(latest!.signAndSendTransaction(buildCompiledTransaction())).rejects.toBeInstanceOf(Web3AuthError);
+    });
+
+    expect(latest!.error).toBeInstanceOf(WalletOperationsError);
+    expect(latest!.error?.code).toBe(5000);
+    expect(latest!.error?.message).toContain("Wallet does not support signAndSendTransaction");
   });
 
   it("signs and sends a transaction on the active chain, not wallet.chains[0]", async () => {

@@ -1,6 +1,7 @@
 import { WalletInitializationError, walletSignMessage, Web3AuthError } from "@web3auth/no-modal";
 import { useCallback, useState } from "react";
 
+import { toWeb3AuthError } from "./toWeb3AuthError";
 import { useSolanaWallet } from "./useSolanaWallet";
 
 export type IUseSignMessage = {
@@ -26,8 +27,9 @@ export const useSignMessage = (): IUseSignMessage => {
         setData(signature);
         return signature;
       } catch (err) {
-        setError(err as Web3AuthError);
-        throw err;
+        const web3AuthError = toWeb3AuthError(err);
+        setError(web3AuthError);
+        throw web3AuthError;
       } finally {
         setLoading(false);
       }

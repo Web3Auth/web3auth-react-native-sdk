@@ -5,6 +5,7 @@ import { getSolanaChainByChainConfig, WalletInitializationError, Web3AuthError }
 import { useCallback, useState } from "react";
 
 import { useWeb3Auth } from "../../hooks/useWeb3Auth";
+import { toWeb3AuthError } from "./toWeb3AuthError";
 import { useSolanaWallet } from "./useSolanaWallet";
 
 export type IUseSignAndSendTransaction = {
@@ -64,8 +65,9 @@ export const useSignAndSendTransaction = (): IUseSignAndSendTransaction => {
         setData(signature);
         return signature;
       } catch (err) {
-        setError(err as Web3AuthError);
-        throw err;
+        const web3AuthError = toWeb3AuthError(err);
+        setError(web3AuthError);
+        throw web3AuthError;
       } finally {
         setLoading(false);
       }
