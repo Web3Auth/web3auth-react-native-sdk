@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createWeb3AuthWagmiConfig } from "./config";
 import { WEB3AUTH_CONNECTOR_ID } from "./connector";
+import { type DisconnectOrigin, WEB3AUTH_CONNECTOR_NAME, WEB3AUTH_CONNECTOR_TYPE } from "./constants";
 import { awaitWagmiStorageHydration } from "./storage";
 import { createWagmiBridgeController } from "./sync";
 
@@ -55,8 +56,8 @@ describe("createWeb3AuthWagmiConfig storage hydration", () => {
                   chainId: 1,
                   connector: {
                     id: WEB3AUTH_CONNECTOR_ID,
-                    name: "Web3Auth",
-                    type: "web3auth",
+                    name: WEB3AUTH_CONNECTOR_NAME,
+                    type: WEB3AUTH_CONNECTOR_TYPE,
                     uid: "stub-uid",
                   },
                 },
@@ -87,7 +88,7 @@ describe("createWeb3AuthWagmiConfig storage hydration", () => {
 
     const provider = new FakeProvider();
     const providerRef = { current: provider as never };
-    const originRef = { current: null as "web3auth" | "wagmi" | null };
+    const originRef = { current: null as DisconnectOrigin };
 
     const config = createWeb3AuthWagmiConfig({
       chains: [ethereum],
@@ -147,8 +148,8 @@ describe("createWeb3AuthWagmiConfig storage hydration", () => {
                   chainId: 1,
                   connector: {
                     id: WEB3AUTH_CONNECTOR_ID,
-                    name: "Web3Auth",
-                    type: "web3auth",
+                    name: WEB3AUTH_CONNECTOR_NAME,
+                    type: WEB3AUTH_CONNECTOR_TYPE,
                     uid: "stub-uid",
                   },
                 },

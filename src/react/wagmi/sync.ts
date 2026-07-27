@@ -2,7 +2,8 @@ import { type Config, connect, type Connector, disconnect, getConnections, getCo
 import type { EIP1193Provider } from "viem";
 
 import { log } from "../../base/loglevel";
-import { type DisconnectOrigin, WEB3AUTH_CONNECTOR_ID } from "./connector";
+import { WEB3AUTH_CONNECTOR_ID } from "./connector";
+import { DISCONNECT_ORIGIN, type DisconnectOrigin } from "./constants";
 import { awaitWagmiStorageHydration } from "./storage";
 
 export type BridgeBinding = {
@@ -23,7 +24,7 @@ export type WagmiBridgeController = {
   setDisconnectOrigin: (origin: DisconnectOrigin) => void;
   sync: (params: { shouldBind: boolean; provider: EIP1193Provider | null; connectorName: string | null }) => Promise<void>;
   watchSpontaneousDisconnect: (onSpontaneousDisconnect: () => Promise<void>) => () => void;
-  dispose: () => void;
+  dispose: () => Promise<void>;
 };
 
 export function createWagmiBridgeController(config: Config, originRef?: DisconnectOriginRef): WagmiBridgeController {
@@ -77,7 +78,7 @@ export function createWagmiBridgeController(config: Config, originRef?: Disconne
           if (hasSameBinding) return;
 
           if (existing) {
-            disconnectOriginRef.current = "web3auth";
+            disconnectOriginRef.current = DISCONNECT_ORIGIN.WEB3AUTH;
             try {
               await disconnect(config, { connector: existing.connector });
             } finally {
@@ -95,7 +96,7 @@ export function createWagmiBridgeController(config: Config, originRef?: Disconne
         const connections = getConnections(config);
         const existing = connections.find((connection) => connection.connector.id === WEB3AUTH_CONNECTOR_ID);
         if (existing || config.state.status === "connected") {
-          disconnectOriginRef.current = "web3auth";
+          disconnectOriginRef.current = DISCONNECT_ORIGIN.WEB3AUTH;
           try {
             if (existing) {
               await disconnect(config, { connector: existing.connector });
@@ -121,7 +122,7 @@ export function createWagmiBridgeController(config: Config, originRef?: Disconne
           // watchConnections does not await onChange; keep the logout work
           // inside a voided task so rejections never become unhandled.
           void (async () => {
-            disconnectOriginRef.current = "wagmi";
+            disconnectOriginRef.current = DISCONNECT_ORIGIN.WAGMI;
             try {
               await onSpontaneousDisconnect();
             } catch (error) {
@@ -146,11 +147,35 @@ export function createWagmiBridgeController(config: Config, originRef?: Disconne
         },
       });
     },
-    dispose: () => {
+    dispose: async () => {
       disposed = true;
       generation += 1;
       lastBinding = { provider: null, connectorName: null };
-      disconnectOriginRef.current = null;
+
+      // Detach EIP-1193 listeners and drop the wagmi connection without
+      // logging out Web3Auth. Skipping this retains listeners on the shared
+      // provider and keeps the detached config connected across remounts.
+      const connections = getConnections(config);
+      const existing = connections.find((connection) => connection.connector.id === WEB3AUTH_CONNECTOR_ID);
+      if (!existing && config.state.status !== "connected") {
+        disconnectOriginRef.current = null;
+        return;
+      }
+
+      disconnectOriginRef.current = DISCONNECT_ORIGIN.WEB3AUTH;
+      try {
+        if (existing) {
+          await disconnect(config, { connector: existing.connector });
+        } else {
+          await disconnect(config);
+        }
+      } catch (error) {
+        log.error("Failed to disconnect wagmi on bridge dispose", error);
+      } finally {
+        if (disconnectOriginRef.current === DISCONNECT_ORIGIN.WEB3AUTH) {
+          disconnectOriginRef.current = null;
+        }
+      }
     },
   };
 }

@@ -213,10 +213,58 @@ describe("createWagmiBridgeController", () => {
       provider: provider as never,
       connectorName: "auth",
     });
-    bridge.dispose();
+    const disposed = bridge.dispose();
     await pending;
+    await disposed;
 
     expect(getConnections(config)).toHaveLength(0);
+  });
+
+  it("removes EIP-1193 listeners and disconnects wagmi on dispose without logging out", async () => {
+    const provider = new FakeProvider();
+    const { config, bridge, logout } = createBridgeFixture(provider);
+
+    await bridge.sync({
+      shouldBind: true,
+      provider: provider as never,
+      connectorName: "auth",
+    });
+
+    expect(provider.listenerCount("accountsChanged")).toBe(1);
+    expect(provider.listenerCount("chainChanged")).toBe(1);
+    expect(provider.listenerCount("disconnect")).toBe(1);
+
+    await bridge.dispose();
+
+    expect(provider.listenerCount("accountsChanged")).toBe(0);
+    expect(provider.listenerCount("chainChanged")).toBe(0);
+    expect(provider.listenerCount("disconnect")).toBe(0);
+    expect(getConnections(config)).toHaveLength(0);
+    expect(config.state.status).toBe("disconnected");
+    expect(logout).not.toHaveBeenCalled();
+  });
+
+  it("does not accumulate EIP-1193 listeners across dispose and rebind", async () => {
+    const provider = new FakeProvider();
+    const first = createBridgeFixture(provider);
+
+    await first.bridge.sync({
+      shouldBind: true,
+      provider: provider as never,
+      connectorName: "auth",
+    });
+    await first.bridge.dispose();
+
+    const second = createBridgeFixture(provider);
+    await second.bridge.sync({
+      shouldBind: true,
+      provider: provider as never,
+      connectorName: "auth",
+    });
+
+    expect(provider.listenerCount("accountsChanged")).toBe(1);
+    expect(provider.listenerCount("chainChanged")).toBe(1);
+    expect(provider.listenerCount("disconnect")).toBe(1);
   });
 
   it("rejects wagmi disconnect when Web3Auth logout fails", async () => {

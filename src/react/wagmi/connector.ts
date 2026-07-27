@@ -4,10 +4,10 @@ import type { Address, EIP1193Provider } from "viem";
 import { getAddress, isAddress, numberToHex, SwitchChainError, UserRejectedRequestError } from "viem";
 
 import { log } from "../../base/loglevel";
+import { DISCONNECT_ORIGIN, type DisconnectOrigin, WEB3AUTH_CONNECTOR_NAME, WEB3AUTH_CONNECTOR_TYPE } from "./constants";
 
 export { WEB3AUTH_CONNECTOR_ID };
-
-export type DisconnectOrigin = "web3auth" | "wagmi" | null;
+export type { DisconnectOrigin } from "./constants";
 
 export type Web3AuthConnectorParams = {
   getProvider: () => EIP1193Provider | null | undefined;
@@ -55,8 +55,8 @@ export function createWeb3AuthConnector(params: Web3AuthConnectorParams): Create
 
   return createConnector((config) => ({
     id: WEB3AUTH_CONNECTOR_ID,
-    name: "Web3Auth",
-    type: "web3auth",
+    name: WEB3AUTH_CONNECTOR_NAME,
+    type: WEB3AUTH_CONNECTOR_TYPE,
     async getProvider() {
       const provider = getProvider() as ProviderWithEvents | null | undefined;
       if (!provider) throw new ProviderNotFoundError();
@@ -111,12 +111,12 @@ export function createWeb3AuthConnector(params: Web3AuthConnectorParams): Create
     },
     async disconnect() {
       const origin = getDisconnectOrigin?.() ?? null;
-      if (origin === "web3auth") {
+      if (origin === DISCONNECT_ORIGIN.WEB3AUTH) {
         removeProviderListeners();
         return;
       }
 
-      setDisconnectOrigin?.("wagmi");
+      setDisconnectOrigin?.(DISCONNECT_ORIGIN.WAGMI);
       try {
         if (onWagmiDisconnect) await onWagmiDisconnect();
         // Only tear down listeners after logout succeeds. Wagmi clears its
@@ -124,7 +124,7 @@ export function createWeb3AuthConnector(params: Web3AuthConnectorParams): Create
         // leave listeners intact so the still-connected session stays live.
         removeProviderListeners();
         queueMicrotask(() => {
-          if (getDisconnectOrigin?.() === "wagmi") setDisconnectOrigin?.(null);
+          if (getDisconnectOrigin?.() === DISCONNECT_ORIGIN.WAGMI) setDisconnectOrigin?.(null);
         });
       } catch (error) {
         setDisconnectOrigin?.(null);

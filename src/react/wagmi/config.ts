@@ -3,7 +3,8 @@ import type { CustomChainConfig } from "@web3auth/no-modal";
 import type { EIP1193Provider } from "viem";
 
 import { buildEvmWagmiChains } from "./chains";
-import { createWeb3AuthConnector, type DisconnectOrigin } from "./connector";
+import { createWeb3AuthConnector } from "./connector";
+import { type DisconnectOrigin } from "./constants";
 import type { WagmiProviderProps } from "./interface";
 import { createBridgeSafeStorage } from "./storage";
 

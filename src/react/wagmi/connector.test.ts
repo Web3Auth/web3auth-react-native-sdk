@@ -4,6 +4,7 @@ import { EventEmitter } from "events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createWeb3AuthConnector, WEB3AUTH_CONNECTOR_ID } from "./connector";
+import { DISCONNECT_ORIGIN, type DisconnectOrigin } from "./constants";
 
 class FakeProvider extends EventEmitter {
   accounts: string[];
@@ -40,8 +41,8 @@ function createTestConfig(
   getProvider: () => FakeProvider | null,
   options?: {
     onWagmiDisconnect?: () => Promise<void>;
-    getDisconnectOrigin?: () => "web3auth" | "wagmi" | null;
-    setDisconnectOrigin?: (origin: "web3auth" | "wagmi" | null) => void;
+    getDisconnectOrigin?: () => DisconnectOrigin;
+    setDisconnectOrigin?: (origin: DisconnectOrigin) => void;
   }
 ) {
   return createConfig({
@@ -161,7 +162,7 @@ describe("createWeb3AuthConnector", () => {
     const provider = new FakeProvider();
     const config = createTestConfig(() => provider, {
       onWagmiDisconnect,
-      getDisconnectOrigin: () => "web3auth",
+      getDisconnectOrigin: () => DISCONNECT_ORIGIN.WEB3AUTH,
     });
     const connector = config.connectors[0]!;
     await connector.connect();
@@ -183,7 +184,7 @@ describe("createWeb3AuthConnector", () => {
   });
 
   it("preserves provider listeners when explicit logout fails", async () => {
-    let origin: "web3auth" | "wagmi" | null = null;
+    let origin: DisconnectOrigin = null;
     const onWagmiDisconnect = vi.fn(async () => {
       throw new Error("logout failed");
     });

@@ -5,8 +5,7 @@ import { useConfig as useWagmiConfig, WagmiProvider as WagmiProviderBase } from 
 import { log } from "../../base/loglevel";
 import { useWeb3Auth } from "../hooks/useWeb3Auth";
 import { createWeb3AuthWagmiConfig } from "./config";
-import type { DisconnectOrigin } from "./connector";
-import { defaultWagmiConfig } from "./constants";
+import { defaultWagmiConfig, type DisconnectOrigin } from "./constants";
 import type { WagmiProviderProps } from "./interface";
 import { createWagmiBridgeController, type DisconnectOriginRef } from "./sync";
 
@@ -25,7 +24,7 @@ function Web3AuthWagmiProvider({ children }: PropsWithChildren) {
   const bridgeConfigRef = useRef(wagmiConfig);
 
   if (bridgeConfigRef.current !== wagmiConfig) {
-    bridgeRef.current?.dispose();
+    void bridgeRef.current?.dispose();
     bridgeRef.current = null;
     bridgeConfigRef.current = wagmiConfig;
   }
@@ -71,7 +70,7 @@ function Web3AuthWagmiProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     return () => {
-      bridgeRef.current?.dispose();
+      void bridgeRef.current?.dispose();
       bridgeRef.current = null;
     };
   }, [wagmiConfig]);
