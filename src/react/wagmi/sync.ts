@@ -89,6 +89,23 @@ export function createWagmiBridgeController(config: Config, originRef?: Disconne
 
           lastBinding = { provider, connectorName };
           await connect(config, { connector });
+          // dispose() can run while connect is in-flight: wagmi status is still
+          // "connecting" and there is no connection yet, so dispose may return
+          // before disconnecting. If this sync was invalidated in the meantime,
+          // roll back the connection so EIP-1193 listeners are not left on a
+          // disposed bridge.
+          if (disposed || token !== generation) {
+            const connectionsAfterConnect = getConnections(config);
+            const connected = connectionsAfterConnect.find((connection) => connection.connector.id === WEB3AUTH_CONNECTOR_ID);
+            if (connected) {
+              disconnectOriginRef.current = DISCONNECT_ORIGIN.WEB3AUTH;
+              try {
+                await disconnect(config, { connector: connected.connector });
+              } finally {
+                disconnectOriginRef.current = null;
+              }
+            }
+          }
           return;
         }
 
@@ -152,12 +169,16 @@ export function createWagmiBridgeController(config: Config, originRef?: Disconne
       generation += 1;
       lastBinding = { provider: null, connectorName: null };
 
+      // Let any in-flight sync finish before tearing down wagmi state.
+      await queue.catch((): undefined => undefined);
+
       // Detach EIP-1193 listeners and drop the wagmi connection without
       // logging out Web3Auth. Skipping this retains listeners on the shared
       // provider and keeps the detached config connected across remounts.
       const connections = getConnections(config);
       const existing = connections.find((connection) => connection.connector.id === WEB3AUTH_CONNECTOR_ID);
-      if (!existing && config.state.status !== "connected") {
+      const status = config.state.status;
+      if (!existing && status !== "connected" && status !== "connecting") {
         disconnectOriginRef.current = null;
         return;
       }

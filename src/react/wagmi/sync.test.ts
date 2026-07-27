@@ -220,6 +220,42 @@ describe("createWagmiBridgeController", () => {
     expect(getConnections(config)).toHaveLength(0);
   });
 
+  it("disconnects when dispose races with an in-flight connect", async () => {
+    let resolveAccounts!: () => void;
+    const accountsGate = new Promise<void>((resolve) => {
+      resolveAccounts = resolve;
+    });
+    class GatedProvider extends FakeProvider {
+      async request({ method }: { method: string }) {
+        if (method === "eth_accounts") await accountsGate;
+        return super.request({ method });
+      }
+    }
+
+    const provider = new GatedProvider();
+    const { config, bridge } = createBridgeFixture(provider);
+
+    const pendingSync = bridge.sync({
+      shouldBind: true,
+      provider: provider as never,
+      connectorName: "auth",
+    });
+
+    await vi.waitFor(() => {
+      expect(config.state.status).toBe("connecting");
+    });
+
+    const pendingDispose = bridge.dispose();
+    resolveAccounts();
+    await Promise.all([pendingSync, pendingDispose]);
+
+    expect(getConnections(config)).toHaveLength(0);
+    expect(config.state.status).toBe("disconnected");
+    expect(provider.listenerCount("accountsChanged")).toBe(0);
+    expect(provider.listenerCount("chainChanged")).toBe(0);
+    expect(provider.listenerCount("disconnect")).toBe(0);
+  });
+
   it("removes EIP-1193 listeners and disconnects wagmi on dispose without logging out", async () => {
     const provider = new FakeProvider();
     const { config, bridge, logout } = createBridgeFixture(provider);
