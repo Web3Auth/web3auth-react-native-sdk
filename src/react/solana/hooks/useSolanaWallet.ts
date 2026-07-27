@@ -1,7 +1,8 @@
 import { createSolanaRpc, type Rpc, type SolanaRpcApi } from "@solana/kit";
 import type { Wallet } from "@wallet-standard/base";
+import { StandardEvents, type StandardEventsFeature } from "@wallet-standard/features";
 import { CHAIN_NAMESPACES } from "@web3auth/no-modal";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useWeb3Auth } from "../../hooks/useWeb3Auth";
 
@@ -19,6 +20,12 @@ export type IUseSolanaWallet = {
   rpc: Rpc<SolanaRpcApi> | null;
 };
 
+function readAccounts(wallet: Wallet | null, chainNamespace: string | undefined): string[] | null {
+  if (chainNamespace !== CHAIN_NAMESPACES.SOLANA || !wallet) return null;
+  const accts = wallet.accounts.map((a) => a.address);
+  return accts.length > 0 ? accts : null;
+}
+
 export const useSolanaWallet = (): IUseSolanaWallet => {
   const { connection, web3Auth } = useWeb3Auth();
 
@@ -28,10 +35,19 @@ export const useSolanaWallet = (): IUseSolanaWallet => {
 
   const chainNamespace = web3Auth?.currentChainNamespace;
 
-  const accounts = useMemo((): string[] | null => {
-    if (chainNamespace !== CHAIN_NAMESPACES.SOLANA || !solanaWallet) return null;
-    const accts = solanaWallet.accounts.map((a) => a.address);
-    return accts.length > 0 ? accts : null;
+  const [accounts, setAccounts] = useState<string[] | null>(() => readAccounts(solanaWallet, chainNamespace));
+
+  useEffect(() => {
+    setAccounts(readAccounts(solanaWallet, chainNamespace));
+
+    if (!solanaWallet || chainNamespace !== CHAIN_NAMESPACES.SOLANA) return;
+
+    const events = solanaWallet.features?.[StandardEvents] as StandardEventsFeature[typeof StandardEvents] | undefined;
+    if (!events?.on) return;
+
+    return events.on("change", () => {
+      setAccounts(readAccounts(solanaWallet, chainNamespace));
+    });
   }, [solanaWallet, chainNamespace]);
 
   const rpc = useMemo(() => {

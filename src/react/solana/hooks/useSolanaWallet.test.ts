@@ -1,3 +1,4 @@
+import { StandardEvents, type StandardEventsListeners } from "@wallet-standard/features";
 import { CHAIN_NAMESPACES } from "@web3auth/no-modal";
 import { createElement, useEffect } from "react";
 import TestRenderer, { act } from "react-test-renderer";
@@ -31,10 +32,63 @@ function Probe({ onState }: { onState: (state: ProbeState) => void }): null {
   return null;
 }
 
-function createFakeWallet(addresses: string[]) {
-  return {
-    accounts: addresses.map((address) => ({ address })),
+type FakeWallet = {
+  accounts: { address: string }[];
+  features: {
+    [StandardEvents]: {
+      version: "1.0.0";
+      on: <E extends keyof StandardEventsListeners>(event: E, listener: StandardEventsListeners[E]) => () => void;
+    };
   };
+  setAccounts: (addresses: string[]) => void;
+};
+
+function createFakeWallet(addresses: string[]): FakeWallet {
+  const changeListeners = new Set<StandardEventsListeners["change"]>();
+  const wallet: FakeWallet = {
+    accounts: addresses.map((address) => ({ address })),
+    features: {
+      [StandardEvents]: {
+        version: "1.0.0",
+        on: (event, listener) => {
+          if (event === "change") {
+            changeListeners.add(listener as StandardEventsListeners["change"]);
+          }
+          return () => {
+            changeListeners.delete(listener as StandardEventsListeners["change"]);
+          };
+        },
+      },
+    },
+    setAccounts(nextAddresses) {
+      wallet.accounts = nextAddresses.map((address) => ({ address }));
+      changeListeners.forEach((listener) => {
+        listener({ accounts: wallet.accounts as never });
+      });
+    },
+  };
+  return wallet;
+}
+
+function mockSolanaSession(wallet: FakeWallet | ReturnType<typeof createFakeWallet>) {
+  useWeb3AuthMock.mockImplementation(
+    (): Partial<IUseWeb3Auth> => ({
+      connection: {
+        solanaWallet: wallet as never,
+        ethereumProvider: null,
+        connectorName: "auth",
+        connectorNamespace: CHAIN_NAMESPACES.SOLANA,
+      } as never,
+      web3Auth: {
+        currentChainNamespace: CHAIN_NAMESPACES.SOLANA,
+        currentChain: {
+          chainNamespace: CHAIN_NAMESPACES.SOLANA,
+          chainId: "0x67",
+          rpcTarget: "https://api.devnet.solana.com",
+        },
+      } as never,
+    })
+  );
 }
 
 describe("useSolanaWallet", () => {
@@ -45,24 +99,7 @@ describe("useSolanaWallet", () => {
 
   it("returns accounts and rpc for a connected Solana session", async () => {
     const wallet = createFakeWallet(["So11111111111111111111111111111111111111112"]);
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        connection: {
-          solanaWallet: wallet as never,
-          ethereumProvider: null,
-          connectorName: "auth",
-          connectorNamespace: CHAIN_NAMESPACES.SOLANA,
-        } as never,
-        web3Auth: {
-          currentChainNamespace: CHAIN_NAMESPACES.SOLANA,
-          currentChain: {
-            chainNamespace: CHAIN_NAMESPACES.SOLANA,
-            chainId: "0x67",
-            rpcTarget: "https://api.devnet.solana.com",
-          },
-        } as never,
-      })
-    );
+    mockSolanaSession(wallet);
 
     let latest: ProbeState = { accounts: null, hasWallet: false, hasRpc: false };
     await act(async () => {
@@ -146,5 +183,35 @@ describe("useSolanaWallet", () => {
     expect(latest.accounts).toBeNull();
     expect(latest.hasWallet).toBe(false);
     expect(latest.hasRpc).toBe(false);
+  });
+
+  it("updates accounts when the same wallet emits standard:events change", async () => {
+    const wallet = createFakeWallet(["So11111111111111111111111111111111111111112"]);
+    mockSolanaSession(wallet);
+
+    let latest: ProbeState = { accounts: null, hasWallet: false, hasRpc: false };
+    await act(async () => {
+      TestRenderer.create(
+        createElement(Probe, {
+          onState: (state) => {
+            latest = state;
+          },
+        })
+      );
+    });
+
+    expect(latest.accounts).toEqual(["So11111111111111111111111111111111111111112"]);
+
+    await act(async () => {
+      wallet.setAccounts([]);
+    });
+
+    expect(latest.accounts).toBeNull();
+
+    await act(async () => {
+      wallet.setAccounts(["So22222222222222222222222222222222222222222"]);
+    });
+
+    expect(latest.accounts).toEqual(["So22222222222222222222222222222222222222222"]);
   });
 });
