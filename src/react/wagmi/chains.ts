@@ -1,9 +1,7 @@
 import { CHAIN_NAMESPACES, type CustomChainConfig } from "@web3auth/no-modal";
-import { type Chain, defineChain, fallback, http, type Transport, webSocket } from "viem";
+import { type Chain, defineChain, fallback, hexToNumber, http, isHex, type Transport, webSocket } from "viem";
 
 import { InitializationError } from "../../errors";
-
-const HEX_CHAIN_ID = /^0x[0-9a-fA-F]+$/;
 
 function assertValidRpcTarget(chain: CustomChainConfig) {
   try {
@@ -39,13 +37,13 @@ export function buildEvmWagmiChains(
   const transports: Record<number, Transport> = {};
 
   for (const chain of evmChains) {
-    if (!HEX_CHAIN_ID.test(chain.chainId)) {
+    if (!isHex(chain.chainId) || chain.chainId.length <= 2) {
       throw InitializationError.invalidParams(`Please provide a valid chainId as hex string in chains for chain ${chain.chainId}`);
     }
     assertValidRpcTarget(chain);
 
     const wagmiChain = defineChain({
-      id: Number.parseInt(chain.chainId, 16),
+      id: hexToNumber(chain.chainId),
       name: chain.displayName,
       rpcUrls: {
         default: {
