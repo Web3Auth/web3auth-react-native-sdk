@@ -223,7 +223,7 @@ When using `Web3AuthProvider`, `integration_type` is set to `"React Hooks"`. Dir
 
 ## 🪝 Wagmi (EVM)
 
-Optional Wagmi 3 integration is available from `@web3auth/react-native-sdk/react/wagmi`. It derives EIP-155 chains from your Web3Auth config and bridges `connection.ethereumProvider` into Wagmi through a React Native-safe connector (no `window` / injected discovery).
+Optional Wagmi 3 integration is available from `@web3auth/react-native-sdk/wagmi`. It derives EIP-155 chains from your Web3Auth config and bridges `connection.ethereumProvider` into Wagmi through a React Native-safe connector (no `window` / injected discovery).
 
 Install peers:
 
@@ -236,7 +236,7 @@ Nest providers in this order. Keep your own `QueryClientProvider`; the SDK does 
 ```tsx
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Web3AuthProvider } from "@web3auth/react-native-sdk";
-import { WagmiProvider } from "@web3auth/react-native-sdk/react/wagmi";
+import { WagmiProvider } from "@web3auth/react-native-sdk/wagmi";
 import { createStorage } from "wagmi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -292,7 +292,7 @@ See `demo/rn-expo-hooks-example` for a complete Expo example.
 
 ## Solana
 
-Optional Solana Framework Kit integration is available from `@web3auth/react-native-sdk/react/solana`. It bridges the Auth Solana wallet into `@solana/react-hooks` through `SolanaProvider`.
+Optional Solana Framework Kit integration is available from `@web3auth/react-native-sdk/solana`. It bridges the Auth Solana wallet into `@solana/react-hooks` through `SolanaProvider`.
 
 Install peers:
 
@@ -304,7 +304,7 @@ Nest `SolanaProvider` under `Web3AuthProvider`:
 
 ```tsx
 import { Web3AuthProvider } from "@web3auth/react-native-sdk";
-import { SolanaProvider } from "@web3auth/react-native-sdk/react/solana";
+import { SolanaProvider } from "@web3auth/react-native-sdk/solana";
 
 <Web3AuthProvider webBrowser={...} storage={...} config={...}>
   <SolanaProvider>
@@ -315,7 +315,7 @@ import { SolanaProvider } from "@web3auth/react-native-sdk/react/solana";
 
 Notes:
 
-- Solana only. Required when importing `@web3auth/react-native-sdk/react/solana` (the peer is optional for the core SDK).
+- Solana only. Required when importing `@web3auth/react-native-sdk/solana` (the peer is optional for the core SDK).
 - After Web3Auth Solana login, SDK hooks (`useSolanaWallet`, `useSignMessage`, `useSignTransaction`, `useSignAndSendTransaction`) work against the Auth wallet.
 - `SolanaProvider` also enables Framework Kit hooks from `@solana/react-hooks`.
 - Client wiring is owned by the SDK (`walletPersistence: false`). Nest under `Web3AuthProvider`.

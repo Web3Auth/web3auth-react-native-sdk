@@ -18,7 +18,7 @@ import {
   useWeb3AuthUser,
   Web3AuthProvider,
 } from "@web3auth/react-native-sdk";
-import { WagmiProvider } from "@web3auth/react-native-sdk/react/wagmi";
+import { WagmiProvider } from "@web3auth/react-native-sdk/wagmi";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import React, { useMemo, useState } from "react";
