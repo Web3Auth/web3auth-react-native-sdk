@@ -69,7 +69,7 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
 
   useEffect(() => {
     const connectedListener = () => {
-      void syncSessionState();
+      syncSessionState();
     };
     const disconnectedListener = () => {
       clearSessionSnapshot();

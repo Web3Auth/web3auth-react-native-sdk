@@ -138,7 +138,7 @@ export function createWagmiBridgeController(config: Config, originRef?: Disconne
 
           // watchConnections does not await onChange; keep the logout work
           // inside a voided task so rejections never become unhandled.
-          void (async () => {
+          (async () => {
             disconnectOriginRef.current = DISCONNECT_ORIGIN.WAGMI;
             try {
               await onSpontaneousDisconnect();

@@ -37,7 +37,7 @@ export const useWeb3AuthUser = (): IUseWeb3AuthUser => {
 
   useEffect(() => {
     if (isConnected && !userInfo) {
-      void getUserInfo();
+      getUserInfo();
     }
 
     if (!isConnected && userInfo) {

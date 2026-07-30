@@ -146,7 +146,7 @@ function useFrameworkKitSolanaClient(): SolanaClient {
       setClient(nextClient);
     };
 
-    void (async () => {
+    (async () => {
       const rpc = placeholderRpc(isInitialized, web3Auth);
       const chainNamespace = web3Auth?.currentChainNamespace;
       const currentChain = web3Auth?.currentChain;

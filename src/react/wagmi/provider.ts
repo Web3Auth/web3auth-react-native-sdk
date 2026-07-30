@@ -24,7 +24,7 @@ function Web3AuthWagmiProvider({ children }: PropsWithChildren) {
   const bridgeConfigRef = useRef(wagmiConfig);
 
   if (bridgeConfigRef.current !== wagmiConfig) {
-    void bridgeRef.current?.dispose();
+    bridgeRef.current?.dispose();
     bridgeRef.current = null;
     bridgeConfigRef.current = wagmiConfig;
   }
@@ -55,7 +55,7 @@ function Web3AuthWagmiProvider({ children }: PropsWithChildren) {
     bridgeContextValue.providerRef.current = ethereumProvider;
     const shouldBind = Boolean(isConnected && connection && ethereumProvider);
 
-    void bridge
+    bridge
       .sync({
         shouldBind,
         provider: ethereumProvider,
@@ -70,7 +70,7 @@ function Web3AuthWagmiProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     return () => {
-      void bridgeRef.current?.dispose();
+      bridgeRef.current?.dispose();
       bridgeRef.current = null;
     };
   }, [wagmiConfig]);
