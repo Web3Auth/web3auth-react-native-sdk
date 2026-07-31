@@ -23,7 +23,7 @@ export const useEnableMFA = (): IUseEnableMFA => {
       if (enabled) {
         setIsMFAEnabled(true);
       }
-      // Refresh rotated citadel tokens / MFA flags into the provider snapshot.
+      // Refresh rotated citadel tokens / MFA flags into the connection snapshot.
       await syncSessionState();
     } catch (error) {
       setError(error as Web3authRNError);

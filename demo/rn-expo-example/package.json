@@ -8,25 +8,24 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@ethersproject/shims": "^5.7.0",
     "@expo/metro-runtime": "^3.2.1",
     "@react-native-async-storage/async-storage": "^1.24.0",
     "@web3auth/account-abstraction-provider": "^9.7.0",
     "@web3auth/ethereum-provider": "^9.7.0",
     "@web3auth/react-native-sdk": "file:../../web3auth-react-native-sdk-10.0.0.tgz",
-    "ethers": "^6.13.4",
     "expo": "~51.0.28",
-    "ox": "^0.9.17",
     "expo-constants": "^16.0.2",
     "expo-linking": "^6.3.1",
     "expo-router": "^3.5.15",
     "expo-secure-store": "^13.0.1",
     "expo-status-bar": "~1.12.1",
     "expo-web-browser": "^13.0.3",
+    "ox": "^0.9.17",
     "react": "18.2.0",
     "react-native": "0.74.5",
     "react-native-mmkv-storage": "^0.11.2",
-    "react-native-quick-crypto": "^0.7.5"
+    "react-native-quick-crypto": "^0.7.5",
+    "viem": "^2.55.8"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

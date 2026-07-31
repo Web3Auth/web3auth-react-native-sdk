@@ -1,4 +1,3 @@
-import type { TransactionSigner } from "@solana/signers";
 import {
   AUTH_CONNECTION,
   AuthConnectionConfigItem,
@@ -16,7 +15,7 @@ import {
 } from "@web3auth/auth";
 import type {
   AccountAbstractionMultiChainConfig,
-  CHAIN_NAMESPACES,
+  Connection,
   CustomChainConfig,
   IProvider,
   ModalSignInMethodType,
@@ -25,7 +24,6 @@ import type {
   WidgetType,
 } from "@web3auth/no-modal";
 import { WsEmbedParams } from "@web3auth/ws-embed";
-import type { Wallet } from "ethers";
 
 import type { BUTTON_POSITION_TYPE, ChainNamespaceType } from "../base";
 import { SMART_ACCOUNT } from "../base";
@@ -84,9 +82,13 @@ export type {
   WEB3AUTH_NETWORK_TYPE,
   WhiteLabelData,
 } from "@web3auth/auth";
+export type { Connection } from "@web3auth/no-modal";
 
 export type State = AuthSessionData & {
-  currentChainId?: string;
+  currentChainId?: string | null;
+  idToken?: string | null;
+  accessToken?: string | null;
+  refreshToken?: string | null;
 };
 
 export type AuthTokenInfo = {
@@ -94,11 +96,17 @@ export type AuthTokenInfo = {
 };
 
 export interface IWeb3Auth {
-  provider: IProvider | null;
-  signer: Wallet | TransactionSigner | null;
+  connection: Connection | null;
   connected: boolean;
+  currentChainId: string | null;
+  currentChain: CustomChainConfig | undefined;
+  /** Final chain list after init merges dashboard + constructor options. */
+  configuredChains: CustomChainConfig[];
+  idToken: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   init: () => Promise<void>;
-  connectTo: (params: SdkLoginParams) => Promise<WalletResult | null>;
+  connectTo: (params: SdkLoginParams) => Promise<Connection | null>;
   logout: () => Promise<void>;
   userInfo: () => State["userInfo"];
   getAccessToken: () => Promise<string>;
@@ -133,12 +141,6 @@ export type AccountAbstractionConfig = AccountAbstractionMultiChainConfig;
 export type ProviderConfig = CustomChainConfig;
 
 export type ChainsConfig = ProviderConfig[];
-
-// Discriminated union for wallet results
-export type WalletResult =
-  | { chainNamespace: typeof CHAIN_NAMESPACES.SOLANA; provider: IProvider; signer: TransactionSigner }
-  | { chainNamespace: typeof CHAIN_NAMESPACES.EIP155; provider: IProvider; signer: Wallet }
-  | { chainNamespace: typeof CHAIN_NAMESPACES.OTHER; provider: IProvider; signer: null };
 
 export interface ExternalWalletsConfig {
   disableAllRecommendedWallets?: boolean;
@@ -249,3 +251,6 @@ export type AggregateVerifierParams = {
 };
 
 export { AUTH_CONNECTION, BUILD_ENV, LANGUAGES, MFA_FACTOR, MFA_LEVELS, SUPPORTED_KEY_CURVES, THEME_MODES, WEB3AUTH_NETWORK };
+
+// Keep IProvider available to consumers that previously imported related wallet types from this module.
+export type { IProvider };

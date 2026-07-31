@@ -1,4 +1,4 @@
-import { type IProvider } from "@web3auth/no-modal";
+import { type Connection } from "@web3auth/no-modal";
 import { createContext, createElement, PropsWithChildren, useCallback, useEffect, useMemo, useState } from "react";
 
 import { ANALYTICS_INTEGRATION_TYPE } from "../../base";
@@ -13,7 +13,7 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
 
   const [isInitializing, setIsInitializing] = useState<boolean>(false);
   const [initError, setInitError] = useState<Error | null>(null);
-  const [provider, setProvider] = useState<IProvider | null>(null);
+  const [connection, setConnection] = useState<Connection | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [isMFAEnabled, setIsMFAEnabled] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -21,7 +21,7 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const web3Auth = useMemo(() => {
-    setProvider(null);
+    setConnection(null);
     setIsConnected(false);
     setIsAuthorized(false);
     setAccessToken(null);
@@ -34,7 +34,7 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
     setIsAuthorized(false);
     setAccessToken(null);
     setIsMFAEnabled(false);
-    setProvider(null);
+    setConnection(null);
   }, []);
 
   const setAccessTokenState = useCallback((token: string | null) => {
@@ -49,7 +49,7 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
     }
 
     setIsConnected(true);
-    setProvider(web3Auth.provider);
+    setConnection(web3Auth.connection);
 
     try {
       const userInfo = web3Auth.userInfo();
@@ -69,7 +69,7 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
 
   useEffect(() => {
     const connectedListener = () => {
-      void syncSessionState();
+      syncSessionState();
     };
     const disconnectedListener = () => {
       clearSessionSnapshot();
@@ -95,7 +95,7 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
         });
         await web3Auth.init();
         setIsInitialized(true);
-        // Rehydrate provider/token/MFA snapshot when a prior session was restored.
+        // Rehydrate connection/token/MFA snapshot when a prior session was restored.
         await syncSessionState();
       } catch (error) {
         setInitError(error as Error);
@@ -118,7 +118,7 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
       isAuthorized,
       accessToken,
       isInitialized,
-      provider,
+      connection,
       isInitializing,
       initError,
       isMFAEnabled,
@@ -136,7 +136,7 @@ export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProvider
     setAccessTokenState,
     syncSessionState,
     isInitialized,
-    provider,
+    connection,
     isInitializing,
     initError,
   ]);

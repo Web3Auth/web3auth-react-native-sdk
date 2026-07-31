@@ -1,5 +1,3 @@
-import { createKeyPairFromBytes } from "@solana/keys";
-import { createSignerFromKeyPair, type TransactionSigner } from "@solana/signers";
 import { CITADEL_SERVER_MAP, STORAGE_SERVER_MAP, STORAGE_SERVER_SOCKET_URL_MAP } from "@toruslabs/constants";
 import { EIP7702_SUPPORTED_SMART_ACCOUNT_TYPES, SMART_ACCOUNT_EIP_STANDARD } from "@toruslabs/ethereum-controllers";
 import { NodeDetailManager } from "@toruslabs/fetch-node-details";
@@ -14,7 +12,6 @@ import {
   AuthUserInfo,
   type BaseLoginParams,
   BUILD_ENV,
-  getED25519Key,
   jsonToBase64,
   MFA_LEVELS,
   serializeError,
@@ -24,15 +21,20 @@ import {
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import type {
   AccountAbstractionMultiChainConfig,
-  AccountAbstractionProvider,
   ChainNamespaceType,
-  IBaseProvider,
+  Connection,
+  ConnectorNamespaceType,
   IProvider,
   SmartAccountsConfig,
 } from "@web3auth/no-modal";
-import { accountAbstractionProvider, CommonJRPCProvider, SMART_ACCOUNT_WALLET_SCOPE } from "@web3auth/no-modal";
+import {
+  accountAbstractionProvider,
+  CommonJRPCProvider,
+  CONNECTOR_NAMESPACES,
+  SMART_ACCOUNT_WALLET_SCOPE,
+  WALLET_CONNECTORS,
+} from "@web3auth/no-modal";
 import deepmerge from "deepmerge";
-import { ethers, JsonRpcProvider, Wallet } from "ethers";
 import { jwtDecode, JwtPayload } from "jwt-decode";
 import clonedeep from "lodash.clonedeep";
 import merge from "lodash.merge";
@@ -58,7 +60,6 @@ import {
   State,
   SubVerifierInfo,
   WalletLoginParams,
-  WalletResult,
 } from "./types/interface";
 import { IWebBrowser } from "./types/IWebBrowser";
 import {
@@ -69,16 +70,17 @@ import {
   getHashQueryParams,
   getInitializationTrackData,
 } from "./utils";
+import { createNativeSolanaWallet } from "./wallets";
 
 // Inlined from @web3auth/no-modal/base/utils to avoid loading the barrel file
 const isHexStrict = (hex: unknown): boolean => (typeof hex === "string" || typeof hex === "number") && /^(-)?0x[0-9a-f]*$/i.test(String(hex));
 
-// import WebViewComponent from "./WebViewComponent";
+const WEB3AUTH_REACT_NATIVE_SOURCE = "web3auth-react-native";
 
 class Web3Auth implements IWeb3Auth {
   public ready = false;
 
-  public signer: Wallet | TransactionSigner | null = null;
+  private _connection: Connection | null = null;
 
   private options: SdkInitParams;
 
@@ -173,6 +175,7 @@ class Web3Auth implements IWeb3Auth {
       buildEnv: this.options.buildEnv,
       serverTimeOffset: 0,
       enableOneKey: true,
+      source: WEB3AUTH_REACT_NATIVE_SOURCE,
     });
     this.state = {};
   }
@@ -181,18 +184,33 @@ class Web3Auth implements IWeb3Auth {
     return Boolean(this.currentSessionId);
   }
 
-  get provider(): IProvider | null {
-    if (!this.ready) return null;
-    return this.commonJRPCProvider ?? null;
+  get connection(): Connection | null {
+    return this._connection;
   }
 
-  get currentChainId(): string | undefined {
-    return this.state.currentChainId;
+  get currentChainId(): string | null {
+    return this.state.currentChainId || this.options.defaultChainId || this.options.chains?.[0]?.chainId || null;
   }
 
   get currentChain(): ProviderConfig | undefined {
     if (!this.currentChainId) return undefined;
     return this.options.chains?.find((chain) => chain.chainId === this.currentChainId);
+  }
+
+  get configuredChains(): ProviderConfig[] {
+    return this.options.chains || [];
+  }
+
+  get idToken(): string | null {
+    return this.state.idToken || this.state.userInfo?.idToken || this.state.userInfo?.oAuthIdToken || null;
+  }
+
+  get accessToken(): string | null {
+    return this.state.accessToken || null;
+  }
+
+  get refreshToken(): string | null {
+    return this.state.refreshToken || null;
   }
 
   get currentChainNamespace(): ChainNamespaceType {
@@ -213,10 +231,6 @@ class Web3Auth implements IWeb3Auth {
   private get dashboardUrl(): string {
     if (!this.addVersionInUrls) return `${this.options.dashboardUrl}`;
     return `${this.options.dashboardUrl}/v${version.split(".")[0]}`;
-  }
-
-  set provider(_: IProvider | null) {
-    throw new Error("Not implemented");
   }
 
   on(event: "connected" | "disconnected", listener: () => void): this {
@@ -311,15 +325,10 @@ class Web3Auth implements IWeb3Auth {
           this.currentSessionId = sessionId;
           const data = await this.authorizeSession();
           if (Object.keys(data).length > 0) {
-            this.updateState({
-              ...data,
-              currentChainId: this.currentChainId,
-            });
+            await this.applyAuthorizedSessionData(data);
             const finalPrivKey = this.getFinalPrivKey();
             if (!finalPrivKey) return;
-            const result = await this.getWallet(finalPrivKey);
-            this.commonJRPCProvider.updateProviderEngineProxy(result.provider);
-            this.signer = result.signer;
+            this._connection = await this.getWallet(finalPrivKey);
           } else {
             try {
               await this.keyStore.remove("sessionId");
@@ -336,8 +345,11 @@ class Web3Auth implements IWeb3Auth {
             this.currentSessionId = null;
             this.updateState({
               currentChainId: this.currentChainId,
+              idToken: null,
+              accessToken: null,
+              refreshToken: null,
             });
-            this.signer = null;
+            this._connection = null;
           }
         }
       } else {
@@ -346,22 +358,20 @@ class Web3Auth implements IWeb3Auth {
           this.currentSessionId = sessionId;
           const data = await this.authorizeSession();
           if (Object.keys(data).length > 0) {
-            this.updateState({
-              ...data,
-              currentChainId: this.currentChainId,
-            });
+            await this.applyAuthorizedSessionData(data);
             const finalPrivKey = this.getFinalPrivKey();
             if (!finalPrivKey) return;
-            const result = await this.getWallet(finalPrivKey);
-            this.commonJRPCProvider.updateProviderEngineProxy(result.provider);
-            this.signer = result.signer;
+            this._connection = await this.getWallet(finalPrivKey);
           } else {
             await this.sessionManager.clearSessionData();
             this.currentSessionId = null;
             this.updateState({
               currentChainId: this.currentChainId,
+              idToken: null,
+              accessToken: null,
+              refreshToken: null,
             });
-            this.signer = null;
+            this._connection = null;
           }
         }
       }
@@ -498,11 +508,11 @@ class Web3Auth implements IWeb3Auth {
         loginId: remove0x(loginId),
         sessionId: remove0x(sessionId),
         // SFA has no citadel token; wallet falls back to session-service auth.
-        accessToken: isSFA ? undefined : ((await this.sessionManager.getAccessToken()) ?? undefined),
+        accessToken: isSFA ? undefined : ((await this.readAndCacheAccessToken()) ?? undefined),
         platform: "react-native",
         sessionNamespace: isSFA ? "sfa" : undefined,
         recordId: generateRecordId(),
-        loginSource: "web3auth-react-native",
+        loginSource: WEB3AUTH_REACT_NATIVE_SOURCE,
       };
 
       const loginUrl = constructURL({
@@ -569,7 +579,7 @@ class Web3Auth implements IWeb3Auth {
       const configParams: WalletLoginParams = {
         loginId: remove0x(loginId),
         sessionId: remove0x(sessionId),
-        accessToken: isSFA ? undefined : ((await this.sessionManager.getAccessToken()) ?? undefined),
+        accessToken: isSFA ? undefined : ((await this.readAndCacheAccessToken()) ?? undefined),
         request: {
           method,
           params,
@@ -577,7 +587,7 @@ class Web3Auth implements IWeb3Auth {
         platform: "react-native",
         sessionNamespace: isSFA ? "sfa" : undefined,
         recordId: generateRecordId(),
-        loginSource: "web3auth-react-native",
+        loginSource: WEB3AUTH_REACT_NATIVE_SOURCE,
       };
 
       const loginUrl = constructURL({
@@ -650,7 +660,7 @@ class Web3Auth implements IWeb3Auth {
           mfaLevel: "mandatory",
         },
         sessionId: this.currentSessionId,
-        accessToken: (await this.sessionManager.getAccessToken()) ?? undefined,
+        accessToken: (await this.readAndCacheAccessToken()) ?? undefined,
       };
 
       const result = await this.authHandler(`${this.baseUrl}/start`, dataObject);
@@ -665,7 +675,7 @@ class Web3Auth implements IWeb3Auth {
         throw LoginError.loginFailed(error || "SessionId is missing");
       }
 
-      await this.sessionManager.setTokens({
+      await this.setCitadelTokens({
         sessionId: add0x(sessionId),
         accessToken: accessToken || "",
         refreshToken: refreshToken || "",
@@ -741,7 +751,7 @@ class Web3Auth implements IWeb3Auth {
           appState: jsonToBase64({ loginId, recordId }),
         },
         sessionId: this.currentSessionId,
-        accessToken: (await this.sessionManager.getAccessToken()) ?? undefined,
+        accessToken: (await this.readAndCacheAccessToken()) ?? undefined,
       };
 
       const result = await this.openAuthSession(`${this.baseUrl}/start`, dataObject, {
@@ -759,7 +769,7 @@ class Web3Auth implements IWeb3Auth {
         throw LoginError.loginFailed(error);
       }
       if (sessionId) {
-        await this.sessionManager.setTokens({
+        await this.setCitadelTokens({
           sessionId: add0x(sessionId),
           accessToken: accessToken || "",
           refreshToken: refreshToken || "",
@@ -793,7 +803,8 @@ class Web3Auth implements IWeb3Auth {
 
   public async getAccessToken(): Promise<string> {
     if (!this.currentSessionId) throw LoginError.userNotLoggedIn();
-    const token = await this.sessionManager.getAccessToken();
+    // May come from KeyStore or a custom accessTokenProvider — keep sync getter in sync.
+    const token = await this.readAndCacheAccessToken();
     // SFA sessions live on session-service and have no citadel access token.
     if (!token) throw LoginError.userNotLoggedIn();
     return token;
@@ -809,7 +820,7 @@ class Web3Auth implements IWeb3Auth {
         properties: trackData,
       });
       // Citadel-stored idToken is authoritative; fall back to session state for SFA.
-      const idToken = (await this.sessionManager.getIdToken()) ?? this.state.userInfo?.idToken ?? null;
+      const idToken = await this.readAndCacheIdToken();
       this.analytics.track({
         event: ANALYTICS_EVENTS.IDENTITY_TOKEN_COMPLETED,
         properties: trackData,
@@ -846,12 +857,13 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.userNotLoggedIn();
     }
     this.updateState({ ...data, currentChainId: this.currentChainId });
+    await this.syncSessionTokensToState();
   }
 
-  public async connectTo(loginParams: SdkLoginParams): Promise<WalletResult | null> {
+  public async connectTo(loginParams: SdkLoginParams): Promise<Connection | null> {
     const isSFA = !!loginParams.idToken;
 
-    let walletResult: WalletResult | null = null;
+    let connection: Connection | null = null;
     if (isSFA) {
       // Keep citadel sessionManager intact; SFA uses its own StorageManager on session-service.
       this.sfaSessionManager = new StorageManager<AuthSessionData>({
@@ -872,18 +884,17 @@ class Web3Auth implements IWeb3Auth {
             idToken: loginParams.idToken,
           },
         ];
-        walletResult = await this.connect(aggregateLoginParams, subVerifierInfoArray);
+        connection = await this.connect(aggregateLoginParams, subVerifierInfoArray);
       } else {
-        walletResult = await this.connect(loginParams);
+        connection = await this.connect(loginParams);
       }
     } else {
-      walletResult = await this.login(loginParams);
+      connection = await this.login(loginParams);
     }
 
-    this.commonJRPCProvider.updateProviderEngineProxy(walletResult?.provider);
-    this.signer = walletResult?.signer;
+    this._connection = connection;
     if (this.connected) this.emit("connected");
-    return walletResult;
+    return connection;
   }
 
   public setAnalyticsProperties(properties: Record<string, unknown>) {
@@ -1030,7 +1041,23 @@ class Web3Auth implements IWeb3Auth {
     this.options.sessionTime = 86400;
   }
 
-  protected async getWallet(privateKey: string): Promise<WalletResult> {
+  protected async getWallet(privateKey: string): Promise<Connection> {
+    if (this.currentChainNamespace === CHAIN_NAMESPACES.SOLANA) {
+      const solanaChainConfigs = (this.options.chains || []).filter((chain) => chain.chainNamespace === CHAIN_NAMESPACES.SOLANA);
+      const solanaWallet = await createNativeSolanaWallet({
+        privateKey,
+        solanaChainConfigs,
+        // Fallback when Wallet Standard callers omit `chain`; preferred path uses chain config rpcTarget.
+        getRpcUrl: () => this.currentChain?.rpcTarget,
+      });
+      return {
+        ethereumProvider: null,
+        solanaWallet,
+        connectorName: WALLET_CONNECTORS.AUTH,
+        connectorNamespace: CONNECTOR_NAMESPACES.SOLANA,
+      };
+    }
+
     const eoaProvider = new EthereumPrivateKeyProvider({
       config: {
         keyExportEnabled: this.projectConfig?.enableKeyExport,
@@ -1038,34 +1065,43 @@ class Web3Auth implements IWeb3Auth {
       },
     });
     await eoaProvider.setupProvider(privateKey);
-    if (this.currentChainNamespace === CHAIN_NAMESPACES.SOLANA) {
-      const ed25519Key = getED25519Key(privateKey).sk;
-      const keyPair = await createKeyPairFromBytes(new Uint8Array(ed25519Key));
-      const signer = await createSignerFromKeyPair(keyPair);
-      return { chainNamespace: CHAIN_NAMESPACES.SOLANA, provider: eoaProvider, signer: signer };
-    } else if (this.currentChainNamespace === CHAIN_NAMESPACES.EIP155) {
-      const ethersWallet = new Wallet(privateKey);
-      const signer = ethersWallet.connect(new JsonRpcProvider(this.currentChain.rpcTarget));
 
-      let aaProvider: AccountAbstractionProvider | null = null;
+    // EIP-155: optional AA wrapping, then expose the common EIP-1193 proxy.
+    if (this.currentChainNamespace === CHAIN_NAMESPACES.EIP155) {
+      let ethereumProvider: IProvider = eoaProvider;
       const is7702SmartAccount = this.options.accountAbstractionConfig?.smartAccountEipStandard === SMART_ACCOUNT_EIP_STANDARD.EIP_7702;
       // EIP-7702 uses EOA + 5792/7702 RPC only; skip ERC-4337 AA provider wrapping
       if (this.options.accountAbstractionConfig && !is7702SmartAccount) {
         const aaChainIds = new Set(this.options.accountAbstractionConfig?.chains?.map((chain) => chain.chainId) || []);
-        aaProvider = await accountAbstractionProvider({
+        const aaProvider = await accountAbstractionProvider({
           accountAbstractionConfig: this.options.accountAbstractionConfig,
           provider: eoaProvider,
           chain: this.currentChain,
           chains: this.options.chains.filter((chain) => aaChainIds.has(chain.chainId)),
-          // useProviderAsTransport: data.connector === WALLET_CONNECTORS.AUTH,
         });
-        const ethersProvider = new ethers.BrowserProvider(aaProvider);
-        signer.connect(ethersProvider);
+        ethereumProvider = aaProvider;
       }
-      return { chainNamespace: CHAIN_NAMESPACES.EIP155, provider: (aaProvider as unknown as IBaseProvider<string>) ?? eoaProvider, signer: signer };
-    } else {
-      return { chainNamespace: CHAIN_NAMESPACES.OTHER, provider: eoaProvider, signer: null };
+
+      this.commonJRPCProvider?.updateProviderEngineProxy(ethereumProvider);
+      return {
+        ethereumProvider: this.commonJRPCProvider ?? ethereumProvider,
+        solanaWallet: null,
+        connectorName: WALLET_CONNECTORS.AUTH,
+        connectorNamespace: CONNECTOR_NAMESPACES.EIP155,
+      };
     }
+
+    // OTHER (and any non-Solana / non-EIP-155 namespace): keep the EOA provider for key/RPC
+    // access, but do not wrap AA or claim an EIP-155 connector namespace.
+    // Mirrors the previous WalletResult OTHER branch (provider set, signer null).
+    this.commonJRPCProvider?.updateProviderEngineProxy(eoaProvider as IProvider);
+    return {
+      ethereumProvider: this.commonJRPCProvider ?? eoaProvider,
+      solanaWallet: null,
+      connectorName: WALLET_CONNECTORS.AUTH,
+      // CONNECTOR_NAMESPACES has no OTHER; preserve the chain namespace at runtime.
+      connectorNamespace: this.currentChainNamespace as ConnectorNamespaceType,
+    };
   }
 
   protected initWalletServicesConfig(projectConfig: ProjectConfig) {
@@ -1128,7 +1164,7 @@ class Web3Auth implements IWeb3Auth {
     this._listeners.get(event)?.forEach((l) => l());
   }
 
-  private async login(loginParams: SdkLoginParams): Promise<WalletResult | null> {
+  private async login(loginParams: SdkLoginParams): Promise<Connection | null> {
     if (!this.ready) throw InitializationError.notInitialized("Please call init first.");
     if (!this.options.redirectUrl) throw InitializationError.invalidParams("redirectUrl is required");
     if (!loginParams.authConnection) throw InitializationError.invalidParams("authConnection is required");
@@ -1178,7 +1214,7 @@ class Web3Auth implements IWeb3Auth {
         throw LoginError.loginFailed(error || "SessionId is missing");
       }
 
-      await this.sessionManager.setTokens({
+      await this.setCitadelTokens({
         sessionId: add0x(sessionId),
         accessToken: accessToken || "",
         refreshToken: refreshToken || "",
@@ -1195,14 +1231,14 @@ class Web3Auth implements IWeb3Auth {
 
       const finalPrivKey = this.getFinalPrivKey();
       if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
-      const walletResult = await this.getWallet(finalPrivKey);
+      const connection = await this.getWallet(finalPrivKey);
 
       this.analytics.track({
         event: ANALYTICS_EVENTS.CONNECTION_COMPLETED,
         properties: analyticsProperties,
       });
 
-      return walletResult;
+      return connection;
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.CONNECTION_FAILED,
@@ -1216,7 +1252,7 @@ class Web3Auth implements IWeb3Auth {
   }
 
   /**
-   * Clears local session, provider, and signer state and notifies listeners.
+   * Clears local session and connection state and notifies listeners.
    * Used by logout and failed session refresh; does not perform remote logout.
    */
   private async clearLocalSessionState(): Promise<void> {
@@ -1225,7 +1261,7 @@ class Web3Auth implements IWeb3Auth {
     // re-setup commonJRPCProvider
     this.commonJRPCProvider.removeAllListeners();
     await this.setupCommonJRPCProvider();
-    this.signer = null;
+    this._connection = null;
 
     this.updateState({
       privKey: "",
@@ -1256,6 +1292,9 @@ class Web3Auth implements IWeb3Auth {
       sessionId: "",
       signatures: [],
       currentChainId: this.currentChainId,
+      idToken: null,
+      accessToken: null,
+      refreshToken: null,
     });
 
     this.emit("disconnected");
@@ -1267,7 +1306,7 @@ class Web3Auth implements IWeb3Auth {
    * @param subVerifierInfoArray - The sub-verifier information array.
    * @returns The connected user information.
    */
-  private async connect(loginParams: SdkLoginParams, subVerifierInfoArray?: SubVerifierInfo[]): Promise<WalletResult | null> {
+  private async connect(loginParams: SdkLoginParams, subVerifierInfoArray?: SubVerifierInfo[]): Promise<Connection | null> {
     const torusKey = await this.getTorusKey(loginParams, subVerifierInfoArray);
     const privateKey = torusKey.finalKeyData?.privKey ?? torusKey.oAuthKeyData?.privKey;
     const decodedUserInfo = jwtDecode<JwtPayload & { email?: string; name?: string; nickname?: string; picture?: string; user_id?: string }>(
@@ -1301,6 +1340,9 @@ class Web3Auth implements IWeb3Auth {
     this.updateState({
       ...authSessionData,
       currentChainId: this.currentChainId,
+      idToken: loginParams.idToken || null,
+      accessToken: null,
+      refreshToken: null,
     });
 
     const result = await this.getWallet(privateKey);
@@ -1398,6 +1440,68 @@ class Web3Auth implements IWeb3Auth {
     this.state = { ...newState };
   }
 
+  private async applyAuthorizedSessionData(data: AuthSessionData): Promise<void> {
+    this.updateState({
+      ...data,
+      currentChainId: this.currentChainId,
+    });
+    await this.syncSessionTokensToState();
+  }
+
+  private async setCitadelTokens(tokens: { sessionId: Hex; accessToken: string; refreshToken: string; idToken: string }): Promise<void> {
+    await this.sessionManager.setTokens(tokens);
+    this.updateState({
+      ...this.state,
+      accessToken: tokens.accessToken || null,
+      refreshToken: tokens.refreshToken || null,
+      idToken: tokens.idToken || this.state.userInfo?.idToken || null,
+    });
+  }
+
+  private async syncSessionTokensToState(): Promise<void> {
+    const isSFA = await this.checkIsSFAFromStorage();
+    if (isSFA) {
+      this.updateState({
+        ...this.state,
+        idToken: this.state.userInfo?.oAuthIdToken || this.state.userInfo?.idToken || null,
+        accessToken: null,
+        refreshToken: null,
+      });
+      return;
+    }
+
+    const [accessToken, refreshToken, idToken] = await Promise.all([
+      this.sessionManager.getAccessToken(),
+      this.sessionManager.getRefreshToken(),
+      this.sessionManager.getIdToken(),
+    ]);
+
+    this.updateState({
+      ...this.state,
+      accessToken: accessToken || null,
+      refreshToken: refreshToken || null,
+      idToken: idToken || this.state.userInfo?.idToken || null,
+    });
+  }
+
+  /** Read access token from KeyStore/provider and mirror into sync getter state. */
+  private async readAndCacheAccessToken(): Promise<string | null> {
+    const token = (await this.sessionManager.getAccessToken()) || null;
+    if (this.state.accessToken !== token) {
+      this.updateState({ ...this.state, accessToken: token });
+    }
+    return token;
+  }
+
+  /** Read id token from KeyStore (with SFA/userInfo fallbacks) and mirror into sync getter state. */
+  private async readAndCacheIdToken(): Promise<string | null> {
+    const idToken = (await this.sessionManager.getIdToken()) || this.state.userInfo?.idToken || this.state.userInfo?.oAuthIdToken || null;
+    if (this.state.idToken !== idToken) {
+      this.updateState({ ...this.state, idToken });
+    }
+    return idToken;
+  }
+
   private async createLoginSession(loginId: Hex, data: AuthRequestPayload, timeout = 600): Promise<Hex> {
     if (!this.sessionManager) throw InitializationError.notInitialized();
 
@@ -1430,7 +1534,7 @@ class Web3Auth implements IWeb3Auth {
       recordId,
       sessionNamespace: isSFA ? "sfa" : undefined,
       storageServerUrl: this.options.storageServerUrl,
-      loginSource: "web3auth-react-native",
+      loginSource: WEB3AUTH_REACT_NATIVE_SOURCE,
     };
 
     const loginUrl = constructURL({
