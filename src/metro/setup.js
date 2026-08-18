@@ -15,6 +15,9 @@
 // Hermes may lack these on older RN; skip when already present.
 require("fast-text-encoding");
 
+// RN's built-in URLSearchParams lacks .set(); Web3Auth connect flows need it.
+require("react-native-url-polyfill/auto");
+
 // Buffer polyfill
 if (typeof global.Buffer === "undefined") {
   global.Buffer = require("buffer").Buffer;

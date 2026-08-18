@@ -26,9 +26,8 @@ function fileURLToPath(urlInput) {
   return urlString;
 }
 
-// Use global URL if available (React Native has it)
-const URLImpl = typeof URL !== "undefined" ? URL : null;
-const URLSearchParamsImpl = typeof URLSearchParams !== "undefined" ? URLSearchParams : null;
+// RN globals may be incomplete; use the same polyfill as setup.js.
+const { URL: URLImpl, URLSearchParams: URLSearchParamsImpl } = require("react-native-url-polyfill");
 
 // Basic URL parse function
 function parse(urlString, parseQueryString, slashesDenoteHost) {
