@@ -89,13 +89,23 @@ module.exports = withWeb3Auth(config);
 
 ### Entry point setup
 
-Import the setup module first in your root entry file (`index.js` / `index.ts`):
+Import the setup module first in your root entry file (`index.js` / `index.ts`). The SDK setup entry installs URL, crypto, and Buffer polyfills — you do not need a separate `react-native-url-polyfill` import.
 
 ```js
 import "@web3auth/react-native-sdk/setup";
 
 // ... rest of your app entry
 ```
+
+**Solana apps** should use the Solana setup entry instead. It loads core setup first, then installs the Ed25519 WebCrypto polyfill and minimal wallet-standard globals required by `@solana/react-hooks`:
+
+```js
+import "@web3auth/react-native-sdk/setup-solana";
+
+// ... rest of your app entry
+```
+
+Do not import both `/setup` and `/setup-solana` — `/setup-solana` already chains core setup.
 
 ## 🌟 Configuration
 
@@ -294,6 +304,8 @@ See `demo/rn-expo-hooks-example` for a complete Expo example.
 
 Optional Solana Framework Kit integration is available from `@web3auth/react-native-sdk/solana`. It bridges the Auth Solana wallet into `@solana/react-hooks` through `SolanaProvider`.
 
+Import `@web3auth/react-native-sdk/setup-solana` in your entry file (instead of `/setup`) before any other app code. It chains core setup with the Solana runtime polyfills required by `@solana/react-hooks`.
+
 Install peers:
 
 ```sh
@@ -319,6 +331,8 @@ Notes:
 - After Web3Auth Solana login, SDK hooks (`useSolanaWallet`, `useSignMessage`, `useSignTransaction`, `useSignAndSendTransaction`) work against the Auth wallet.
 - `SolanaProvider` also enables Framework Kit hooks from `@solana/react-hooks`.
 - Client wiring is owned by the SDK (`walletPersistence: false`). Nest under `Web3AuthProvider`.
+
+See `demo/rn-bare-solana-example` for a complete bare Solana example using `setup-solana` and plain `withWeb3Auth`.
 
 ## 💥 Initialization & Usage
 

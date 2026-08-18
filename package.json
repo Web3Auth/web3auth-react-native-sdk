@@ -2,7 +2,11 @@
   "name": "@web3auth/react-native-sdk",
   "version": "10.0.0",
   "description": "Web3Auth SDK that supports Bare (Standalone) and Expo React Native apps.",
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/metro/setup.js",
+    "./src/metro/setup-solana.js",
+    "./src/metro/global-shim.js"
+  ],
   "main": "dist/lib.cjs/index.js",
   "module": "dist/lib.esm/index.js",
   "source": "src/index.ts",
@@ -29,6 +33,10 @@
     "./setup": {
       "import": "./src/metro/setup.js",
       "require": "./src/metro/setup.js"
+    },
+    "./setup-solana": {
+      "import": "./src/metro/setup-solana.js",
+      "require": "./src/metro/setup-solana.js"
     },
     "./src/metro/shims/url-shim.js": {
       "require": "./src/metro/shims/url-shim.js"
@@ -68,6 +76,7 @@
     "@solana/client": "^1.7.0",
     "@solana/keys": "^2.3.0",
     "@solana/kit": "^6.10.0",
+    "@solana/webcrypto-ed25519-polyfill": "^6.10.0",
     "@solana/wallet-standard-features": "^1.4.0",
     "@toruslabs/base-controllers": "^9.10.0",
     "@toruslabs/constants": "^16.1.1",

@@ -28,9 +28,10 @@ import {
   type StandardEventsFeature,
   type StandardEventsListeners,
 } from "@wallet-standard/features";
-import { getED25519Key } from "@web3auth/auth";
 import type { CustomChainConfig } from "@web3auth/no-modal";
 import { getSolanaChainByChainConfig, WEB3AUTH_ICON } from "@web3auth/no-modal";
+
+import { getED25519Key } from "./ed25519Key";
 
 // In @solana/kit v6, encoders convert string -> bytes and decoders convert bytes -> string.
 const base58Encoder = getBase58Encoder();
