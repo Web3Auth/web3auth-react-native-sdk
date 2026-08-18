@@ -1,4 +1,5 @@
 // Web3Auth setup - must be imported first before any other imports
+// Includes URL, crypto, and Buffer polyfills via the SDK setup entry
 import "@web3auth/react-native-sdk/setup";
 
 import Web3Auth, { type AccountAbstractionConfig, AUTH_CONNECTION, type Connection, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";

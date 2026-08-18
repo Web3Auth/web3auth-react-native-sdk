@@ -1,4 +1,5 @@
 // Web3Auth setup - must be imported first before any other imports
+// Includes URL, crypto, and Buffer polyfills via the SDK setup entry
 import "@web3auth/react-native-sdk/setup";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
