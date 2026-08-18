@@ -81,6 +81,25 @@ describe("NativeSolanaWallet", () => {
     expect(wallet.chains).toContain("solana:mainnet");
   });
 
+  it("loads a wallet from a 64-byte Solana secret key", async () => {
+    const { sk, pk } = getED25519Key(DETERMINISTIC_SEED);
+    const secretKeyHex = Array.from(sk)
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    const keyPair = await createKeyPairFromBytes(new Uint8Array(sk));
+    const expectedAddress = await getAddressFromPublicKey(keyPair.publicKey);
+
+    const wallet = await createNativeSolanaWallet({
+      privateKey: secretKeyHex,
+      solanaChainConfigs: [solanaMainnetConfig],
+      getRpcUrl: () => solanaMainnetConfig.rpcTarget,
+    });
+
+    expect(wallet.accounts).toHaveLength(1);
+    expect(wallet.accounts[0]?.address).toBe(expectedAddress);
+    expect(wallet.accounts[0]?.publicKey).toEqual(new Uint8Array(pk));
+  });
+
   it("signs messages with the local ed25519 key", async () => {
     const wallet = await createNativeSolanaWallet({
       privateKey: DETERMINISTIC_SEED,
