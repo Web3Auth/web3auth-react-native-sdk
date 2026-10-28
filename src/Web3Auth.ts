@@ -427,10 +427,14 @@ class Web3Auth implements IWeb3Auth {
       const currentUserInfo = this.userInfo();
       const isSFA = await this.checkIsSFAFromStorage();
 
-      // SFA: invalidate session-service entry + clear KeyStore flag.
-      // Citadel: logout() POSTs /v1/auth/logout and clears all four stored tokens.
+      // Remote invalidation is best-effort. An expired or unreachable session
+      // must still clear this project's namespace.
       if (isSFA) {
-        await this.sfaSessionManager!.invalidateSession();
+        try {
+          await this.sfaSessionManager!.invalidateSession();
+        } catch (e) {
+          log.error("Error invalidating SFA session: ", e);
+        }
         try {
           await this.storageAdapter.remove(SESSION_STORAGE_KEYS.SFA_SESSION_ID);
           await this.clearSFAFromStorage();
@@ -444,7 +448,11 @@ class Web3Auth implements IWeb3Auth {
           });
         }
       } else {
-        await this.sessionManager.logout();
+        try {
+          await this.sessionManager.logout();
+        } catch (e) {
+          log.error("Error during session logout: ", e);
+        }
       }
       await this.clearNamespacedSessionAliases();
 
@@ -880,9 +888,21 @@ class Web3Auth implements IWeb3Auth {
   }
 
   public async connectTo(loginParams: SdkLoginParams): Promise<Connection | null> {
-    // connectTo while connected is an explicit account switch. Fully clear the
-    // current namespace before starting the next login.
-    if (this.currentSessionId) await this.logout();
+    // connectTo while connected is an explicit account switch. A failed remote
+    // logout must not keep the old namespace or block the next login.
+    if (this.currentSessionId) {
+      try {
+        await this.logout();
+      } catch (e) {
+        log.error("Error during account switch logout: ", e);
+        try {
+          await this.clearNamespacedSessionAliases();
+        } catch (clearError) {
+          log.error("Error clearing session namespace during account switch: ", clearError);
+        }
+        if (this.currentSessionId) await this.clearLocalSessionState();
+      }
+    }
 
     const isSFA = !!loginParams.idToken;
 
