@@ -7,17 +7,28 @@ import KeyStore from "./KeyStore";
 const sanitizeKey = (key: string) => key.replace(/[^A-Za-z0-9._-]/g, "_");
 
 export default class KeyStoreAdapter implements IStorageAdapter {
-  constructor(private keyStore: KeyStore) {}
+  constructor(
+    private keyStore: KeyStore,
+    private storageKeyPrefix: string
+  ) {
+    if (!storageKeyPrefix) throw new Error("storageKeyPrefix is required");
+  }
 
   async get(key: string): Promise<string | null> {
-    return (await this.keyStore.get(sanitizeKey(key))) ?? null;
+    return (await this.keyStore.get(this.getStorageKey(key))) ?? null;
   }
 
   async set(key: string, value: string): Promise<void> {
-    await this.keyStore.set(sanitizeKey(key), value);
+    await this.keyStore.set(this.getStorageKey(key), value);
   }
 
   async remove(key: string): Promise<void> {
-    await this.keyStore.remove(sanitizeKey(key));
+    await this.keyStore.remove(this.getStorageKey(key));
+  }
+
+  private getStorageKey(key: string): string {
+    // Prefix before sanitizing so every native alias is scoped and the final
+    // key remains valid for both Expo SecureStore and EncryptedStorage.
+    return sanitizeKey(`${this.storageKeyPrefix}:${key}`);
   }
 }
