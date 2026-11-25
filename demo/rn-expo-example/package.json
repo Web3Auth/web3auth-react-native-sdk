@@ -24,17 +24,17 @@
     "react": "18.2.0",
     "react-native": "0.74.5",
     "react-native-mmkv-storage": "^0.11.2",
-    "react-native-quick-crypto": "^0.7.5",
-    "viem": "^2.55.8"
+    "react-native-quick-crypto": "^0.7.17",
+    "viem": "^2.58.6"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@types/react": "^18.3.3",
     "buffer": "^6.0.3",
-    "crypto-browserify": "^3.12.0",
+    "crypto-browserify": "^3.12.1",
     "empty-module": "^0.0.2",
     "process": "^0.11.10",
-    "readable-stream": "^4.5.2",
+    "readable-stream": "^4.8.0",
     "typescript": "^5.4.5"
   },
   "private": true
