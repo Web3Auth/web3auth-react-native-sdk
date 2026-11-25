@@ -159,7 +159,7 @@ function useFrameworkKitSolanaClient(): SolanaClient {
         currentChain?.chainNamespace === CHAIN_NAMESPACES.SOLANA &&
         connection?.connectorName === WALLET_CONNECTORS.AUTH;
 
-      if (!shouldBind) {
+      if (!shouldBind || !solanaWallet || !currentChain) {
         adopt(makePlaceholder(rpc));
         return;
       }

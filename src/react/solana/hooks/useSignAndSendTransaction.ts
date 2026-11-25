@@ -44,6 +44,7 @@ async function walletSignAndSendTransactionOnChain(wallet: Wallet, transaction: 
     transaction: serialized,
     chain,
   });
+  if (!output) throw new Error("signAndSendTransaction returned no signature");
   return getBase58Decoder().decode(new Uint8Array(output.signature));
 }
 

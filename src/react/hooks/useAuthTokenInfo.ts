@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { Web3authRNError } from "../../errors";
+import { InitializationError, Web3authRNError } from "../../errors";
 import { useWeb3AuthInner } from "./useWeb3AuthInner";
 
 export interface IUseAuthTokenInfo {
@@ -21,6 +21,7 @@ export const useAuthTokenInfo = (): IUseAuthTokenInfo => {
     setLoading(true);
     setError(null);
     try {
+      if (!web3Auth) throw InitializationError.notInitialized();
       const authTokenInfo = await web3Auth.getAuthTokenInfo();
       if (authTokenInfo?.idToken) {
         setToken(authTokenInfo.idToken);

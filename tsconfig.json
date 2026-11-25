@@ -1,10 +1,10 @@
 {
-  "extends": "@toruslabs/config/tsconfig.default.json",
+  "extends": "@toruslabs/config/tsconfig.library.json",
   "compilerOptions": {
-    // Keep the toruslabs defaults (module: esnext, moduleResolution: bundler) so
-    // source can import ESM-only packages (wallet-standard). torus-scripts still
-    // dual-publishes dist/lib.cjs + dist/lib.esm; do not set package.json "type":"module"
-    // or metro require entrypoints break.
+    "lib": ["ES2024", "DOM", "DOM.Iterable"]
+    // Keep module esnext and moduleResolution bundler so source can import ESM-only
+    // packages (wallet-standard). Do not set package.json "type": "module" or the
+    // Metro require entrypoints break.
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

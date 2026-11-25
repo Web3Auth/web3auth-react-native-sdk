@@ -203,11 +203,11 @@ The SDK sends anonymous usage events to Segment so Web3Auth can improve reliabil
 
 **Defaults and controls:**
 
-| Option                   | Default      | Behavior                                                                 |
-| ------------------------ | ------------ | ------------------------------------------------------------------------ |
-| _(none)_                 | —            | Analytics **enabled**; uses the production Segment write key             |
-| `buildEnv: DEVELOPMENT`  | `PRODUCTION` | Uses the development Segment write key                                   |
-| `disableAnalytics: true` | `false`      | Suppress all identify/track calls                                        |
+| Option                   | Default      | Behavior                                                     |
+| ------------------------ | ------------ | ------------------------------------------------------------ |
+| _(none)_                 | —            | Analytics **enabled**; uses the production Segment write key |
+| `buildEnv: DEVELOPMENT`  | `PRODUCTION` | Uses the development Segment write key                       |
+| `disableAnalytics: true` | `false`      | Suppress all identify/track calls                            |
 
 ```js
 const web3auth = new Web3Auth(WebBrowser, EncryptedStorage, {
@@ -328,7 +328,6 @@ Create a `Web3Auth` instance with your browser adapter, secure storage adapter, 
 
 ```js
 import "@web3auth/react-native-sdk/setup";
-
 import * as WebBrowser from "@toruslabs/react-native-web-browser";
 import Web3Auth, { AUTH_CONNECTION, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
 import EncryptedStorage from "react-native-encrypted-storage";
@@ -353,7 +352,6 @@ await web3auth.connectTo({
 
 ```js
 import "@web3auth/react-native-sdk/setup";
-
 import Web3Auth, { AUTH_CONNECTION, WEB3AUTH_NETWORK } from "@web3auth/react-native-sdk";
 import Constants, { AppOwnership } from "expo-constants";
 import * as Linking from "expo-linking";

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { Web3authRNError } from "../../errors";
+import { InitializationError, Web3authRNError } from "../../errors";
 import { type Connection, SdkLoginParams } from "../../types/interface";
 import { useWeb3AuthInner } from "../hooks/useWeb3AuthInner";
 
@@ -26,6 +26,7 @@ export const useWeb3AuthConnect = (): IUseWeb3AuthConnect => {
           ...params,
           loginSource: params.loginSource ?? "web3auth-react-native",
         };
+        if (!web3Auth) throw InitializationError.notInitialized();
         return await web3Auth.connectTo(loginParams);
       } catch (error) {
         setError(error as Web3authRNError);

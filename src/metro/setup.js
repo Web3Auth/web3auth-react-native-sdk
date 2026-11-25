@@ -24,7 +24,7 @@ if (typeof global.Buffer === "undefined") {
 try {
   const { install } = require("react-native-quick-crypto");
   install();
-} catch (e) {
+} catch {
   // react-native-quick-crypto not installed, crypto-browserify will be used instead
   // This is fine - the metro config will use crypto-browserify as fallback
 }

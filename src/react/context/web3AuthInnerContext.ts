@@ -5,7 +5,7 @@ import { ANALYTICS_INTEGRATION_TYPE } from "../../base";
 import Web3Auth from "../../Web3Auth";
 import { IWeb3AuthInnerContext, Web3AuthProviderProps } from "../interfaces";
 
-export const Web3AuthInnerContext = createContext<IWeb3AuthInnerContext>(null);
+export const Web3AuthInnerContext = createContext<IWeb3AuthInnerContext | null>(null);
 
 export function Web3AuthInnerProvider(params: PropsWithChildren<Web3AuthProviderProps>) {
   const { children, config, webBrowser, storage } = params;

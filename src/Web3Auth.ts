@@ -7,7 +7,6 @@ import { keccak256, Torus, TorusKey, VerifierParams } from "@toruslabs/torus.js"
 import {
   AUTH_ACTIONS,
   AUTH_CONNECTION,
-  AuthConnectionConfig,
   type AuthRequestPayload,
   AuthUserInfo,
   type BaseLoginParams,
@@ -234,8 +233,9 @@ class Web3Auth implements IWeb3Auth {
   }
 
   on(event: "connected" | "disconnected", listener: () => void): this {
-    if (!this._listeners.has(event)) this._listeners.set(event, new Set());
-    this._listeners.get(event).add(listener);
+    const listeners = this._listeners.get(event) ?? new Set<() => void>();
+    this._listeners.set(event, listeners);
+    listeners.add(listener);
     return this;
   }
 
@@ -268,11 +268,13 @@ class Web3Auth implements IWeb3Auth {
     try {
       const isSFA = await this.checkIsSFAFromStorage();
       const adapter = new KeyStoreAdapter(this.keyStore);
+      const citadelServerUrl = this.options.citadelServerUrl;
+      if (!citadelServerUrl) throw InitializationError.invalidParams("citadelServerUrl is required");
 
       // Same adapter for all four slots so refreshToken uses KeyStore instead of web CookieStorage.
       this.sessionManager = new AuthSessionManager({
         storageKeyPrefix: "auth_store",
-        apiClientConfig: { baseURL: this.options.citadelServerUrl },
+        apiClientConfig: { baseURL: citadelServerUrl },
         storage: {
           sessionId: adapter,
           accessToken: adapter,
@@ -300,7 +302,7 @@ class Web3Auth implements IWeb3Auth {
       this.initCachedChainId();
       this.initWalletServicesConfig(this.projectConfig);
       this.initSessionTimeConfig(this.projectConfig);
-      this.options.originData = merge(clonedeep(this.projectConfig.whitelist.signed_urls), this.options.originData);
+      this.options.originData = merge(clonedeep(this.projectConfig.whitelist?.signed_urls), this.options.originData);
       this.options.authConnectionConfig = unionBy(
         this.projectConfig.embeddedWalletAuth ?? [],
         this.options.authConnectionConfig ?? [],
@@ -315,7 +317,7 @@ class Web3Auth implements IWeb3Auth {
       // Citadel: restore from AuthSessionManager tokens.
       if (isSFA) {
         this.sfaSessionManager = new StorageManager<AuthSessionData>({
-          sessionServerBaseUrl: this.options.storageServerUrl,
+          sessionServerBaseUrl: this.requireStorageServerUrl(),
           sessionTime: this.options.sessionTime,
           sessionNamespace: "sfa",
         });
@@ -431,7 +433,7 @@ class Web3Auth implements IWeb3Auth {
       }
 
       try {
-        if (currentUserInfo.authConnectionId && currentUserInfo.dappShare && currentUserInfo.dappShare.length > 0) {
+        if (currentUserInfo && currentUserInfo.authConnectionId && currentUserInfo.dappShare && currentUserInfo.dappShare.length > 0) {
           const verifier = currentUserInfo.groupedAuthConnectionId || currentUserInfo.authConnectionId;
           await this.keyStore.remove(verifier);
         }
@@ -475,11 +477,11 @@ class Web3Auth implements IWeb3Auth {
     try {
       const dataObject: Omit<AuthRequestPayload, "options"> & {
         options: SdkInitParams & {
-          chains: ChainsConfig;
+          chains?: ChainsConfig;
           chainId: string;
-          embeddedWalletAuth?: AuthConnectionConfig;
+          embeddedWalletAuth?: ProjectConfig["embeddedWalletAuth"];
           externalWalletAuth?: ProjectConfig["externalWalletAuth"];
-          accountAbstractionConfig: AccountAbstractionMultiChainConfig;
+          accountAbstractionConfig?: AccountAbstractionMultiChainConfig;
         };
       } = {
         actionType: AUTH_ACTIONS.LOGIN,
@@ -549,10 +551,10 @@ class Web3Auth implements IWeb3Auth {
     try {
       const dataObject: Omit<AuthRequestPayload, "options"> & {
         options: SdkInitParams & {
-          chains: ChainsConfig;
+          chains?: ChainsConfig;
           chainId: string;
-          accountAbstractionConfig: AccountAbstractionMultiChainConfig;
-          embeddedWalletAuth: AuthConnectionConfig;
+          accountAbstractionConfig?: AccountAbstractionMultiChainConfig | null;
+          embeddedWalletAuth?: ProjectConfig["embeddedWalletAuth"];
           externalWalletAuth?: ProjectConfig["externalWalletAuth"];
         };
       } = {
@@ -613,6 +615,7 @@ class Web3Auth implements IWeb3Auth {
         },
       });
 
+      if (requestResult === undefined) throw RequestError.fromCode(5000, "Request result is missing");
       return requestResult;
     } catch (e) {
       this.analytics.track({
@@ -632,7 +635,7 @@ class Web3Auth implements IWeb3Auth {
       throw LoginError.userNotLoggedIn();
     }
     await this.refreshSession();
-    if (this.state.userInfo.isMfaEnabled) {
+    if (this.state.userInfo?.isMfaEnabled) {
       throw LoginError.mfaAlreadyEnabled();
     }
 
@@ -644,8 +647,10 @@ class Web3Auth implements IWeb3Auth {
     });
 
     try {
+      const authConnection = this.state.userInfo?.authConnection;
+      if (!authConnection) throw InitializationError.invalidParams("authConnection is required");
       const loginParams: SdkLoginParams = {
-        authConnection: this.state.userInfo?.authConnection,
+        authConnection,
         mfaLevel: MFA_LEVELS.MANDATORY,
         extraLoginOptions: {
           login_hint: this.state.userInfo?.userId,
@@ -685,10 +690,7 @@ class Web3Auth implements IWeb3Auth {
 
       await this.refreshSession();
 
-      const { userInfo } = this.state;
-      if (userInfo?.dappShare?.length > 0) {
-        await this.keyStore.set(userInfo.groupedAuthConnectionId || userInfo.authConnectionId, userInfo.dappShare);
-      }
+      await this.storeDappShare();
 
       this.analytics.track({
         event: ANALYTICS_EVENTS.MFA_ENABLEMENT_COMPLETED,
@@ -697,7 +699,7 @@ class Web3Auth implements IWeb3Auth {
         },
       });
 
-      return Boolean(this.state.userInfo.isMfaEnabled);
+      return Boolean(this.state.userInfo?.isMfaEnabled);
     } catch (e) {
       this.analytics.track({
         event: ANALYTICS_EVENTS.MFA_ENABLEMENT_FAILED,
@@ -714,7 +716,7 @@ class Web3Auth implements IWeb3Auth {
     }
     await this.refreshSession();
     // manageMFA requires MFA already enabled; use enableMFA() first when it is not.
-    if (!this.state.userInfo.isMfaEnabled) {
+    if (!this.state.userInfo?.isMfaEnabled) {
       throw LoginError.mfaNotEnabled();
     }
 
@@ -725,8 +727,10 @@ class Web3Auth implements IWeb3Auth {
       },
     });
     try {
+      const authConnection = this.state.userInfo?.authConnection;
+      if (!authConnection) throw InitializationError.invalidParams("authConnection is required");
       const loginParams: SdkLoginParams = {
-        authConnection: this.state.userInfo?.authConnection,
+        authConnection,
         mfaLevel: MFA_LEVELS.MANDATORY,
         extraLoginOptions: {
           login_hint: this.state.userInfo?.userId,
@@ -865,9 +869,13 @@ class Web3Auth implements IWeb3Auth {
 
     let connection: Connection | null = null;
     if (isSFA) {
+      const idToken = loginParams.idToken;
+      const authConnectionId = loginParams.authConnectionId;
+      if (!idToken) throw InitializationError.invalidParams("idToken is required");
+      if (!authConnectionId) throw InitializationError.invalidParams("authConnectionId is required");
       // Keep citadel sessionManager intact; SFA uses its own StorageManager on session-service.
       this.sfaSessionManager = new StorageManager<AuthSessionData>({
-        sessionServerBaseUrl: this.options.storageServerUrl,
+        sessionServerBaseUrl: this.requireStorageServerUrl(),
         sessionTime: this.options.sessionTime,
         sessionNamespace: "sfa",
       });
@@ -876,12 +884,12 @@ class Web3Auth implements IWeb3Auth {
         const aggregateLoginParams: SdkLoginParams = {
           authConnection: AUTH_CONNECTION.CUSTOM,
           authConnectionId: loginParams.groupedAuthConnectionId,
-          idToken: loginParams.idToken,
+          idToken,
         };
         const subVerifierInfoArray: SubVerifierInfo[] = [
           {
-            verifier: loginParams.authConnectionId,
-            idToken: loginParams.idToken,
+            verifier: authConnectionId,
+            idToken,
           },
         ];
         connection = await this.connect(aggregateLoginParams, subVerifierInfoArray);
@@ -904,10 +912,14 @@ class Web3Auth implements IWeb3Auth {
   protected initCachedChainId() {
     // init chainId using cached chainId if it exists and is valid, otherwise use the defaultChainId or the first chain
     const cachedChainId = this.currentChainId;
-    const isCachedChainIdValid = cachedChainId && this.options.chains.some((chain) => chain.chainId === cachedChainId);
+    const chains = this.options.chains;
+    if (!chains || chains.length === 0) throw InitializationError.invalidParams("chains are required");
+    const firstChain = chains[0];
+    if (!firstChain) throw InitializationError.invalidParams("chains are required");
+    const isCachedChainIdValid = cachedChainId && chains.some((chain) => chain.chainId === cachedChainId);
     if (this.options.defaultChainId && !isHexStrict(this.options.defaultChainId))
       throw InitializationError.invalidParams("Please provide a valid defaultChainId in constructor");
-    const currentChainId = isCachedChainIdValid ? cachedChainId : this.options.defaultChainId || this.options.chains[0].chainId;
+    const currentChainId = isCachedChainIdValid ? cachedChainId : this.options.defaultChainId || firstChain.chainId;
     this.updateState({ ...this.state, currentChainId });
   }
 
@@ -952,17 +964,20 @@ class Web3Auth implements IWeb3Auth {
     const is7702SmartAccount = this.options.accountAbstractionConfig?.smartAccountEipStandard === SMART_ACCOUNT_EIP_STANDARD.EIP_7702;
     if (this.options.accountAbstractionConfig && !is7702SmartAccount) {
       // write a for loop over accountAbstractionConfig.chains and check if the chainId is valid
-      if (this.options.accountAbstractionConfig.chains.length === 0) {
+      const aaChains = this.options.accountAbstractionConfig.chains;
+      if (!aaChains || aaChains.length === 0) {
         log.error("Please configure chains for smart accounts on dashboard at https://dashboard.web3auth.io");
         throw InitializationError.invalidParams("Please configure chains for smart accounts on dashboard at https://dashboard.web3auth.io");
       }
-      for (const chain of this.options.accountAbstractionConfig.chains) {
-        if (!isHexStrict(chain.chainId)) {
-          log.error(`Please provide a valid chainId in accountAbstractionConfig.chains for chain ${chain.chainId}`);
-          throw InitializationError.invalidParams(`Please provide a valid chainId in accountAbstractionConfig.chains for chain ${chain.chainId}`);
+      for (const chain of aaChains) {
+        if (!chain || !isHexStrict(chain.chainId)) {
+          log.error(`Please provide a valid chainId in accountAbstractionConfig.chains for chain ${chain?.chainId}`);
+          throw InitializationError.invalidParams(`Please provide a valid chainId in accountAbstractionConfig.chains for chain ${chain?.chainId}`);
         }
+        const bundlerUrl = chain.bundlerConfig?.url;
         try {
-          new URL(chain.bundlerConfig?.url);
+          if (bundlerUrl === undefined) throw new TypeError("bundlerConfig.url is missing");
+          new URL(bundlerUrl);
         } catch (error) {
           log.error(`Please provide a valid bundlerConfig.url in accountAbstractionConfig.chains for chain ${chain.chainId}`, error);
           throw InitializationError.invalidParams(
@@ -997,7 +1012,7 @@ class Web3Auth implements IWeb3Auth {
 
     // merge smart account config from project config with core options, core options will take precedence over project config
     const { walletScope, eipStandard, ...configWithoutWalletScope } = (projectConfig?.smartAccounts || {}) as SmartAccountsConfig;
-    const aaChainMap = new Map<string, AccountAbstractionMultiChainConfig["chains"][number]>();
+    const aaChainMap = new Map<string, NonNullable<AccountAbstractionMultiChainConfig["chains"]>[number]>();
     const allAaChains = [...(configWithoutWalletScope?.chains || []), ...(this.options.accountAbstractionConfig?.chains || [])];
     for (const chain of allAaChains) {
       const existingChain = aaChainMap.get(chain.chainId);
@@ -1005,12 +1020,13 @@ class Web3Auth implements IWeb3Auth {
       else aaChainMap.set(chain.chainId, { ...existingChain, ...chain });
     }
 
+    const mergedAaConfig = deepmerge(configWithoutWalletScope || {}, this.options.accountAbstractionConfig || {});
     this.options.accountAbstractionConfig =
       this.options.accountAbstractionConfig === null
         ? undefined
         : {
-            smartAccountEipStandard: eipStandard,
-            ...deepmerge(configWithoutWalletScope || {}, this.options.accountAbstractionConfig || {}),
+            ...mergedAaConfig,
+            smartAccountEipStandard: mergedAaConfig.smartAccountEipStandard !== undefined ? mergedAaConfig.smartAccountEipStandard : eipStandard,
             chains: Array.from(aaChainMap.values()),
           };
 
@@ -1058,10 +1074,12 @@ class Web3Auth implements IWeb3Auth {
       };
     }
 
+    const chain = this.currentChain;
+    if (!chain) throw InitializationError.invalidParams("current chain is required");
     const eoaProvider = new EthereumPrivateKeyProvider({
       config: {
         keyExportEnabled: this.projectConfig?.enableKeyExport,
-        chainConfig: this.currentChain,
+        chainConfig: chain,
       },
     });
     await eoaProvider.setupProvider(privateKey);
@@ -1073,11 +1091,13 @@ class Web3Auth implements IWeb3Auth {
       // EIP-7702 uses EOA + 5792/7702 RPC only; skip ERC-4337 AA provider wrapping
       if (this.options.accountAbstractionConfig && !is7702SmartAccount) {
         const aaChainIds = new Set(this.options.accountAbstractionConfig?.chains?.map((chain) => chain.chainId) || []);
+        const configuredChains = this.options.chains;
+        if (!configuredChains) throw InitializationError.invalidParams("chains are required");
         const aaProvider = await accountAbstractionProvider({
           accountAbstractionConfig: this.options.accountAbstractionConfig,
           provider: eoaProvider,
-          chain: this.currentChain,
-          chains: this.options.chains.filter((chain) => aaChainIds.has(chain.chainId)),
+          chain,
+          chains: configuredChains.filter((configuredChain) => aaChainIds.has(configuredChain.chainId)),
         });
         ethereumProvider = aaProvider;
       }
@@ -1140,6 +1160,7 @@ class Web3Auth implements IWeb3Auth {
     const isKeyExportEnabled = this.options.walletServicesConfig?.enableKeyExport ?? enableKeyExport ?? true;
     this.options.walletServicesConfig = {
       ...this.options.walletServicesConfig,
+      loginMode: this.options.walletServicesConfig?.loginMode ?? "embed",
       confirmationStrategy,
       whiteLabel: {
         ...whiteLabel,
@@ -1151,9 +1172,12 @@ class Web3Auth implements IWeb3Auth {
   }
 
   protected async setupCommonJRPCProvider() {
+    const chain = this.currentChain;
+    const chains = this.options.chains;
+    if (!chain || !chains) throw InitializationError.invalidParams("chain config is required");
     this.commonJRPCProvider = await CommonJRPCProvider.getProviderInstance({
-      chain: this.currentChain,
-      chains: this.options.chains,
+      chain,
+      chains,
     });
 
     // sync chainId
@@ -1224,10 +1248,7 @@ class Web3Auth implements IWeb3Auth {
 
       await this.refreshSession();
 
-      const { userInfo } = this.state;
-      if (userInfo?.dappShare?.length > 0) {
-        await this.keyStore.set(userInfo.groupedAuthConnectionId || userInfo.authConnectionId, userInfo.dappShare);
-      }
+      await this.storeDappShare();
 
       const finalPrivKey = this.getFinalPrivKey();
       if (!finalPrivKey) throw LoginError.loginFailed("final private key not found");
@@ -1259,7 +1280,9 @@ class Web3Auth implements IWeb3Auth {
     this.currentSessionId = null;
 
     // re-setup commonJRPCProvider
-    this.commonJRPCProvider.removeAllListeners();
+    const provider = this.commonJRPCProvider;
+    if (!provider) throw InitializationError.notInitialized();
+    provider.removeAllListeners();
     await this.setupCommonJRPCProvider();
     this._connection = null;
 
@@ -1307,20 +1330,25 @@ class Web3Auth implements IWeb3Auth {
    * @returns The connected user information.
    */
   private async connect(loginParams: SdkLoginParams, subVerifierInfoArray?: SubVerifierInfo[]): Promise<Connection | null> {
-    const torusKey = await this.getTorusKey(loginParams, subVerifierInfoArray);
+    const idToken = loginParams.idToken;
+    const authConnectionId = loginParams.authConnectionId;
+    if (!idToken) throw InitializationError.invalidParams("idToken is required");
+    if (!authConnectionId) throw InitializationError.invalidParams("authConnectionId is required");
+    const torusKey = await this.getTorusKey({ ...loginParams, idToken, authConnectionId }, subVerifierInfoArray);
     const privateKey = torusKey.finalKeyData?.privKey ?? torusKey.oAuthKeyData?.privKey;
-    const decodedUserInfo = jwtDecode<JwtPayload & { email?: string; name?: string; nickname?: string; picture?: string; user_id?: string }>(
-      loginParams.idToken
-    );
+    if (!privateKey) throw LoginError.loginFailed("final private key not found");
+    const decodedUserInfo = jwtDecode<JwtPayload & { email?: string; name?: string; nickname?: string; picture?: string; user_id?: string }>(idToken);
+    const userId = decodedUserInfo.user_id;
+    if (!userId) throw InitializationError.invalidParams("user_id is required");
     const userInfo: AuthUserInfo = {
       email: decodedUserInfo.email,
       name: decodedUserInfo.name ?? decodedUserInfo.nickname,
       profileImage: decodedUserInfo.picture,
-      userId: decodedUserInfo.user_id,
-      authConnectionId: loginParams.authConnectionId,
+      userId,
+      authConnectionId,
       authConnection: AUTH_CONNECTION.CUSTOM,
       groupedAuthConnectionId: loginParams.groupedAuthConnectionId,
-      oAuthIdToken: loginParams.idToken,
+      oAuthIdToken: idToken,
     };
 
     const signatures = this.getSessionSignatures(torusKey.sessionData);
@@ -1350,16 +1378,20 @@ class Web3Auth implements IWeb3Auth {
   }
 
   private async getTorusKey(loginParams: SdkLoginParams, subVerifierInfoArray?: SubVerifierInfo[]) {
-    const userId = this.getUserIdFromJWT(loginParams.idToken);
+    const idToken = loginParams.idToken;
+    const authConnectionId = loginParams.authConnectionId;
+    const authConnection = loginParams.authConnection;
+    if (!idToken) throw InitializationError.invalidParams("idToken is required");
+    if (!authConnectionId) throw InitializationError.invalidParams("authConnectionId is required");
+    if (!authConnection) throw InitializationError.invalidParams("authConnection is required");
+    const userId = this.getUserIdFromJWT(idToken);
     const { torusNodeEndpoints, torusNodePub, torusIndexes } = await this.fetchNodeDetails.getNodeDetails({
-      verifier: loginParams.authConnectionId,
+      verifier: authConnectionId,
       verifierId: userId,
     });
 
     // Hermes-safe recordId so torus.js uses /v1/auth/audit instead of generating one via crypto.randomUUID.
     const recordId = generateRecordId();
-    const authConnection = loginParams.authConnection;
-
     let retrieveSharesResponse: TorusKey;
 
     if (subVerifierInfoArray && subVerifierInfoArray.length > 0) {
@@ -1390,7 +1422,7 @@ class Web3Auth implements IWeb3Auth {
         endpoints: torusNodeEndpoints,
         nodePubkeys: torusNodePub,
         indexes: torusIndexes,
-        verifier: loginParams.authConnectionId,
+        verifier: authConnectionId,
         verifierParams: verifierParams,
         idToken: aggregateIdToken,
         recordId,
@@ -1404,9 +1436,9 @@ class Web3Auth implements IWeb3Auth {
         endpoints: torusNodeEndpoints,
         nodePubkeys: torusNodePub,
         indexes: torusIndexes,
-        verifier: loginParams.authConnectionId,
+        verifier: authConnectionId,
         verifierParams: verifierParams,
-        idToken: loginParams.idToken,
+        idToken,
         recordId,
         authConnection,
       });
@@ -1431,7 +1463,9 @@ class Web3Auth implements IWeb3Auth {
 
   private setCurrentChain(chainId: string) {
     if (chainId === this.currentChainId) return;
-    const newChain = this.options.chains.find((chain) => chain.chainId === chainId);
+    const chains = this.options.chains;
+    if (!chains) throw InitializationError.invalidParams("chains are required");
+    const newChain = chains.find((chain) => chain.chainId === chainId);
     if (!newChain) throw InitializationError.invalidParams(`Invalid chainId: ${chainId}`);
     this.updateState({ ...this.state, currentChainId: chainId });
   }
@@ -1502,13 +1536,27 @@ class Web3Auth implements IWeb3Auth {
     return idToken;
   }
 
+  private requireStorageServerUrl(): string {
+    const storageServerUrl = this.options.storageServerUrl;
+    if (!storageServerUrl) throw InitializationError.invalidParams("storageServerUrl is required");
+    return storageServerUrl;
+  }
+
+  private async storeDappShare(): Promise<void> {
+    const userInfo = this.state.userInfo;
+    const dappShare = userInfo?.dappShare;
+    const shareKey = userInfo?.groupedAuthConnectionId || userInfo?.authConnectionId;
+    if (!dappShare || dappShare.length === 0 || !shareKey) return;
+    await this.keyStore.set(shareKey, dappShare);
+  }
+
   private async createLoginSession(loginId: Hex, data: AuthRequestPayload, timeout = 600): Promise<Hex> {
     if (!this.sessionManager) throw InitializationError.notInitialized();
 
     // Login payload staging still uses session-service until auth-service migrates that storage.
     const isSFA = await this.checkIsSFAFromStorage();
     const loginSessionMgr = new StorageManager<AuthRequestPayload>({
-      sessionServerBaseUrl: this.options.storageServerUrl,
+      sessionServerBaseUrl: this.requireStorageServerUrl(),
       sessionTime: timeout, // each login key must be used with 10 mins (might be used at the end of popup redirect)
       sessionId: loginId,
       sessionNamespace: isSFA ? "sfa" : undefined,

@@ -6,20 +6,20 @@
   "main": "dist/lib.cjs/index.js",
   "module": "dist/lib.esm/index.js",
   "source": "src/index.ts",
-  "types": "dist/lib.cjs/types/index.d.ts",
+  "types": "dist/lib.cjs/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/lib.cjs/types/index.d.ts",
+      "types": "./dist/lib.cjs/index.d.ts",
       "import": "./dist/lib.esm/index.js",
       "require": "./dist/lib.cjs/index.js"
     },
     "./wagmi": {
-      "types": "./dist/lib.cjs/types/react/wagmi/index.d.ts",
+      "types": "./dist/lib.cjs/react/wagmi/index.d.ts",
       "import": "./dist/lib.esm/react/wagmi/index.js",
       "require": "./dist/lib.cjs/react/wagmi/index.js"
     },
     "./solana": {
-      "types": "./dist/lib.cjs/types/react/solana/index.d.ts",
+      "types": "./dist/lib.cjs/react/solana/index.d.ts",
       "import": "./dist/lib.esm/react/solana/index.js",
       "require": "./dist/lib.cjs/react/solana/index.js"
     },
@@ -39,11 +39,14 @@
     "src/metro"
   ],
   "scripts": {
-    "release": "torus-scripts release",
-    "start": "torus-scripts start",
-    "build": "torus-scripts build",
-    "lint:ts": "eslint --fix 'src/**/*.ts'",
-    "test": "vitest run",
+    "build": "vp pack",
+    "lint": "vp lint",
+    "check": "vp check",
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run",
+    "changeset": "changeset",
+    "version-packages": "changeset version && npm install --package-lock-only --ignore-scripts",
+    "release-packages": "changeset publish",
     "prepack": "npm run build",
     "prepare": "husky"
   },
@@ -102,7 +105,6 @@
     "urijs": "^1.19.11"
   },
   "peerDependencies": {
-    "@babel/runtime": "^7.x",
     "@solana/react-hooks": "^1.4.0",
     "@tanstack/react-query": ">=5.0.0",
     "@wagmi/core": ">=3.0.0",
@@ -138,15 +140,17 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.27.6",
+    "@changesets/cli": "^3.0.3",
+    "@lavamoat/harden": "^0.9.0",
     "@solana/react-hooks": "^1.4.1",
     "@tanstack/react-query": "^5.90.2",
-    "@toruslabs/config": "^3.1.0",
-    "@toruslabs/eslint-config-typescript": "4.1.4",
-    "@toruslabs/torus-scripts": "^7.1.6",
+    "@toruslabs/config": "^5.0.0",
+    "@toruslabs/oxlint-config-react": "^1.0.0",
+    "@toruslabs/torus-scripts": "9.0.1",
     "@types/lodash.clonedeep": "^4.5.9",
     "@types/lodash.merge": "^4.6.9",
     "@types/lodash.unionby": "^4.8.9",
-    "@types/node": "^22",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.1.10",
     "@types/react-native": "^0.73.0",
     "@types/react-test-renderer": "^19.1.0",
@@ -161,24 +165,35 @@
     "react-test-renderer": "^19.1.1",
     "rimraf": "^6.0.1",
     "tsx": "^4.23.1",
-    "typescript": "^5.8.3",
+    "typescript": "^7.0.2",
     "viem": "^2.55.8",
-    "vitest": "^3.2.7",
+    "vite-plus": "1.7.0",
     "vue": "^3.x",
     "wagmi": "^3.6.8"
   },
   "typesVersions": {
     "*": {
       "wagmi": [
-        "./dist/lib.cjs/types/react/wagmi/index.d.ts"
+        "./dist/lib.cjs/react/wagmi/index.d.ts"
       ],
       "solana": [
-        "./dist/lib.cjs/types/react/solana/index.d.ts"
+        "./dist/lib.cjs/react/solana/index.d.ts"
       ]
     }
   },
   "engines": {
-    "node": ">=22.x",
-    "npm": ">=10.x"
+    "node": ">=24.22.0",
+    "npm": ">=12"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": ">=11.17.0",
+      "onFail": "error"
+    }
+  },
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+    "vitest": "5.1.0"
   }
 }

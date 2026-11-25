@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ExpoSecureStore: any = {};
 export type KeychainAccessibilityConstant = number;
 
