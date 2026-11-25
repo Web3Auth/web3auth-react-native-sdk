@@ -19,7 +19,7 @@ export const useWalletUI = (): IUseWalletUI => {
       setLoading(true);
       setError(null);
       try {
-        if (!isConnected) throw InitializationError.notInitialized();
+        if (!isConnected || !web3Auth) throw InitializationError.notInitialized();
         await web3Auth.launchWalletServices(path);
       } catch (error) {
         setError(error as Web3authRNError);

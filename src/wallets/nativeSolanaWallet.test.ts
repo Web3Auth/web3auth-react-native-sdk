@@ -14,7 +14,7 @@ import { SolanaSignAndSendTransaction, SolanaSignMessage, SolanaSignTransaction 
 import { StandardConnect, StandardDisconnect, StandardEvents } from "@wallet-standard/features";
 import { getED25519Key } from "@web3auth/auth";
 import { CHAIN_NAMESPACES, type CustomChainConfig } from "@web3auth/no-modal";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createNativeSolanaWallet, NativeSolanaWallet } from "./nativeSolanaWallet";
 
@@ -98,6 +98,7 @@ describe("NativeSolanaWallet", () => {
     const keyPair = await createKeyPairFromBytes(new Uint8Array(sk));
     const expected = await signBytes(keyPair.privateKey, message);
 
+    if (!result) throw new Error("expected a signed message");
     expect(result.signedMessage).toEqual(message);
     expect(result.signature).toEqual(new Uint8Array(expected));
   });
@@ -164,6 +165,7 @@ describe("NativeSolanaWallet", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const [fetchUrl] = fetchMock.mock.calls[0] as unknown as [string];
     expect(fetchUrl).toBe("https://example-solana-rpc.test");
+    if (!sendResult) throw new Error("expected a send result");
     expect(sendResult.signature.byteLength).toBeGreaterThan(0);
 
     const [signResult] = await wallet.features[SolanaSignTransaction].signTransaction({
@@ -171,6 +173,7 @@ describe("NativeSolanaWallet", () => {
       transaction: unsignedBytes,
       chain: "solana:mainnet",
     });
+    if (!signResult) throw new Error("expected a signed transaction");
     expect(signResult.signedTransaction.byteLength).toBeGreaterThan(0);
 
     const { sk } = getED25519Key(DETERMINISTIC_SEED);

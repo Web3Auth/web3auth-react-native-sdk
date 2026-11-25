@@ -1,7 +1,8 @@
+import { EventEmitter } from "events";
+
 import { connect, disconnect, getConnections, getConnectors } from "@wagmi/core";
 import { CHAIN_NAMESPACES, type CustomChainConfig } from "@web3auth/no-modal";
-import { EventEmitter } from "events";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createWeb3AuthWagmiConfig } from "./config";
 import { WEB3AUTH_CONNECTOR_ID } from "./connector";

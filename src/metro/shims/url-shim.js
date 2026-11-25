@@ -31,7 +31,7 @@ const URLImpl = typeof URL !== "undefined" ? URL : null;
 const URLSearchParamsImpl = typeof URLSearchParams !== "undefined" ? URLSearchParams : null;
 
 // Basic URL parse function
-function parse(urlString, parseQueryString, slashesDenoteHost) {
+function parse(urlString, parseQueryString, _slashesDenoteHost) {
   if (!urlString) return {};
 
   try {
@@ -51,7 +51,7 @@ function parse(urlString, parseQueryString, slashesDenoteHost) {
         auth: url.username ? `${url.username}:${url.password}` : null,
       };
     }
-  } catch (e) {
+  } catch {
     // Fall through to basic parsing
   }
 
@@ -83,7 +83,7 @@ function resolve(from, to) {
     if (URLImpl) {
       return new URLImpl(to, from).href;
     }
-  } catch (e) {
+  } catch {
     // Fall through
   }
   return to;

@@ -64,12 +64,12 @@ export function createWeb3AuthConnector(params: Web3AuthConnectorParams): Create
     },
     async getAccounts() {
       const provider = await this.getProvider();
-      const accounts = (await provider.request({ method: "eth_accounts", params: [] })) as string[];
+      const accounts = (await provider.request({ method: "eth_accounts" })) as string[];
       return normalizeAccounts(accounts);
     },
     async getChainId() {
       const provider = await this.getProvider();
-      const chainId = (await provider.request({ method: "eth_chainId", params: [] })) as string;
+      const chainId = (await provider.request({ method: "eth_chainId" })) as string;
       return parseChainId(chainId);
     },
     async isAuthorized() {

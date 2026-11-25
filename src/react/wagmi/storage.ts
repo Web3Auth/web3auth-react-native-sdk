@@ -11,13 +11,16 @@ function sanitizePersistedStore(value: unknown): unknown {
 
   const record = value as Record<string, unknown>;
   if (record.state && typeof record.state === "object") {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { connections: _connections, current: _current, ...stateRest } = record.state as Record<string, unknown>;
-    return { ...record, state: stateRest };
+    return { ...record, state: omitConnectionFields(record.state as Record<string, unknown>) };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { connections: _connections, current: _current, ...rest } = record;
+  return omitConnectionFields(record);
+}
+
+function omitConnectionFields(record: Record<string, unknown>): Record<string, unknown> {
+  const rest = { ...record };
+  delete rest.connections;
+  delete rest.current;
   return rest;
 }
 

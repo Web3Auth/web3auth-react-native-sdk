@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { Web3authRNError } from "../../errors";
+import { InitializationError, Web3authRNError } from "../../errors";
 import { useWeb3AuthInner } from "./useWeb3AuthInner";
 
 export interface IUseWeb3AuthDisconnect {
@@ -19,6 +19,7 @@ export const useWeb3AuthDisconnect = (): IUseWeb3AuthDisconnect => {
     setLoading(true);
     setError(null);
     try {
+      if (!web3Auth) throw InitializationError.notInitialized();
       await web3Auth.logout();
     } catch (error) {
       setError(error as Web3authRNError);

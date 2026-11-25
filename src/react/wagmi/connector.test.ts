@@ -1,7 +1,8 @@
+import { EventEmitter } from "events";
+
 import { createConfig, http } from "@wagmi/core";
 import { mainnet } from "@wagmi/core/chains";
-import { EventEmitter } from "events";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createWeb3AuthConnector, WEB3AUTH_CONNECTOR_ID } from "./connector";
 import { DISCONNECT_ORIGIN, type DisconnectOrigin } from "./constants";

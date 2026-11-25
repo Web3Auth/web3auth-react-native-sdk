@@ -10,7 +10,7 @@ import { SolanaSignAndSendTransaction } from "@solana/wallet-standard-features";
 import { CHAIN_NAMESPACES, WalletInitializationError, WalletOperationsError, Web3AuthError } from "@web3auth/no-modal";
 import { createElement, useEffect } from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { IUseWeb3Auth } from "../../hooks/useWeb3Auth";
 
@@ -86,26 +86,24 @@ function mockConnectedSolanaWallet(
     "0x67": "https://api.devnet.solana.com",
   } as const;
 
-  useWeb3AuthMock.mockImplementation(
-    (): Partial<IUseWeb3Auth> => ({
-      connection: wallet
-        ? ({
-            solanaWallet: wallet as never,
-            ethereumProvider: null,
-            connectorName: "auth",
-            connectorNamespace: CHAIN_NAMESPACES.SOLANA,
-          } as never)
-        : null,
-      web3Auth: {
-        currentChainNamespace: CHAIN_NAMESPACES.SOLANA,
-        currentChain: {
-          chainNamespace: CHAIN_NAMESPACES.SOLANA,
-          chainId: currentChainId,
-          rpcTarget: rpcByChainId[currentChainId],
-        },
-      } as never,
-    })
-  );
+  useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+    connection: wallet
+      ? ({
+          solanaWallet: wallet as never,
+          ethereumProvider: null,
+          connectorName: "auth",
+          connectorNamespace: CHAIN_NAMESPACES.SOLANA,
+        } as never)
+      : null,
+    web3Auth: {
+      currentChainNamespace: CHAIN_NAMESPACES.SOLANA,
+      currentChain: {
+        chainNamespace: CHAIN_NAMESPACES.SOLANA,
+        chainId: currentChainId,
+        rpcTarget: rpcByChainId[currentChainId],
+      },
+    } as never,
+  }));
 }
 
 describe("Solana signing hooks", () => {
@@ -137,8 +135,10 @@ describe("Solana signing hooks", () => {
       result = await latest!.signMessage("hello");
     });
 
+    const account = wallet.accounts[0];
+    if (!account) throw new Error("expected a Solana account");
     expect(result).toBe("sig-message");
-    expect(walletSignMessageMock).toHaveBeenCalledWith(wallet, "hello", wallet.accounts[0].address);
+    expect(walletSignMessageMock).toHaveBeenCalledWith(wallet, "hello", account.address);
     expect(latest!.loading).toBe(false);
     expect(latest!.error).toBeNull();
     expect(latest!.data).toBe("sig-message");

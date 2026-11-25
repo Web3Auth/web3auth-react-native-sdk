@@ -1,25 +1,7 @@
 {
   "editor.formatOnSave": true,
   "editor.formatOnType": true,
-  "eslint.alwaysShowStatus": true,
-  "eslint.debug": false,
-  "eslint.format.enable": true,
-  "eslint.lintTask.enable": true,
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit"
-  },
-  "eslint.workingDirectories": [
-    {
-      "directory": "example",
-      "changeProcessCWD": true
-    },
-    {
-      "directory": ".",
-      "changeProcessCWD": true
-    },
-    {
-      "directory": "example_general",
-      "changeProcessCWD": true
-    }
-  ]
+  }
 }

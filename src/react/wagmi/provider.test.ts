@@ -1,9 +1,10 @@
+import { EventEmitter } from "events";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CHAIN_NAMESPACES, type CustomChainConfig } from "@web3auth/no-modal";
-import { EventEmitter } from "events";
 import { createElement, useEffect, useState } from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { useAccount, useConfig } from "wagmi";
 
 import type { IUseWeb3Auth } from "../hooks/useWeb3Auth";
@@ -83,18 +84,16 @@ describe("WagmiProvider", () => {
   it("binds a connected EVM Web3Auth session into wagmi", async () => {
     const provider = new FakeProvider();
     const web3Auth = createFakeWeb3Auth(provider, true);
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3Auth.connection as never,
-        isInitializing: false,
-        initError: null,
-        isAuthorized: true,
-        accessToken: null,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3Auth.connection as never,
+      isInitializing: false,
+      initError: null,
+      isAuthorized: true,
+      accessToken: null,
+    }));
 
     const queryClient = new QueryClient();
     let latest = { address: undefined as string | undefined, status: "", connectorCount: 0 };
@@ -127,23 +126,21 @@ describe("WagmiProvider", () => {
 
   it("does not bind when there is no ethereum provider", async () => {
     const web3Auth = createFakeWeb3Auth(null, true);
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: {
-          ethereumProvider: null,
-          solanaWallet: {} as never,
-          connectorName: "auth",
-          connectorNamespace: CHAIN_NAMESPACES.SOLANA,
-        } as never,
-        isInitializing: false,
-        initError: null,
-        isAuthorized: true,
-        accessToken: null,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: {
+        ethereumProvider: null,
+        solanaWallet: {} as never,
+        connectorName: "auth",
+        connectorNamespace: CHAIN_NAMESPACES.SOLANA,
+      } as never,
+      isInitializing: false,
+      initError: null,
+      isAuthorized: true,
+      accessToken: null,
+    }));
 
     const queryClient = new QueryClient();
     let latest = { address: undefined as string | undefined, status: "", connectorCount: 0 };
@@ -173,18 +170,16 @@ describe("WagmiProvider", () => {
   });
 
   it("uses a placeholder config before initialization", async () => {
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: null,
-        isInitialized: false,
-        isConnected: false,
-        connection: null,
-        isInitializing: true,
-        initError: null,
-        isAuthorized: false,
-        accessToken: null,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: null,
+      isInitialized: false,
+      isConnected: false,
+      connection: null,
+      isInitializing: true,
+      initError: null,
+      isAuthorized: false,
+      accessToken: null,
+    }));
 
     const queryClient = new QueryClient();
     let connectorCount = -1;

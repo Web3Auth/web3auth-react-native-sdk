@@ -1,4 +1,4 @@
-import { createConfig, http } from "@wagmi/core";
+import { type Config, createConfig, http } from "@wagmi/core";
 import { mainnet } from "@wagmi/core/chains";
 
 /** Who initiated a wagmi disconnect — drives whether Web3Auth logout runs. */
@@ -14,11 +14,14 @@ export const WEB3AUTH_CONNECTOR_NAME = "Web3Auth";
 export const WEB3AUTH_CONNECTOR_TYPE = "web3auth";
 
 /** Stable placeholder used before Web3Auth finishes initializing. */
-export const defaultWagmiConfig = createConfig({
+const mainnetHttpUrl = mainnet.rpcUrls.default.http[0];
+if (!mainnetHttpUrl) throw new Error("Mainnet HTTP RPC URL is missing");
+
+export const defaultWagmiConfig: Config = createConfig({
   chains: [mainnet],
   connectors: [],
   multiInjectedProviderDiscovery: false,
   transports: {
-    [mainnet.id]: http(mainnet.rpcUrls.default.http[0]),
+    [mainnet.id]: http(mainnetHttpUrl),
   },
 });

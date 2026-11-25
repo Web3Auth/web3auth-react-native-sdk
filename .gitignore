@@ -583,3 +583,4 @@ fabric.properties
 # End of https://www.toptal.com/developers/gitignore/api/android,androidstudio,xcode,reactnative,node,yarn
 
 /.yalc/
+.vitest/

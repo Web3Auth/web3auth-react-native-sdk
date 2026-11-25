@@ -15,7 +15,7 @@ export type AnalyticsOptions = {
 };
 
 export class Analytics {
-  private segment: SegmentHTTP;
+  private segment?: SegmentHTTP;
 
   private globalProperties: Record<string, unknown> = {};
 

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { Web3authRNError } from "../../errors";
+import { InitializationError, Web3authRNError } from "../../errors";
 import { useWeb3AuthInner } from "./useWeb3AuthInner";
 
 export interface IUseRefreshSession {
@@ -19,6 +19,7 @@ export const useRefreshSession = (): IUseRefreshSession => {
     setLoading(true);
     setError(null);
     try {
+      if (!web3Auth) throw InitializationError.notInitialized();
       await web3Auth.refreshSession();
       await syncSessionState();
       return true;

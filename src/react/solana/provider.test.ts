@@ -1,7 +1,7 @@
 import { CHAIN_NAMESPACES, WALLET_CONNECTORS } from "@web3auth/no-modal";
 import { createElement, useEffect } from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { IUseWeb3Auth } from "../hooks/useWeb3Auth";
 
@@ -144,14 +144,12 @@ describe("SolanaProvider", () => {
   });
 
   it("uses a placeholder client before initialization", async () => {
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: null,
-        isInitialized: false,
-        isConnected: false,
-        connection: null,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: null,
+      isInitialized: false,
+      isConnected: false,
+      connection: null,
+    }));
 
     let latest: ProbeState = { walletPersistence: undefined, clientId: undefined };
     await act(async () => {
@@ -179,14 +177,12 @@ describe("SolanaProvider", () => {
 
   it("wires a connected Solana wallet and sets analytics", async () => {
     const web3Auth = createFakeWeb3Auth({});
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3Auth.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3Auth.connection as never,
+    }));
 
     await act(async () => {
       TestRenderer.create(createElement(SolanaProvider, null, createElement(ClientProbe, { onState: () => undefined })));
@@ -219,14 +215,12 @@ describe("SolanaProvider", () => {
     };
     const web3Auth = createFakeWeb3Auth({ currentChain: solanaMainnet });
     web3Auth.configuredChains = [solanaDevnet, solanaMainnet];
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3Auth.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3Auth.connection as never,
+    }));
 
     await act(async () => {
       TestRenderer.create(createElement(SolanaProvider, null, null));
@@ -244,14 +238,12 @@ describe("SolanaProvider", () => {
 
   it("falls back to a placeholder when connectWallet fails", async () => {
     const web3Auth = createFakeWeb3Auth({});
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3Auth.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3Auth.connection as never,
+    }));
     connectWalletMock.mockRejectedValueOnce(new Error("connect failed"));
 
     await act(async () => {
@@ -267,14 +259,12 @@ describe("SolanaProvider", () => {
 
   it("disposes the wired client when connectWallet fails", async () => {
     const web3Auth = createFakeWeb3Auth({});
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3Auth.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3Auth.connection as never,
+    }));
     connectWalletMock.mockRejectedValueOnce(new Error("connect failed"));
 
     await act(async () => {
@@ -296,14 +286,12 @@ describe("SolanaProvider", () => {
   });
 
   it("disposes the active client on unmount without double destroy", async () => {
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: null,
-        isInitialized: false,
-        isConnected: false,
-        connection: null,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: null,
+      isInitialized: false,
+      isConnected: false,
+      connection: null,
+    }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -324,14 +312,12 @@ describe("SolanaProvider", () => {
     const walletA = { accounts: [{ address: "A111111111111111111111111111111111111111111" }] };
     const walletB = { accounts: [{ address: "B111111111111111111111111111111111111111111" }] };
     const web3AuthA = createFakeWeb3Auth({ solanaWallet: walletA });
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3AuthA as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3AuthA.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3AuthA as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3AuthA.connection as never,
+    }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -344,7 +330,7 @@ describe("SolanaProvider", () => {
 
     const wiredClientIds = createClientMock.mock.results
       .map((result) => (result.value as { id: string }).id)
-      .filter((id, index) => {
+      .filter((_id, index) => {
         const config = createClientMock.mock.calls[index]?.[0] as { walletConnectors: unknown[] };
         return config.walletConnectors.length > 0;
       });
@@ -352,14 +338,12 @@ describe("SolanaProvider", () => {
     const firstWired = wiredClientIds[0]!;
 
     const web3AuthB = createFakeWeb3Auth({ solanaWallet: walletB });
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3AuthB as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3AuthB.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3AuthB as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3AuthB.connection as never,
+    }));
 
     await act(async () => {
       renderer!.update(createElement(SolanaProvider, null, null));
@@ -382,14 +366,12 @@ describe("SolanaProvider", () => {
       },
     };
     const web3Auth = createFakeWeb3Auth({ solanaWallet: wallet });
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3Auth.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3Auth.connection as never,
+    }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -466,14 +448,12 @@ describe("SolanaProvider", () => {
     };
     const web3Auth = createFakeWeb3Auth({ solanaWallet: wallet, currentChain: solanaDevnet });
     web3Auth.configuredChains = [solanaDevnet, solanaMainnet];
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3Auth.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3Auth.connection as never,
+    }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -486,14 +466,12 @@ describe("SolanaProvider", () => {
 
     web3Auth.currentChain = solanaMainnet;
     web3Auth.currentChainId = solanaMainnet.chainId;
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3Auth.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3Auth.connection as never,
+    }));
 
     await act(async () => {
       renderer!.update(createElement(SolanaProvider, null, null));
@@ -510,14 +488,12 @@ describe("SolanaProvider", () => {
 
     web3Auth.currentChain = solanaDevnet;
     web3Auth.currentChainId = solanaDevnet.chainId;
-    useWeb3AuthMock.mockImplementation(
-      (): Partial<IUseWeb3Auth> => ({
-        web3Auth: web3Auth as never,
-        isInitialized: true,
-        isConnected: true,
-        connection: web3Auth.connection as never,
-      })
-    );
+    useWeb3AuthMock.mockImplementation((): Partial<IUseWeb3Auth> => ({
+      web3Auth: web3Auth as never,
+      isInitialized: true,
+      isConnected: true,
+      connection: web3Auth.connection as never,
+    }));
 
     await act(async () => {
       renderer!.update(createElement(SolanaProvider, null, null));

@@ -1,7 +1,7 @@
 import { AuthUserInfo } from "@web3auth/auth";
 import { useCallback, useEffect, useState } from "react";
 
-import { Web3authRNError } from "../../errors";
+import { InitializationError, Web3authRNError } from "../../errors";
 import { useWeb3AuthInner } from "./useWeb3AuthInner";
 
 export interface IUseWeb3AuthUser {
@@ -23,10 +23,12 @@ export const useWeb3AuthUser = (): IUseWeb3AuthUser => {
     setLoading(true);
     setError(null);
     try {
+      if (!web3Auth) throw InitializationError.notInitialized();
       const nextUserInfo = web3Auth.userInfo();
-      setUserInfo(nextUserInfo);
-      setIsMFAEnabled(Boolean(nextUserInfo?.isMfaEnabled));
-      return nextUserInfo;
+      const userInfo = nextUserInfo !== undefined ? nextUserInfo : null;
+      setUserInfo(userInfo);
+      setIsMFAEnabled(Boolean(userInfo?.isMfaEnabled));
+      return userInfo;
     } catch (error) {
       setError(error as Web3authRNError);
       return null;

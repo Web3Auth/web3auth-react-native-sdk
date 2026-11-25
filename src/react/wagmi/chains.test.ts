@@ -1,5 +1,5 @@
 import { CHAIN_NAMESPACES, type CustomChainConfig } from "@web3auth/no-modal";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { buildEvmWagmiChains, getEvmChainTransport } from "./chains";
 
