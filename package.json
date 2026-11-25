@@ -47,8 +47,7 @@
     "changeset": "changeset",
     "version-packages": "changeset version && npm install --package-lock-only --ignore-scripts",
     "release-packages": "changeset publish",
-    "prepack": "npm run build",
-    "prepare": "husky"
+    "prepack": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -84,8 +83,6 @@
     "@wallet-standard/base": "^1.1.1",
     "@wallet-standard/features": "^1.1.1",
     "@web3auth/auth": "^12.0.0",
-    "@web3auth/base": "^9.7.0",
-    "@web3auth/base-provider": "^9.7.0",
     "@web3auth/ethereum-provider": "^9.7.0",
     "@web3auth/no-modal": "^11.4.3",
     "@web3auth/ws-embed": "^6.1.0",
@@ -152,19 +149,12 @@
     "@types/lodash.unionby": "^4.8.9",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
-    "@types/react-native": "^0.73.0",
     "@types/react-test-renderer": "^19.3.1",
     "@types/urijs": "^1.19.26",
     "@wagmi/core": "^3.6.9",
-    "eslint": "^9.39.5",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
-    "prettier": "^3.10.1",
     "react": "^19.3.1",
     "react-native": "^0.88.1",
     "react-test-renderer": "^19.3.1",
-    "rimraf": "^6.1.4",
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "viem": "^2.58.4",
     "vite-plus": "1.7.0",
@@ -197,7 +187,6 @@
     "vitest": "5.1.0"
   },
   "allowScripts": {
-    "esbuild@0.28.1": true,
     "fsevents@2.3.3": false,
     "protobufjs@7.6.5": false,
     "tiny-secp256k1@1.1.7": false
